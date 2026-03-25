@@ -138,7 +138,7 @@ class TestInterpretationKind:
 
 class TestInterventionClass:
     def test_twelve_classes(self):
-        assert len(InterventionClass) == 12
+        assert len(InterventionClass) == 15
 
     def test_includes_als_relevant_types(self):
         values = {m.value for m in InterventionClass}

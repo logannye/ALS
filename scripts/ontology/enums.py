@@ -44,6 +44,15 @@ class EvidenceDirection(str, Enum):
     insufficient = "insufficient"
 
 
+class EvidenceStrength(str, Enum):
+    """Strength of evidence supporting a claim."""
+    strong = "strong"
+    moderate = "moderate"
+    emerging = "emerging"
+    preclinical = "preclinical"
+    unknown = "unknown"
+
+
 class ActionClass(str, Enum):
     read_only = "read_only"
     simulation_only = "simulation_only"
@@ -130,6 +139,9 @@ class InterventionClass(str, Enum):
     workflow_action = "workflow_action"
     wet_lab_perturbation = "wet_lab_perturbation"
     trial_assignment = "trial_assignment"
+    gene_therapy = "gene_therapy"
+    cell_therapy = "cell_therapy"
+    peptide = "peptide"
 
 
 class RelationCategory(str, Enum):

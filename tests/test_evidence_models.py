@@ -1,7 +1,7 @@
 """Tests for ontology.evidence — EvidenceItem and EvidenceBundle."""
 import pytest
 
-from ontology.enums import EvidenceDirection
+from ontology.enums import EvidenceDirection, EvidenceStrength
 from ontology.evidence import EvidenceBundle, EvidenceItem
 
 
@@ -16,7 +16,7 @@ class TestEvidenceItem:
             claim="TDP-43 nuclear clearance correlates with ALS severity",
             direction=EvidenceDirection.supports,
             source_refs=["observation:tdp43_igg_2025_05", "literature:pmid_12345678"],
-            strength=0.82,
+            strength=EvidenceStrength.strong,
             notes="Observed in patient cohort study n=142",
         )
 
@@ -39,7 +39,7 @@ class TestEvidenceItem:
 
     def test_strength(self):
         e = self._make()
-        assert e.strength == pytest.approx(0.82)
+        assert e.strength == EvidenceStrength.strong
 
     def test_notes(self):
         e = self._make()
@@ -51,7 +51,7 @@ class TestEvidenceItem:
             claim="Minimal claim",
             direction=EvidenceDirection.insufficient,
             source_refs=[],
-            strength=0.0,
+            strength=EvidenceStrength.unknown,
             notes="",
         )
         assert e.type == "EvidenceItem"
@@ -63,7 +63,7 @@ class TestEvidenceItem:
             claim="SOD1 mutation not found",
             direction=EvidenceDirection.refutes,
             source_refs=["observation:genomic_001"],
-            strength=0.95,
+            strength=EvidenceStrength.strong,
             notes="",
         )
         assert e.direction == EvidenceDirection.refutes
@@ -74,7 +74,7 @@ class TestEvidenceItem:
             claim="Riluzole efficacy",
             direction=EvidenceDirection.mixed,
             source_refs=[],
-            strength=0.5,
+            strength=EvidenceStrength.moderate,
             notes="",
         )
         assert e.direction == EvidenceDirection.mixed

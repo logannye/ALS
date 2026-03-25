@@ -6,10 +6,12 @@ Includes:
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from pydantic import Field
 
 from ontology.base import BaseEnvelope
-from ontology.enums import EvidenceDirection
+from ontology.enums import EvidenceDirection, EvidenceStrength
 
 
 # ---------------------------------------------------------------------------
@@ -27,7 +29,8 @@ class EvidenceItem(BaseEnvelope):
     claim: str
     direction: EvidenceDirection
     source_refs: list[str] = Field(default_factory=list)
-    strength: float
+    strength: EvidenceStrength = EvidenceStrength.unknown
+    supersedes_ref: Optional[str] = None
     notes: str = ""
 
 

@@ -29,7 +29,7 @@ class Intervention(BaseEnvelope):
     intervention_class: InterventionClass
     targets: list[str] = Field(default_factory=list)
     protocol_layer: Optional[ProtocolLayer] = None
-    route: str
+    route: str = ""
     intended_effects: list[str] = Field(default_factory=list)
     known_risks: list[str] = Field(default_factory=list)
     contraindications: list[str] = Field(default_factory=list)
