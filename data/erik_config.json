@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "database_name": "erik_kg",
+  "llm_server_enabled": false,
+  "temperature": 1.0,
+  "exploration_epsilon": 0.30,
+  "action_timeout_s": 120,
+  "hot_reload_interval_steps": 10,
+  "audit_enabled": true
+}
