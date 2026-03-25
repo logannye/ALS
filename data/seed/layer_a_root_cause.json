@@ -1,0 +1,487 @@
+[
+  {
+    "id": "evi:tofersen_valor",
+    "claim": "Tofersen reduces CSF SOD1 by ~35% and plasma NfL by ~60% in SOD1-ALS over 28 weeks",
+    "direction": "supports",
+    "source_refs": ["pmid:35389978"],
+    "strength": "strong",
+    "notes": "VALOR RCT, n=108. Primary endpoint (ALSFRS-R) not met at 28wk, but biomarker endpoints strongly positive. Led to accelerated approval based on SOD1 reduction as surrogate.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "SOD1_toxic_gain_of_function",
+      "intervention_ref": "int:tofersen",
+      "intervention_class": "aso",
+      "regulatory_status": "approved_accelerated",
+      "applicable_subtypes": ["sod1"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "trial_phase": "phase3",
+      "modality": "rct",
+      "cohort_size": 108,
+      "key_endpoints": {
+        "csf_sod1_reduction": "35%",
+        "plasma_nfl_reduction": "60%",
+        "alsfrs_r_slope": "not_significant_28wk"
+      }
+    }
+  },
+  {
+    "id": "evi:tofersen_ole_3y",
+    "claim": "Early tofersen initiation associated with ~25% stabilization advantage over delayed start at 3.5 years in SOD1-ALS open-label extension",
+    "direction": "supports",
+    "source_refs": ["pmid:39693600"],
+    "strength": "strong",
+    "notes": "JAMA Neurology 2025. OLE of VALOR trial. Early-start group showed sustained benefit in ALSFRS-R, respiratory function, and survival vs delayed-start. Strongest signal for presymptomatic/early intervention.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "SOD1_toxic_gain_of_function",
+      "intervention_ref": "int:tofersen",
+      "intervention_class": "aso",
+      "regulatory_status": "approved_accelerated",
+      "applicable_subtypes": ["sod1"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "trial_phase": "ole",
+      "modality": "open_label_extension",
+      "cohort_size": 95,
+      "key_endpoints": {
+        "early_vs_delayed_alsfrs_r": "~25% stabilization advantage",
+        "survival_benefit": "trend_positive",
+        "sustained_sod1_suppression": true
+      }
+    }
+  },
+  {
+    "id": "evi:sodesta_approval",
+    "claim": "AAV-mediated SOD1 gene silencing achieves ~25% slowing of progression at 1 year in SOD1-ALS",
+    "direction": "supports",
+    "source_refs": ["fda_approval_2025"],
+    "strength": "moderate",
+    "notes": "Approved 2025 under accelerated pathway. One-time intrathecal gene therapy. Durable SOD1 suppression without repeated lumbar punctures. Complementary to tofersen approach.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "SOD1_gene_expression",
+      "intervention_ref": "int:sodesta",
+      "intervention_class": "gene_therapy",
+      "regulatory_status": "approved_accelerated",
+      "applicable_subtypes": ["sod1"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "trial_phase": "approved",
+      "modality": "single_arm",
+      "key_endpoints": {
+        "progression_slowing": "~25% at 1yr",
+        "sod1_suppression_durability": "sustained_12mo"
+      }
+    }
+  },
+  {
+    "id": "evi:sod1_toxic_gof",
+    "claim": "SOD1 mutations cause ALS through toxic gain-of-function in transgenic mice (G93A model), establishing gene-to-disease causality",
+    "direction": "supports",
+    "source_refs": ["pmid:8209258"],
+    "strength": "strong",
+    "notes": "Gurney et al 1994, Science. SOD1-G93A transgenic mouse developed progressive motor neuron disease despite retaining dismutase activity. Landmark paper establishing toxic gain-of-function mechanism.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "SOD1_toxic_gain_of_function",
+      "applicable_subtypes": ["sod1"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "transgenic_model",
+      "key_endpoints": {
+        "mn_degeneration": true,
+        "enzyme_activity_retained": true,
+        "toxic_aggregation": true
+      }
+    }
+  },
+  {
+    "id": "evi:biib078_failure",
+    "claim": "BIIB078 ASO targeting C9orf72 repeat RNA failed to reduce DPR proteins or pTDP-43 despite adequate CNS distribution",
+    "direction": "refutes",
+    "source_refs": ["pmid:39880952"],
+    "strength": "strong",
+    "notes": "Bhatt et al, Cell 2025. Phase 1 trial. Post-mortem analysis showed ASO reached target tissue but DPRs and pTDP-43 persisted. Suggests repeat RNA knockdown alone insufficient — downstream pathology self-sustaining.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "C9orf72_repeat_RNA",
+      "intervention_ref": "int:biib078",
+      "intervention_class": "aso",
+      "regulatory_status": "discontinued",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "trial_phase": "phase1",
+      "modality": "single_arm_with_postmortem",
+      "key_endpoints": {
+        "cns_distribution": "adequate",
+        "dpr_reduction": "not_significant",
+        "ptdp43_reduction": "not_significant"
+      }
+    }
+  },
+  {
+    "id": "evi:c9orf72_repeat_expansion",
+    "claim": "GGGGCC hexanucleotide repeat expansion in C9orf72 is the most common genetic cause of ALS and FTD",
+    "direction": "supports",
+    "source_refs": ["pmid:21944778"],
+    "strength": "strong",
+    "notes": "DeJesus-Hernandez et al 2011, Neuron. Discovery of C9orf72 repeat expansion. Accounts for ~40% familial ALS and ~25% familial FTD. Also found in ~7% sporadic ALS.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "C9orf72_repeat_expansion",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "familial_als_frequency": "~40%",
+        "sporadic_als_frequency": "~7%",
+        "repeat_length_pathogenic": ">30"
+      }
+    }
+  },
+  {
+    "id": "evi:c9orf72_dpr_biology",
+    "claim": "C9orf72 repeat RNA undergoes repeat-associated non-ATG (RAN) translation producing five dipeptide repeat proteins (DPRs) that are toxic to neurons",
+    "direction": "supports",
+    "source_refs": ["pmid:23393093"],
+    "strength": "strong",
+    "notes": "Mori et al 2013, Science. Identified all 5 DPR species (poly-GA, poly-GP, poly-GR, poly-PA, poly-PR). Poly-GR and poly-PR most toxic. Established RAN translation as key pathogenic mechanism.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "C9orf72_DPR_toxicity",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "dpr_species_identified": 5,
+        "most_toxic_dprs": ["poly_GR", "poly_PR"],
+        "ran_translation_confirmed": true
+      }
+    }
+  },
+  {
+    "id": "evi:c9orf72_lof_immune",
+    "claim": "C9orf72 loss-of-function causes immune dysregulation and neuroinflammation, contributing to disease alongside toxic gain-of-function",
+    "direction": "supports",
+    "source_refs": ["pmid:27338793"],
+    "strength": "moderate",
+    "notes": "O'Rourke et al 2016, Science. C9orf72 null mice develop splenomegaly, lymphadenopathy, and autoimmune features. Suggests C9orf72 repeat expansion has dual mechanism: GOF (DPR toxicity) + LOF (immune dysregulation).",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "C9orf72_loss_of_function",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "modality": "transgenic_model",
+      "key_endpoints": {
+        "immune_dysregulation": true,
+        "neuroinflammation": true,
+        "dual_mechanism": "GOF_plus_LOF"
+      }
+    }
+  },
+  {
+    "id": "evi:jacifusen_expanded",
+    "claim": "Jacifusen (ulefnersen) reduces plasma NfL by 82.8% in expanded access FUS-ALS patients over 12 months",
+    "direction": "supports",
+    "source_refs": ["clinical_announcement_2024"],
+    "strength": "moderate",
+    "notes": "Ionis/Jacifusen Foundation expanded access program, 12 patients. Dramatic NfL reduction. Supported by n-of-1 compassionate use case in Jaci Hermstad that inspired program name.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "FUS_toxic_protein",
+      "intervention_ref": "int:jacifusen",
+      "intervention_class": "aso",
+      "regulatory_status": "phase3",
+      "applicable_subtypes": ["fus"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 2,
+      "trial_phase": "expanded_access",
+      "modality": "expanded_access",
+      "cohort_size": 12,
+      "key_endpoints": {
+        "plasma_nfl_reduction": "82.8%",
+        "clinical_stabilization": "observed_subset"
+      }
+    }
+  },
+  {
+    "id": "evi:fus_llps",
+    "claim": "FUS protein undergoes liquid-liquid phase separation that can convert to solid-like pathological aggregates, explaining FUS-ALS toxicity",
+    "direction": "supports",
+    "source_refs": ["pmid:26317470"],
+    "strength": "strong",
+    "notes": "Patel et al 2015, Cell. Demonstrated that FUS liquid droplets mature into solid fibrillar aggregates over time or with ALS mutations. Disease mutations accelerate liquid-to-solid transition.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "FUS_phase_transition",
+      "applicable_subtypes": ["fus"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "biophysics",
+      "key_endpoints": {
+        "llps_to_solid_transition": true,
+        "mutation_acceleration": true,
+        "reversibility_window": "early_phase_only"
+      }
+    }
+  },
+  {
+    "id": "evi:fusion_phase3",
+    "claim": "FUSION Phase 3 trial of jacifusen enrolling 80+ FUS-ALS patients, the largest FUS-ALS trial ever conducted",
+    "direction": "supports",
+    "source_refs": ["nct:NCT05985941"],
+    "strength": "emerging",
+    "notes": "Phase 3 pivotal trial. Rare disease challenge: FUS mutations account for ~3% familial ALS. Multi-center global enrollment. Primary endpoint ALSFRS-R slope.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "FUS_toxic_protein",
+      "intervention_ref": "int:jacifusen",
+      "intervention_class": "aso",
+      "regulatory_status": "phase3",
+      "applicable_subtypes": ["fus"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 1,
+      "trial_phase": "phase3",
+      "modality": "rct",
+      "cohort_size": 80,
+      "key_endpoints": {
+        "primary": "alsfrs_r_slope",
+        "secondary": ["nfl", "fus_protein_levels", "survival"]
+      }
+    }
+  },
+  {
+    "id": "evi:vtx002_fast_track",
+    "claim": "VTx-002 TDP-43 intrabody gene therapy received FDA Fast Track designation and is entering PIONEER-ALS Phase 1/2 trial",
+    "direction": "supports",
+    "source_refs": ["fda_fast_track_2026"],
+    "strength": "emerging",
+    "notes": "Voyager Therapeutics. First therapy directly targeting TDP-43 aggregation in sporadic ALS. Intrabody delivered via AAV binds cytoplasmic TDP-43 aggregates. HIGHLY RELEVANT for Erik (sporadic, likely TDP-43).",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TDP43_aggregation",
+      "intervention_ref": "int:vtx002",
+      "intervention_class": "gene_therapy",
+      "regulatory_status": "phase1_2",
+      "applicable_subtypes": ["sporadic_tdp43", "tardbp"],
+      "erik_eligible": true,
+      "pch_layer": 1,
+      "trial_phase": "phase1_2",
+      "modality": "single_arm",
+      "key_endpoints": {
+        "primary": "safety_tolerability",
+        "secondary": ["tdp43_biomarkers", "nfl", "alsfrs_r"]
+      }
+    }
+  },
+  {
+    "id": "evi:tdp43_disease_protein",
+    "claim": "TDP-43 is the major disease protein in ALS, found in cytoplasmic inclusions in ~97% of all ALS cases",
+    "direction": "supports",
+    "source_refs": ["pmid:17023659"],
+    "strength": "strong",
+    "notes": "Neumann et al 2006, Science. Discovery of TDP-43 as ubiquitinated inclusion protein in ALS and FTLD. Landmark paper establishing TDP-43 proteinopathy as unifying feature of most ALS.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TDP43_proteinopathy",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "neuropathology",
+      "key_endpoints": {
+        "als_cases_with_tdp43": "~97%",
+        "protein_identified": "TARDBP/TDP-43",
+        "pathology_type": "cytoplasmic_ubiquitinated_inclusions"
+      }
+    }
+  },
+  {
+    "id": "evi:tdp43_cryptic_splicing",
+    "claim": "TDP-43 nuclear loss causes incorporation of cryptic exons in multiple transcripts, disrupting essential neuronal proteins",
+    "direction": "supports",
+    "source_refs": ["pmid:25294932"],
+    "strength": "strong",
+    "notes": "Ling et al 2015, Science. TDP-43 normally represses cryptic exon inclusion. Nuclear depletion (as in ALS) de-represses hundreds of cryptic exons. Key downstream targets: STMN2, UNC13A.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TDP43_cryptic_splicing",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "transcriptomics",
+      "key_endpoints": {
+        "cryptic_exons_identified": "hundreds",
+        "key_targets": ["STMN2", "UNC13A"],
+        "mechanism": "nuclear_TDP43_depletion"
+      }
+    }
+  },
+  {
+    "id": "evi:tdp43_nuclear_loss",
+    "claim": "TDP-43 nuclear clearance with cytoplasmic aggregation is the defining pathological hallmark of ALS, present in 97% of cases",
+    "direction": "supports",
+    "source_refs": ["pmid:17023659", "pmid:25294932"],
+    "strength": "strong",
+    "notes": "Nuclear-to-cytoplasmic mislocalization is both loss-of-function (nuclear RNA processing) and gain-of-function (cytoplasmic aggregation toxicity). Dual mechanism drives disease.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TDP43_nuclear_cytoplasmic_mislocalization",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "neuropathology",
+      "key_endpoints": {
+        "frequency_in_als": "97%",
+        "dual_mechanism": "LOF_nuclear_plus_GOF_cytoplasmic"
+      }
+    }
+  },
+  {
+    "id": "evi:ap2_tdp43_balance",
+    "claim": "AP-2 complex modulates TDP-43 nuclear-cytoplasmic balance; AP-2alpha restoration reduces TDP-43 mislocalization in preclinical models",
+    "direction": "supports",
+    "source_refs": ["preprint_2025_molefy"],
+    "strength": "preclinical",
+    "notes": "Molefy/academic collaboration. AP-2 adaptor complex involved in TDP-43 nuclear import. Preclinical restoration of AP-2alpha reduces cytoplasmic TDP-43 aggregation. Early-stage but novel mechanism.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TDP43_nuclear_import",
+      "applicable_subtypes": ["sporadic_tdp43", "tardbp"],
+      "erik_eligible": false,
+      "pch_layer": 1,
+      "modality": "preclinical",
+      "key_endpoints": {
+        "tdp43_nuclear_restoration": "partial",
+        "aggregate_reduction": "significant_in_model"
+      }
+    }
+  },
+  {
+    "id": "evi:genetic_testing_als",
+    "claim": "Genetic testing is recommended for all ALS patients regardless of family history, as ~10% of apparently sporadic ALS has identifiable genetic cause",
+    "direction": "supports",
+    "source_refs": ["pmid:37691292"],
+    "strength": "strong",
+    "notes": "AAN/ACMG practice guideline 2023. Recommends genetic testing for all ALS patients. C9orf72 most common finding in sporadic cases. Results increasingly actionable (tofersen for SOD1, jacifusen for FUS). CRITICAL for Erik — genetics PENDING.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "genetic_diagnosis",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "clinical_guideline",
+      "key_endpoints": {
+        "sporadic_genetic_frequency": "~10%",
+        "most_common_sporadic_gene": "C9orf72",
+        "actionable_genes": ["SOD1", "FUS", "C9orf72"]
+      }
+    }
+  },
+  {
+    "id": "evi:gold_coast_criteria",
+    "claim": "Gold Coast criteria simplify ALS diagnosis requiring progressive UMN+LMN dysfunction, improving sensitivity over El Escorial",
+    "direction": "supports",
+    "source_refs": ["pmid:31760710"],
+    "strength": "strong",
+    "notes": "Shefner et al 2020. Gold Coast criteria: (1) progressive motor impairment, (2) UMN and LMN signs, (3) absence of alternative explanation. Replaces complex El Escorial certainty levels.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "diagnostic_criteria",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "clinical_guideline",
+      "key_endpoints": {
+        "sensitivity_improvement": "over_el_escorial",
+        "key_requirements": ["progressive_motor", "UMN_and_LMN", "no_alternative"]
+      }
+    }
+  },
+  {
+    "id": "evi:nfl_elevated_als",
+    "claim": "Elevated neurofilament light chain (NfL) is a sensitive diagnostic and prognostic biomarker in ALS, with higher levels predicting faster progression",
+    "direction": "supports",
+    "source_refs": ["pmid:36450372"],
+    "strength": "strong",
+    "notes": "Benatar et al 2023, Lancet Neurology. NfL elevated in presymptomatic carriers and at diagnosis. Level correlates with progression rate. Erik's NfL 5.82 (elevated) consistent with ALS diagnosis and moderate-fast progression risk.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "neurofilament_biomarker",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "biomarker_study",
+      "key_endpoints": {
+        "diagnostic_sensitivity": "high",
+        "prognostic_correlation": "higher_NfL_faster_progression",
+        "erik_nfl": 5.82,
+        "erik_interpretation": "elevated_moderate_risk"
+      }
+    }
+  },
+  {
+    "id": "evi:als_sporadic_heterogeneity",
+    "claim": "Sporadic ALS is biologically heterogeneous, with distinct molecular subtypes requiring different therapeutic strategies",
+    "direction": "supports",
+    "source_refs": ["pmid:36473504"],
+    "strength": "moderate",
+    "notes": "Emerging consensus from transcriptomic, proteomic, and clinical clustering studies. Not all sporadic ALS is identical — glial-predominant, oxidative, excitotoxic, and proteostatic subtypes may exist. Important for treatment stratification.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "disease_heterogeneity",
+      "applicable_subtypes": ["sporadic_tdp43", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "multi_omics",
+      "key_endpoints": {
+        "subtypes_proposed": ["glial_predominant", "oxidative", "excitotoxic", "proteostatic"],
+        "stratification_needed": true
+      }
+    }
+  },
+  {
+    "id": "evi:tardbp_mutations_als",
+    "claim": "TARDBP mutations account for ~3% of familial ALS and confirm TDP-43 as causative, not just a bystander, in ALS pathogenesis",
+    "direction": "supports",
+    "source_refs": ["pmid:18309045"],
+    "strength": "strong",
+    "notes": "Sreedharan et al 2008, Science. Discovery of TARDBP mutations in familial ALS. Proved TDP-43 dysfunction is sufficient to cause ALS, not merely a downstream marker.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "TARDBP_mutations",
+      "applicable_subtypes": ["tardbp", "sporadic_tdp43"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "familial_als_frequency": "~3%",
+        "causal_proof": "mutations_in_disease_protein"
+      }
+    }
+  },
+  {
+    "id": "evi:als_risk_genes_gwas",
+    "claim": "GWAS identifies common risk variants (UNC13A, C21orf2, MOBP, SCFD1) contributing to sporadic ALS susceptibility",
+    "direction": "supports",
+    "source_refs": ["pmid:29566793"],
+    "strength": "moderate",
+    "notes": "van Rheenen et al 2016, Nicolas et al 2018. UNC13A SNP rs12973192 is a major sporadic ALS risk variant — now understood to modulate TDP-43-dependent cryptic exon severity.",
+    "body": {
+      "protocol_layer": "root_cause_suppression",
+      "mechanism_target": "common_risk_variants",
+      "applicable_subtypes": ["sporadic_tdp43", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "gwas",
+      "key_endpoints": {
+        "key_risk_snp": "rs12973192_UNC13A",
+        "tdp43_connection": "modulates_cryptic_exon_severity"
+      }
+    }
+  }
+]

@@ -1,0 +1,504 @@
+[
+  {
+    "id": "evi:unc13a_cryptic_exon",
+    "claim": "TDP-43 loss of function causes cryptic exon inclusion in UNC13A, reducing UNC13A protein and impairing synaptic vesicle release",
+    "direction": "supports",
+    "source_refs": ["pmid:35197626"],
+    "strength": "strong",
+    "notes": "Brown et al 2022, Nature. TDP-43 depletion exposes a cryptic exon in UNC13A intron 20-21. UNC13A is essential for synaptic vesicle priming. Loss explains early synaptic dysfunction in ALS.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "UNC13A_cryptic_exon",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "transcriptomics",
+      "key_endpoints": {
+        "cryptic_exon_location": "intron_20_21",
+        "unc13a_protein_reduction": "significant",
+        "synaptic_function_impaired": true
+      }
+    }
+  },
+  {
+    "id": "evi:unc13a_tdp43_risk",
+    "claim": "UNC13A risk SNP rs12973192 creates a stronger TDP-43 binding site, making cryptic exon inclusion more severe and accelerating ALS progression",
+    "direction": "supports",
+    "source_refs": ["pmid:35197625"],
+    "strength": "strong",
+    "notes": "Ma et al 2022, Nature. The common GWAS risk variant in UNC13A enhances cryptic exon inclusion specifically when TDP-43 is depleted. Explains how a common variant modifies ALS severity.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "UNC13A_TDP43_interaction",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "functional_genomics",
+      "key_endpoints": {
+        "risk_snp": "rs12973192",
+        "mechanism": "enhanced_cryptic_exon_inclusion",
+        "tdp43_dependence": true
+      }
+    }
+  },
+  {
+    "id": "evi:stmn2_repression",
+    "claim": "TDP-43 depletion causes STMN2 cryptic exon inclusion and loss of stathmin-2 protein, impairing axonal regeneration",
+    "direction": "supports",
+    "source_refs": ["pmid:30996110", "pmid:30996109"],
+    "strength": "strong",
+    "notes": "Klim et al 2019, Melamed et al 2019, Nature Neuroscience. Concurrent discovery by two groups. STMN2 is essential for axonal maintenance and regeneration. TDP-43 loss → STMN2 loss → axonal degeneration.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "STMN2_cryptic_exon",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "stmn2_reduction": "near_complete",
+        "axonal_regeneration_impaired": true,
+        "rescue_possible": "with_STMN2_restoration"
+      }
+    }
+  },
+  {
+    "id": "evi:stmn2_aso_restore",
+    "claim": "ASO targeting STMN2 cryptic exon restores stathmin-2 expression and axonal regeneration capacity in TDP-43 depleted neurons",
+    "direction": "supports",
+    "source_refs": ["pmid:33692539"],
+    "strength": "preclinical",
+    "notes": "Baughn et al 2023 and related work. Steric-blocking ASO prevents cryptic exon inclusion, restoring full-length STMN2 mRNA and protein. Multiple groups developing toward clinical translation.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "STMN2_restoration",
+      "intervention_ref": "int:stmn2_aso",
+      "intervention_class": "aso",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "modality": "preclinical",
+      "key_endpoints": {
+        "stmn2_restoration": "near_complete",
+        "axonal_regeneration_restored": true,
+        "clinical_translation": "in_development"
+      }
+    }
+  },
+  {
+    "id": "evi:unc13a_aso_restore",
+    "claim": "ASO targeting UNC13A cryptic exon restores UNC13A expression in TDP-43 depleted neurons, rescuing synaptic function",
+    "direction": "supports",
+    "source_refs": ["pmid:35197626"],
+    "strength": "preclinical",
+    "notes": "Demonstrated in Brown et al 2022 and subsequent work. Steric-blocking ASO approach mirrors STMN2 strategy. Potential synergy: dual STMN2 + UNC13A ASO could address both axonal and synaptic deficits.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "UNC13A_restoration",
+      "intervention_ref": "int:unc13a_aso",
+      "intervention_class": "aso",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "modality": "preclinical",
+      "key_endpoints": {
+        "unc13a_restoration": "significant",
+        "synaptic_rescue": true,
+        "clinical_translation": "in_development"
+      }
+    }
+  },
+  {
+    "id": "evi:pridopidine_phase2",
+    "claim": "Pridopidine Phase 2 showed 32% slowing of ALSFRS-R decline, 62% respiratory benefit, and 57% survival improvement in ALS",
+    "direction": "supports",
+    "source_refs": ["clinical_announcement_2023_prilenia"],
+    "strength": "moderate",
+    "notes": "Prilenia Therapeutics Phase 2 trial results. Sigma-1R agonist. All-subtype ALS population. Led to PREVAiLS Phase 3 trial design. Multiple secondary endpoints positive.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "sigma1R_agonism",
+      "intervention_ref": "int:pridopidine",
+      "intervention_class": "drug",
+      "regulatory_status": "phase3",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "trial_phase": "phase2",
+      "modality": "rct",
+      "key_endpoints": {
+        "alsfrs_r_slowing": "32%",
+        "respiratory_benefit": "62%",
+        "survival_improvement": "57%"
+      }
+    }
+  },
+  {
+    "id": "evi:prevails_phase3",
+    "claim": "PREVAiLS Phase 3 trial of pridopidine enrolling 500 patients across 60 centers globally, starting January 2026",
+    "direction": "supports",
+    "source_refs": ["nct:NCT05637775"],
+    "strength": "emerging",
+    "notes": "Largest pridopidine trial. All-subtype ALS. Primary endpoint: combined functional + respiratory. HIGHLY RELEVANT for Erik — sporadic ALS, enrolling now.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "sigma1R_agonism",
+      "intervention_ref": "int:pridopidine",
+      "intervention_class": "drug",
+      "regulatory_status": "phase3",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 1,
+      "trial_phase": "phase3",
+      "modality": "rct",
+      "cohort_size": 500,
+      "key_endpoints": {
+        "primary": "combined_functional_respiratory",
+        "centers": 60,
+        "enrollment_start": "2026-01"
+      }
+    }
+  },
+  {
+    "id": "evi:sigma1r_biology",
+    "claim": "Sigma-1 receptor is an ER-mitochondria tethering protein that regulates calcium homeostasis, ER stress response, and proteostasis — all disrupted in ALS",
+    "direction": "supports",
+    "source_refs": ["pmid:26455319"],
+    "strength": "strong",
+    "notes": "Hayashi & Su 2007, reviewed extensively. SIGMAR1 at MAM (mitochondria-associated ER membrane) regulates IP3R calcium signaling, ERAD, and autophagy. Motor neurons particularly dependent on MAM function.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "sigma1R_MAM_function",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "mam_tethering": true,
+        "calcium_regulation": true,
+        "proteostasis_support": true,
+        "motor_neuron_relevance": "high"
+      }
+    }
+  },
+  {
+    "id": "evi:sigma1r_als_mutations",
+    "claim": "SIGMAR1 mutations cause juvenile ALS (ALS16), confirming sigma-1 receptor as a genuine ALS disease gene",
+    "direction": "supports",
+    "source_refs": ["pmid:21532572"],
+    "strength": "strong",
+    "notes": "Al-Saif et al 2011. Homozygous SIGMAR1 mutations in consanguineous family with juvenile ALS. Confirms that sigma-1R loss-of-function is sufficient for motor neuron disease.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "SIGMAR1_mutations",
+      "applicable_subtypes": ["sporadic_tdp43", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "als_subtype": "ALS16_juvenile",
+        "inheritance": "autosomal_recessive",
+        "causal_proof": "loss_of_function"
+      }
+    }
+  },
+  {
+    "id": "evi:rapamycin_tdp43",
+    "claim": "Rapamycin-induced autophagy clears TDP-43 aggregates and improves motor function in TDP-43 transgenic mouse models",
+    "direction": "supports",
+    "source_refs": ["pmid:23929944"],
+    "strength": "preclinical",
+    "notes": "Wang et al 2012 and related work. mTOR inhibition activates autophagy, promoting clearance of TDP-43 aggregates. Dose-response relationship observed. Translational gap: optimal dosing for CNS autophagy without systemic immunosuppression.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "mTOR_autophagy_TDP43",
+      "intervention_ref": "int:rapamycin",
+      "intervention_class": "small_molecule",
+      "applicable_subtypes": ["sporadic_tdp43", "tardbp", "glia_amplified"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "transgenic_model",
+      "key_endpoints": {
+        "aggregate_clearance": "significant",
+        "motor_function": "improved",
+        "autophagy_induction": "confirmed"
+      }
+    }
+  },
+  {
+    "id": "evi:tfeb_activation",
+    "claim": "TFEB overexpression enhances autophagy-lysosomal pathway and reduces TDP-43 pathology in cellular and animal models",
+    "direction": "supports",
+    "source_refs": ["pmid:30082317"],
+    "strength": "preclinical",
+    "notes": "TFEB is master transcription factor for lysosomal biogenesis. Activation promotes aggregate clearance. Multiple approaches to TFEB activation under investigation (mTOR-dependent and independent).",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "TFEB_autophagy_lysosomal",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "tardbp"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "preclinical",
+      "key_endpoints": {
+        "autophagy_enhancement": "significant",
+        "tdp43_reduction": "moderate",
+        "lysosomal_biogenesis": "increased"
+      }
+    }
+  },
+  {
+    "id": "evi:trehalose_autophagy",
+    "claim": "Trehalose activates autophagy through mTOR-independent pathways and reduces protein aggregation in neurodegenerative disease models",
+    "direction": "supports",
+    "source_refs": ["pmid:17382886"],
+    "strength": "preclinical",
+    "notes": "Sarkar et al 2007, J Biol Chem. Trehalose induces autophagy independently of mTOR, potentially complementing rapamycin. Oral bioavailability limited by intestinal trehalase. Favorable safety profile as natural disaccharide.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "mTOR_independent_autophagy",
+      "intervention_ref": "int:trehalose",
+      "intervention_class": "small_molecule",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 1,
+      "modality": "preclinical",
+      "key_endpoints": {
+        "autophagy_induction": "mTOR_independent",
+        "aggregate_reduction": "moderate",
+        "oral_bioavailability": "limited_by_trehalase"
+      }
+    }
+  },
+  {
+    "id": "evi:xbp1_upr",
+    "claim": "XBP1 deficiency is paradoxically protective in ALS mice by enhancing autophagy, suggesting UPR modulation as therapeutic strategy",
+    "direction": "supports",
+    "source_refs": ["pmid:19762508"],
+    "strength": "preclinical",
+    "notes": "Hetz et al 2009, Genes Dev. XBP1 conditional knockout in nervous system enhanced autophagy and reduced SOD1 aggregation. Reveals that some ER stress responses are maladaptive in ALS.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "UPR_modulation",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "transgenic_model",
+      "key_endpoints": {
+        "autophagy_enhanced": true,
+        "aggregation_reduced": true,
+        "survival_extended": true
+      }
+    }
+  },
+  {
+    "id": "evi:ubqln2_proteostasis",
+    "claim": "UBQLN2 mutations cause X-linked ALS/FTD with ubiquitin-positive inclusions, implicating the ubiquitin-proteasome system in ALS",
+    "direction": "supports",
+    "source_refs": ["pmid:21857683"],
+    "strength": "strong",
+    "notes": "Deng et al 2011, Nature. UBQLN2 delivers ubiquitinated substrates to proteasome. Mutations impair proteasomal degradation, causing accumulation of ubiquitinated aggregates. Links UPS dysfunction to ALS.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "ubiquitin_proteasome_system",
+      "applicable_subtypes": ["sporadic_tdp43", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "inheritance": "X_linked_dominant",
+        "pathway": "UPS",
+        "inclusion_type": "ubiquitin_positive"
+      }
+    }
+  },
+  {
+    "id": "evi:fus_llps_hardening",
+    "claim": "FUS liquid droplets undergo time- and mutation-dependent hardening into solid fibrillar aggregates, establishing phase transition as disease mechanism",
+    "direction": "supports",
+    "source_refs": ["pmid:26317470"],
+    "strength": "strong",
+    "notes": "Patel et al 2015, Cell. In vitro reconstitution showing FUS LLPS→solid transition. ALS mutations (R521C, R521H, P525L) dramatically accelerate hardening. Defines therapeutic window for phase transition intervention.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "FUS_phase_transition",
+      "applicable_subtypes": ["fus"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "biophysics",
+      "key_endpoints": {
+        "transition_rate": "mutation_dependent",
+        "reversibility": "early_only",
+        "therapeutic_implication": "prevent_hardening"
+      }
+    }
+  },
+  {
+    "id": "evi:sg_assembly_fibrillization",
+    "claim": "Stress granule proteins with low-complexity domains undergo aberrant phase transitions from functional liquid condensates to pathological solid aggregates",
+    "direction": "supports",
+    "source_refs": ["pmid:26455390"],
+    "strength": "strong",
+    "notes": "Molliex et al 2015, Mol Cell. hnRNPA1 and other SG proteins with LCD/prion-like domains undergo LLPS that can mature into amyloid-like fibrils. ALS mutations in multiple SG proteins accelerate this transition.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "stress_granule_fibrillization",
+      "applicable_subtypes": ["sporadic_tdp43", "fus", "tardbp", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "biophysics",
+      "key_endpoints": {
+        "proteins_affected": ["TDP43", "FUS", "hnRNPA1", "hnRNPA2B1", "TIA1"],
+        "transition_type": "liquid_to_solid",
+        "mutation_effect": "acceleration"
+      }
+    }
+  },
+  {
+    "id": "evi:dpr_condensate_disruption",
+    "claim": "C9orf72 dipeptide repeat proteins (poly-GR, poly-PR) disrupt membraneless organelles including stress granules and nucleoli",
+    "direction": "supports",
+    "source_refs": ["pmid:27078067"],
+    "strength": "strong",
+    "notes": "Lee et al 2016, Cell Reports. Arginine-rich DPRs (poly-GR, poly-PR) promiscuously interact with LCD-containing proteins, disrupting phase-separated compartments. Explains widespread cellular dysfunction in C9orf72-ALS.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "DPR_condensate_disruption",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "most_toxic_dprs": ["poly_GR", "poly_PR"],
+        "compartments_disrupted": ["stress_granules", "nucleoli", "nuclear_pores"],
+        "mechanism": "promiscuous_LCD_interactions"
+      }
+    }
+  },
+  {
+    "id": "evi:c9_nct_defects",
+    "claim": "C9orf72 repeat expansions disrupt nucleocytoplasmic transport (NCT), impairing nuclear import/export of proteins and RNA",
+    "direction": "supports",
+    "source_refs": ["pmid:26308891", "pmid:26317471"],
+    "strength": "strong",
+    "notes": "Zhang et al 2015, Freibaum et al 2015, Nature. Independent studies demonstrating NCT defects in C9orf72 models. DPRs and repeat RNA both contribute. RanGAP1 mislocalization observed.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "nucleocytoplasmic_transport",
+      "applicable_subtypes": ["c9orf72"],
+      "erik_eligible": "pending_genetics",
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "nct_disrupted": true,
+        "rangap1_mislocalization": true,
+        "dual_mechanism": "DPR_plus_repeat_RNA"
+      }
+    }
+  },
+  {
+    "id": "evi:rangap1_transport",
+    "claim": "RanGAP1 nuclear transport protein is mislocalized in C9orf72 and sporadic ALS motor neurons, contributing to TDP-43 nuclear loss",
+    "direction": "supports",
+    "source_refs": ["pmid:26308891"],
+    "strength": "moderate",
+    "notes": "Zhang et al 2015. RanGAP1 mislocalization at nuclear pore impairs Ran-GTP gradient needed for nuclear import. May explain TDP-43 nuclear clearance even in sporadic ALS without C9orf72 expansion.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "RanGAP1_mislocalization",
+      "applicable_subtypes": ["c9orf72", "sporadic_tdp43"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "rangap1_mislocalized": true,
+        "ran_gradient_disrupted": true,
+        "tdp43_nuclear_import_affected": true
+      }
+    }
+  },
+  {
+    "id": "evi:optineurin_autophagy",
+    "claim": "OPTN mutations impair selective autophagy/mitophagy, accumulating damaged mitochondria and protein aggregates in ALS motor neurons",
+    "direction": "supports",
+    "source_refs": ["pmid:20428114"],
+    "strength": "strong",
+    "notes": "Maruyama et al 2010, Nature. OPTN is a selective autophagy receptor. ALS mutations abolish its ability to recruit autophagic machinery to ubiquitinated substrates and damaged mitochondria.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "selective_autophagy_mitophagy",
+      "applicable_subtypes": ["sporadic_tdp43", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "autophagy_impaired": true,
+        "mitophagy_impaired": true,
+        "mitochondrial_accumulation": true
+      }
+    }
+  },
+  {
+    "id": "evi:vcp_multisystem_proteinopathy",
+    "claim": "VCP/p97 mutations cause multisystem proteinopathy (ALS/FTD/myopathy/Paget's) by impairing ER-associated degradation and autophagy",
+    "direction": "supports",
+    "source_refs": ["pmid:20301623"],
+    "strength": "strong",
+    "notes": "Johnson et al 2010. VCP/p97 AAA-ATPase is central to multiple proteostasis pathways. Mutations cause TDP-43 proteinopathy across multiple tissues. Links proteostasis failure to TDP-43 aggregation.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "VCP_proteostasis",
+      "applicable_subtypes": ["sporadic_tdp43", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "genetic_discovery",
+      "key_endpoints": {
+        "erad_impaired": true,
+        "autophagy_impaired": true,
+        "tdp43_pathology": true,
+        "multi_tissue": ["CNS", "muscle", "bone"]
+      }
+    }
+  },
+  {
+    "id": "evi:tdp43_mitochondrial_dysfunction",
+    "claim": "TDP-43 accumulates in mitochondria, impairs complex I activity, and causes mitochondrial dysfunction in ALS motor neurons",
+    "direction": "supports",
+    "source_refs": ["pmid:27716479"],
+    "strength": "moderate",
+    "notes": "Wang et al 2016, Nature Medicine. Cytoplasmic TDP-43 localizes to mitochondria, binds mRNAs encoding respiratory complex subunits, and impairs oxidative phosphorylation. Links TDP-43 pathology to bioenergetic failure.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "TDP43_mitochondrial_toxicity",
+      "applicable_subtypes": ["sporadic_tdp43", "tardbp", "glia_amplified", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "complex_I_impaired": true,
+        "mitochondrial_membrane_potential": "reduced",
+        "tdp43_mitochondrial_localization": true
+      }
+    }
+  },
+  {
+    "id": "evi:tdp43_dna_damage",
+    "claim": "TDP-43 depletion from the nucleus impairs DNA damage repair, causing genomic instability in ALS motor neurons",
+    "direction": "supports",
+    "source_refs": ["pmid:31028176"],
+    "strength": "moderate",
+    "notes": "Mitra et al 2019, Nature Commun. TDP-43 recruited to DNA double-strand breaks for NHEJ repair. Nuclear loss impairs DNA repair fidelity, accumulating genomic damage. Adds DNA damage to the cascade of TDP-43 loss consequences.",
+    "body": {
+      "protocol_layer": "pathology_modulation",
+      "mechanism_target": "TDP43_DNA_damage_repair",
+      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "dna_damage_accumulated": true,
+        "nhej_impaired": true,
+        "genomic_instability": true
+      }
+    }
+  }
+]

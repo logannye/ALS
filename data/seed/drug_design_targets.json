@@ -1,0 +1,102 @@
+[
+  {
+    "id": "ddt:tdp43_rrm",
+    "target_name": "TDP-43",
+    "druggable_site": "RRM1/RRM2 RNA-binding domains",
+    "strategy": "Prevent aberrant cytoplasmic aggregation or restore nuclear import by modulating RNA-binding domain conformation",
+    "pdb_ids": ["4BS2", "1WF0"],
+    "alphafold_id": "AF-Q13148-F1",
+    "compound_libraries": ["chembl_tardbp_actives", "zinc_rna_binding_modulators"],
+    "notes": "RRM1 (residues 106-176) and RRM2 (residues 191-259) are the structured core of TDP-43. Small molecules binding RRM may stabilize nuclear conformation or prevent aggregation-prone misfolding. Challenge: RRM domains are highly conserved RNA-binding folds — selectivity is critical."
+  },
+  {
+    "id": "ddt:tdp43_ctd",
+    "target_name": "TDP-43 C-terminal domain",
+    "druggable_site": "C-terminal low-complexity / prion-like domain (residues 274-414)",
+    "strategy": "Prevent liquid-to-solid phase transition and amyloid-like fibril formation in the intrinsically disordered C-terminal region",
+    "pdb_ids": ["7KWZ"],
+    "alphafold_id": "AF-Q13148-F1",
+    "compound_libraries": ["zinc_idr_binders", "chembridge_amyloid_inhibitors"],
+    "notes": "The CTD harbors most ALS-linked TARDBP mutations (A315T, M337V, Q331K, G348C). IDR is responsible for LLPS and aggregation. No high-resolution structure — relies on cryo-EM fibril structures and AlphaFold. Drug design for IDRs is frontier territory but high-impact."
+  },
+  {
+    "id": "ddt:unc13a_cryptic_splice",
+    "target_name": "UNC13A pre-mRNA",
+    "druggable_site": "Cryptic exon splice acceptor/donor sites in UNC13A intron 20-21",
+    "strategy": "Steric-blocking ASO or small-molecule splicing modifier to prevent cryptic exon inclusion when TDP-43 is depleted",
+    "pdb_ids": [],
+    "alphafold_id": "AF-Q9UPW8-F1",
+    "compound_libraries": ["aso_splice_modulators", "risdiplam_analogs_splicing"],
+    "notes": "RNA-targeted approach. Risk SNP rs12973192 modifies splice site strength. ASO approach validated preclinically (Brown 2022). Small-molecule splicing modifiers (inspired by risdiplam/SMA) may offer oral alternative to intrathecal ASO. High therapeutic relevance for sporadic ALS."
+  },
+  {
+    "id": "ddt:stmn2_cryptic_splice",
+    "target_name": "STMN2 pre-mRNA",
+    "druggable_site": "Cryptic exon splice site in STMN2 intron 1",
+    "strategy": "Steric-blocking ASO or small-molecule splicing modifier to prevent cryptic exon inclusion and restore full-length STMN2",
+    "pdb_ids": [],
+    "alphafold_id": "AF-Q93045-F1",
+    "compound_libraries": ["aso_splice_modulators", "risdiplam_analogs_splicing"],
+    "notes": "STMN2 cryptic exon in intron 1 produces truncated non-functional transcript. ASO blocking validated preclinically. Oral splicing modifier would be transformative. STMN2 restoration directly addresses axonal regeneration failure in ALS."
+  },
+  {
+    "id": "ddt:sigma1r_pocket",
+    "target_name": "Sigma-1 receptor",
+    "druggable_site": "Ligand binding pocket (cupin fold)",
+    "strategy": "Agonist binding to stabilize sigma-1R at MAM, enhancing ER-mitochondria tethering and calcium homeostasis",
+    "pdb_ids": ["5HK1", "5HK2"],
+    "alphafold_id": "AF-Q99720-F1",
+    "compound_libraries": ["chembl_sigmar1_agonists", "pubchem_sigma1r_actives"],
+    "notes": "Crystal structure solved 2016 (Schmidt et al, Nature). Trimeric protein with single transmembrane helix per monomer. Binding pocket well-characterized. Pridopidine is selective S1R agonist in Phase 3 (PREVAiLS). Other agonists (cutamesine, SA4503) also known. Structure enables rational optimization."
+  },
+  {
+    "id": "ddt:sod1_aggregation",
+    "target_name": "SOD1",
+    "druggable_site": "Dimer interface and aggregation-prone beta-barrel edge strands",
+    "strategy": "Stabilize native SOD1 dimer to prevent monomer dissociation, misfolding, and aggregation",
+    "pdb_ids": ["2C9V", "1SPD", "3ECU"],
+    "alphafold_id": "AF-P00441-F1",
+    "compound_libraries": ["chembl_sod1_stabilizers", "zinc_dimer_stabilizers"],
+    "notes": "SOD1 crystal structures extensively characterized. Mutant SOD1 aggregation proceeds through monomer dissociation → misfolding → oligomerization → fibrillization. Small molecules stabilizing the native dimer (like isoproterenol) shown to reduce aggregation in vitro. ASO/gene therapy approaches now clinical — small molecule may complement."
+  },
+  {
+    "id": "ddt:sg_kinases",
+    "target_name": "Stress granule assembly kinases",
+    "druggable_site": "DYRK3, CK2, MARK4 kinase domains (regulate SG assembly/disassembly balance)",
+    "strategy": "Modulate stress granule dynamics to prevent pathological persistence and maturation to solid aggregates",
+    "pdb_ids": ["5Y86", "6TLJ", "4IZ5"],
+    "alphafold_id": null,
+    "compound_libraries": ["chembl_dyrk_inhibitors", "chembl_ck2_inhibitors", "pubchem_kinase_focused"],
+    "notes": "SG assembly is kinase-regulated. DYRK3 is a key SG dissolution factor (Wippich 2013). CK2 phosphorylates multiple SG proteins. MARK4 regulates tau/cytoskeleton. Preventing SG persistence could block the SG→aggregate pathway. Challenge: SGs are normal stress responses — must tune, not abolish."
+  },
+  {
+    "id": "ddt:eaat2_modulation",
+    "target_name": "EAAT2 (GLT-1/SLC1A2)",
+    "druggable_site": "Allosteric sites on EAAT2 transporter or transcriptional enhancer elements",
+    "strategy": "Upregulate EAAT2 expression or enhance transport activity to restore synaptic glutamate clearance",
+    "pdb_ids": ["7AWI"],
+    "alphafold_id": "AF-P43004-F1",
+    "compound_libraries": ["chembl_glt1_enhancers", "ceftriaxone_analogs"],
+    "notes": "EAAT2 loss is consistent finding in ALS tissue. Ceftriaxone (beta-lactam antibiotic) upregulates EAAT2 via NF-kB pathway — tested in ALS Phase 3 but failed (possibly due to insufficient CNS levels or ALS being too far downstream). Cryo-EM structure (2021) enables structure-based design of direct EAAT2 enhancers."
+  },
+  {
+    "id": "ddt:mtor_allosteric",
+    "target_name": "mTORC1",
+    "druggable_site": "FRB domain (rapamycin binding) and FKBP12-rapamycin interface",
+    "strategy": "Selective mTORC1 inhibition to activate autophagy without mTORC2-mediated metabolic side effects",
+    "pdb_ids": ["4DRH", "1FAP", "4JSV"],
+    "alphafold_id": "AF-P42345-F1",
+    "compound_libraries": ["chembl_mtor_inhibitors", "rapalog_derivatives"],
+    "notes": "Rapamycin (via FKBP12) allosterically inhibits mTORC1, activating autophagy. mTORC1-selective inhibition preferred over ATP-competitive inhibitors (which hit mTORC2). Third-generation rapalogs and bi-steric inhibitors under development. Low-dose rapamycin being tested in ALS (RAP-ALS trial)."
+  },
+  {
+    "id": "ddt:csf1r_kinase",
+    "target_name": "CSF1R",
+    "druggable_site": "Kinase domain ATP-binding pocket",
+    "strategy": "Modulate microglial proliferation and activation state by CSF1R kinase inhibition to reduce non-cell-autonomous motor neuron toxicity",
+    "pdb_ids": ["4R7H", "3KRJ"],
+    "alphafold_id": "AF-P07333-F1",
+    "compound_libraries": ["chembl_csf1r_inhibitors", "masitinib_analogs"],
+    "notes": "CSF1R drives microglial proliferation and inflammatory activation. Masitinib (CSF1R/KIT inhibitor) in Phase 3 for ALS. PLX5622 (selective CSF1R inhibitor) depletes microglia in preclinical models. Challenge: microglia have neuroprotective roles early — timing and selectivity matter. Non-depleting CSF1R modulators may be safer than full inhibitors."
+  }
+]

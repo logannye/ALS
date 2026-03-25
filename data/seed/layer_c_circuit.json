@@ -1,0 +1,446 @@
+[
+  {
+    "id": "evi:riluzole_rct",
+    "claim": "Riluzole extends survival by 2-3 months in ALS, the first drug proven to modify ALS disease course",
+    "direction": "supports",
+    "source_refs": ["pmid:8302340", "pmid:8622332"],
+    "strength": "strong",
+    "notes": "Bensimon et al 1994 (n=155) and Lacomblez et al 1996 (n=959). Two landmark RCTs establishing riluzole as first ALS therapy. 100mg/day optimal. Mechanism: glutamate release inhibition via sodium channel blockade + EAAT2 upregulation.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "glutamate_excitotoxicity",
+      "intervention_ref": "int:riluzole",
+      "intervention_class": "drug",
+      "regulatory_status": "approved",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "trial_phase": "approved",
+      "modality": "rct",
+      "cohort_size": 1114,
+      "key_endpoints": {
+        "survival_extension": "2-3_months",
+        "tracheostomy_free_survival": "significant",
+        "alsfrs_r_effect": "modest"
+      }
+    }
+  },
+  {
+    "id": "evi:riluzole_modest",
+    "claim": "Riluzole provides only modest survival benefit (2-3 months) with limited functional impact, highlighting the need for combination approaches",
+    "direction": "mixed",
+    "source_refs": ["pmid:17253456"],
+    "strength": "strong",
+    "notes": "Miller et al 2007, Cochrane review. Riluzole extends median tracheostomy-free survival by ~2-3 months. No significant effect on muscle strength or motor function. Sets the baseline — any future therapy must improve upon this.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "glutamate_excitotoxicity",
+      "intervention_ref": "int:riluzole",
+      "intervention_class": "drug",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "meta_analysis",
+      "key_endpoints": {
+        "survival_benefit": "2-3_months",
+        "functional_benefit": "not_significant",
+        "number_needed_to_treat": "~11"
+      }
+    }
+  },
+  {
+    "id": "evi:eaat2_loss_als",
+    "claim": "EAAT2/GLT-1 glutamate transporter is markedly reduced in ALS spinal cord and motor cortex, causing excitotoxic glutamate accumulation",
+    "direction": "supports",
+    "source_refs": ["pmid:1347910", "pmid:7536419"],
+    "strength": "strong",
+    "notes": "Rothstein et al 1992, 1995. Loss of EAAT2 in ALS tissue leads to impaired synaptic glutamate clearance. Provides mechanistic rationale for riluzole and other anti-excitotoxic approaches. EAAT2 loss may be consequence of TDP-43 pathology.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "EAAT2_glutamate_transport",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "neuropathology",
+      "key_endpoints": {
+        "eaat2_reduction": "marked",
+        "glutamate_elevation": true,
+        "location": ["spinal_cord", "motor_cortex"]
+      }
+    }
+  },
+  {
+    "id": "evi:eaat2_mrna_aberrant",
+    "claim": "Aberrant EAAT2 mRNA processing produces non-functional splice variants in ALS tissue, explaining EAAT2 protein loss",
+    "direction": "supports",
+    "source_refs": ["pmid:9462755"],
+    "strength": "moderate",
+    "notes": "Lin et al 1998, Neuron. Aberrant splicing of EAAT2 mRNA in ALS. Non-functional truncated protein produced. May be upstream consequence of RNA processing disruption (TDP-43 pathology?).",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "EAAT2_mRNA_processing",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "glia_amplified"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "molecular_biology",
+      "key_endpoints": {
+        "aberrant_splicing": true,
+        "truncated_protein": true,
+        "functional_eaat2_reduced": true
+      }
+    }
+  },
+  {
+    "id": "evi:masitinib_phase3",
+    "claim": "Masitinib add-on to riluzole showed survival benefit in normal-progressor subgroup of ALS patients in Phase 2/3 trial",
+    "direction": "supports",
+    "source_refs": ["pmid:36028291"],
+    "strength": "moderate",
+    "notes": "Mora et al 2020, 2021. Masitinib 4.5mg/kg/day. Normal progressors (baseline ALSFRS-R slope > -1.1/mo) showed significant benefit. Mechanism: tyrosine kinase inhibitor targeting CSF1R (microglia) and KIT (mast cells).",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "glial_modulation",
+      "intervention_ref": "int:masitinib",
+      "intervention_class": "small_molecule",
+      "regulatory_status": "phase3",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "trial_phase": "phase2_3",
+      "modality": "rct",
+      "cohort_size": 394,
+      "key_endpoints": {
+        "survival_benefit": "significant_normal_progressors",
+        "alsfrs_r": "significant_subgroup",
+        "subgroup": "ALSFRS-R_slope_gt_-1.1/mo"
+      }
+    }
+  },
+  {
+    "id": "evi:boillee_noncell_autonomous",
+    "claim": "Motor neuron onset is determined by mutant SOD1 within MNs, but disease progression is driven by mutant SOD1 in surrounding glia (non-cell-autonomous toxicity)",
+    "direction": "supports",
+    "source_refs": ["pmid:16741123"],
+    "strength": "strong",
+    "notes": "Boillee et al 2006, Science. Chimeric mice with selective SOD1 expression. Landmark paper establishing non-cell-autonomous mechanism. Microglia and astrocytes with mutant SOD1 drive MN death. Foundation for glial-targeting therapies.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "non_cell_autonomous_toxicity",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "glia_amplified", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "transgenic_model",
+      "key_endpoints": {
+        "onset_cell_autonomous": true,
+        "progression_non_cell_autonomous": true,
+        "key_glia": ["microglia", "astrocytes"]
+      }
+    }
+  },
+  {
+    "id": "evi:astrocyte_toxicity",
+    "claim": "Astrocytes bearing ALS mutations are selectively toxic to motor neurons through secreted factors",
+    "direction": "supports",
+    "source_refs": ["pmid:18469020"],
+    "strength": "strong",
+    "notes": "Di Giorgio et al 2008, Nagai et al 2007. Co-culture experiments showing mutant astrocytes kill wild-type MNs through secreted toxic factor(s). Mechanism partially identified: involves prostaglandin D2, inflammatory mediators.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "astrocyte_secreted_toxicity",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "glia_amplified"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "cell_biology",
+      "key_endpoints": {
+        "selective_mn_killing": true,
+        "mechanism": "secreted_factors",
+        "astrocyte_mutations": ["SOD1", "TDP43", "C9orf72"]
+      }
+    }
+  },
+  {
+    "id": "evi:zilucoplan_healey",
+    "claim": "Zilucoplan C5 complement inhibition did not meet primary endpoint in HEALEY ALS Platform Trial",
+    "direction": "refutes",
+    "source_refs": ["pmid:36947460"],
+    "strength": "strong",
+    "notes": "HEALEY ALS Platform Trial Regimen C. Terminal complement pathway inhibition alone insufficient to slow ALS progression. Complement activation may be secondary to upstream pathology.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "complement_inhibition",
+      "intervention_ref": "int:zilucoplan",
+      "intervention_class": "peptide",
+      "regulatory_status": "negative_primary",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "trial_phase": "phase2_3",
+      "modality": "platform_trial",
+      "key_endpoints": {
+        "primary_met": false,
+        "alsfrs_r_slope": "not_significant",
+        "complement_target_engagement": "confirmed"
+      }
+    }
+  },
+  {
+    "id": "evi:cortical_hyperexcitability",
+    "claim": "Cortical hyperexcitability is a presymptomatic feature of ALS, present in SOD1 carriers before symptom onset",
+    "direction": "supports",
+    "source_refs": ["pmid:18469020"],
+    "strength": "strong",
+    "notes": "Vucic et al 2008, Brain. Threshold tracking TMS in presymptomatic SOD1 carriers. Cortical hyperexcitability precedes clinical onset. Supports excitotoxicity as early pathogenic mechanism, not just consequence.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "cortical_hyperexcitability",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "neurophysiology",
+      "key_endpoints": {
+        "presymptomatic_detection": true,
+        "short_interval_intracortical_inhibition": "reduced",
+        "cortical_threshold": "reduced"
+      }
+    }
+  },
+  {
+    "id": "evi:ipsc_hyperexcitability",
+    "claim": "iPSC-derived motor neurons from ALS patients show intrinsic hyperexcitability, validating excitotoxicity as cell-autonomous",
+    "direction": "supports",
+    "source_refs": ["pmid:25024803"],
+    "strength": "strong",
+    "notes": "Wainger et al 2014, Cell Reports. iPSC MNs from SOD1 and C9orf72 ALS patients showed hyperexcitability. Retigabine (Kv7 opener) reduced hyperexcitability in vitro. Led to clinical testing.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "motor_neuron_hyperexcitability",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "modality": "ipsc_model",
+      "key_endpoints": {
+        "hyperexcitability_confirmed": true,
+        "cell_autonomous": true,
+        "kv7_rescue": true
+      }
+    }
+  },
+  {
+    "id": "evi:retigabine_kv7",
+    "claim": "Retigabine (Kv7 channel opener) reduces motor neuron hyperexcitability in iPSC models and was tested in ALS patients",
+    "direction": "mixed",
+    "source_refs": ["pmid:25024803", "pmid:33504554"],
+    "strength": "moderate",
+    "notes": "Wainger et al 2014, 2021. iPSC data showed hyperexcitability rescue. Phase 2 trial showed target engagement (reduced excitability) but no clear ALSFRS-R benefit at tested doses/duration. Proof of concept for excitability targeting.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "Kv7_channel_opening",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "trial_phase": "phase2",
+      "modality": "rct",
+      "cohort_size": 65,
+      "key_endpoints": {
+        "target_engagement": "confirmed",
+        "excitability_reduction": "confirmed",
+        "alsfrs_r_benefit": "not_significant"
+      }
+    }
+  },
+  {
+    "id": "evi:ibudilast_neuroinflammation",
+    "claim": "Ibudilast shows trends toward slowing ALSFRS-R decline and FVC loss through PDE-mediated neuroinflammation reduction in ALS",
+    "direction": "supports",
+    "source_refs": ["pmid:33230495"],
+    "strength": "moderate",
+    "notes": "IBU-ALS Phase 2 trial. PDE inhibitor with anti-inflammatory properties. Trends in ALSFRS-R and FVC but not statistically significant at n~230. Multi-target: PDE4, PDE10, MIF inhibition.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "PDE_neuroinflammation",
+      "intervention_ref": "int:ibudilast",
+      "intervention_class": "small_molecule",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "trial_phase": "phase2",
+      "modality": "rct",
+      "cohort_size": 230,
+      "key_endpoints": {
+        "alsfrs_r_trend": "positive_not_significant",
+        "fvc_trend": "positive_not_significant",
+        "safety": "well_tolerated"
+      }
+    }
+  },
+  {
+    "id": "evi:perampanel_ampa",
+    "claim": "Perampanel AMPA receptor antagonist shows preliminary signals of benefit in ALS case series targeting cortical hyperexcitability",
+    "direction": "supports",
+    "source_refs": ["pmid:29305533"],
+    "strength": "emerging",
+    "notes": "Aizawa et al 2018. Small case series (n=8) of perampanel in ALS. Some patients showed ALSFRS-R stabilization. Rationale: AMPA-mediated excitotoxicity is a driver of MN death. Complementary to riluzole (which targets glutamate release).",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "AMPA_excitotoxicity",
+      "intervention_ref": "int:perampanel",
+      "intervention_class": "drug",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": true,
+      "pch_layer": 1,
+      "trial_phase": "case_series",
+      "modality": "case_series",
+      "cohort_size": 8,
+      "key_endpoints": {
+        "alsfrs_r_stabilization": "some_patients",
+        "safety": "acceptable_at_low_dose"
+      }
+    }
+  },
+  {
+    "id": "evi:verdiperstat_healey",
+    "claim": "Verdiperstat MPO inhibitor did not meet primary or secondary endpoints in HEALEY ALS Platform Trial",
+    "direction": "refutes",
+    "source_refs": ["pmid:36947460"],
+    "strength": "strong",
+    "notes": "HEALEY ALS Platform Trial Regimen B. Myeloperoxidase inhibition alone insufficient. Oxidative damage from MPO may be too downstream or too narrow a target for meaningful ALS modification.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "myeloperoxidase_inhibition",
+      "intervention_ref": "int:verdiperstat",
+      "intervention_class": "small_molecule",
+      "regulatory_status": "negative",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "trial_phase": "phase2_3",
+      "modality": "platform_trial",
+      "key_endpoints": {
+        "primary_met": false,
+        "secondary_met": false,
+        "target_engagement": "confirmed"
+      }
+    }
+  },
+  {
+    "id": "evi:dnl343_eif2b",
+    "claim": "DNL343 eIF2B activator did not meet primary endpoint in HEALEY ALS Platform Trial",
+    "direction": "refutes",
+    "source_refs": ["clinical_announcement_2024_denali"],
+    "strength": "strong",
+    "notes": "HEALEY ALS Platform Trial Regimen G. ISR modulation via eIF2B activation insufficient as monotherapy. Translation regulation likely not the rate-limiting step in established ALS.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "integrated_stress_response",
+      "intervention_ref": "int:dnl343",
+      "intervention_class": "small_molecule",
+      "regulatory_status": "negative",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "trial_phase": "phase2_3",
+      "modality": "platform_trial",
+      "key_endpoints": {
+        "primary_met": false,
+        "alsfrs_r_slope": "not_significant"
+      }
+    }
+  },
+  {
+    "id": "evi:amx0035_phoenix",
+    "claim": "AMX0035/Relyvrio failed to show efficacy in PHOENIX Phase 3 confirmatory trial, leading to voluntary market withdrawal",
+    "direction": "refutes",
+    "source_refs": ["pmid:38587885"],
+    "strength": "strong",
+    "notes": "PHOENIX Phase 3, n=664. Primary endpoint (ALSFRS-R slope) not met. Original CENTAUR Phase 2 benefit not reproduced. Amylyx voluntarily withdrew Relyvrio from market April 2024. Cautionary tale for accelerated approval.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "ER_mitochondrial_stress",
+      "intervention_ref": "int:amx0035",
+      "intervention_class": "drug",
+      "regulatory_status": "withdrawn",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "trial_phase": "phase3",
+      "modality": "rct",
+      "cohort_size": 664,
+      "key_endpoints": {
+        "primary_met": false,
+        "alsfrs_r_slope": "not_significant",
+        "survival": "not_significant"
+      }
+    }
+  },
+  {
+    "id": "evi:edaravone_subgroup_evidence",
+    "claim": "Edaravone showed ALSFRS-R benefit in a narrowly defined subgroup (definite/probable ALS, FVC>=80%, 2yr onset) but generalizability remains debated",
+    "direction": "mixed",
+    "source_refs": ["pmid:28522181"],
+    "strength": "moderate",
+    "notes": "Writing Group 2017, Lancet Neurology. Study 19 (positive) used enriched population. Broader studies (Study 16) negative. Raises questions about which ALS patients benefit from antioxidant approach.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "oxidative_stress",
+      "intervention_ref": "int:edaravone_iv",
+      "intervention_class": "drug",
+      "regulatory_status": "approved",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp"],
+      "erik_eligible": true,
+      "pch_layer": 2,
+      "trial_phase": "approved",
+      "modality": "rct",
+      "cohort_size": 137,
+      "key_endpoints": {
+        "alsfrs_r_benefit": "significant_in_subgroup",
+        "subgroup_criteria": "definite_probable_FVC80_2yr",
+        "generalizability": "debated"
+      }
+    }
+  },
+  {
+    "id": "evi:cnm_au8_rescue",
+    "claim": "CNM-Au8 gold nanocrystals failed primary endpoint in RESCUE-ALS but showed trends in secondary biomarker endpoints",
+    "direction": "refutes",
+    "source_refs": ["pmid:37086117"],
+    "strength": "moderate",
+    "notes": "RESCUE-ALS Phase 2 trial. Primary endpoint (ALSFRS-R) not met. Some biomarker signals (NAD+ levels). HEALEY platform also tested. Bioenergetic enhancement alone may be insufficient.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "cellular_bioenergetics",
+      "intervention_ref": "int:cnm_au8",
+      "intervention_class": "small_molecule",
+      "regulatory_status": "negative_primary",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "erik_eligible": false,
+      "pch_layer": 2,
+      "trial_phase": "phase2",
+      "modality": "rct",
+      "key_endpoints": {
+        "primary_met": false,
+        "biomarker_trends": "positive_NAD"
+      }
+    }
+  },
+  {
+    "id": "evi:microglia_activation_als",
+    "claim": "Microglial activation correlates with disease progression in ALS and transitions from neuroprotective M2 to neurotoxic M1 phenotype",
+    "direction": "supports",
+    "source_refs": ["pmid:24142853"],
+    "strength": "strong",
+    "notes": "Brettschneider et al 2012, Henkel et al 2009. Early M2 microglia are neuroprotective; progressive conversion to M1 drives neuroinflammatory MN death. Timing of anti-inflammatory intervention may be critical.",
+    "body": {
+      "protocol_layer": "circuit_stabilization",
+      "mechanism_target": "microglial_phenotype_switch",
+      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "glia_amplified", "mixed"],
+      "erik_eligible": true,
+      "pch_layer": 3,
+      "modality": "neuropathology",
+      "key_endpoints": {
+        "m2_to_m1_transition": true,
+        "correlation_with_progression": true,
+        "therapeutic_window": "early"
+      }
+    }
+  }
+]
