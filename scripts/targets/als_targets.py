@@ -28,7 +28,7 @@ ALS_TARGETS: dict[str, dict] = {
             "mislocalization and aggregation is the hallmark pathology in ~97% of ALS."
         ),
         "subtypes": ["sporadic_tdp43", "tardbp", "c9orf72"],
-        "protocol_layers": ["root_cause", "pathology_reversal"],
+        "protocol_layers": ["root_cause_suppression", "pathology_reversal"],
         "druggable": True,
         "druggability_notes": (
             "Multiple drugging strategies: ASOs to reduce expression, small molecules "
@@ -223,7 +223,7 @@ ALS_TARGETS: dict[str, dict] = {
             "polarity, and ciliogenesis. Second most common ALS GWAS risk gene."
         ),
         "subtypes": ["sporadic_tdp43", "mixed"],
-        "protocol_layers": ["root_cause"],
+        "protocol_layers": ["root_cause_suppression"],
         "druggable": False,
         "druggability_notes": (
             "No selective NEK1 inhibitors in clinical use. Downstream pathway "
