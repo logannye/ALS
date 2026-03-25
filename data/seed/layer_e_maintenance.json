@@ -3,13 +3,24 @@
     "id": "evi:nfl_pharmacodynamic",
     "claim": "Neurofilament light chain (NfL) is established as a pharmacodynamic biomarker for ALS trials, with regulatory acceptance as surrogate endpoint",
     "direction": "supports",
-    "source_refs": ["pmid:36450372"],
+    "source_refs": [
+      "pmid:36450372"
+    ],
     "strength": "strong",
     "notes": "Benatar et al 2023, Lancet Neurology. NfL reduction accepted as reasonably likely to predict clinical benefit (tofersen precedent). Enables faster trials, smaller cohorts. Erik's NfL 5.82 provides baseline for treatment monitoring.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "NfL_biomarker",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "biomarker_validation",
@@ -24,13 +35,24 @@
     "id": "evi:alsfrs_r_sensitivity",
     "claim": "ALSFRS-R is the standard functional outcome in ALS but has limitations in sensitivity, floor/ceiling effects, and domain weighting",
     "direction": "mixed",
-    "source_refs": ["pmid:10540002"],
+    "source_refs": [
+      "pmid:10540002"
+    ],
     "strength": "strong",
-    "notes": "Cedarbaum et al 1999 (original validation). ALSFRS-R 48-point scale. Monthly assessment recommended. Limitations: domains not equally weighted, floor effects in advanced disease, linear assumption may not hold. Erik at 43/48 — early, detectable changes.",
+    "notes": "Cedarbaum et al 1999 (original validation). ALSFRS-R 48-point scale. Monthly assessment recommended. Limitations: domains not equally weighted, floor effects in advanced disease, linear assumption may not hold. Erik at 43/48 \u2014 early, detectable changes.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "functional_assessment",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "clinical_validation",
@@ -38,7 +60,11 @@
         "scale_range": "0-48",
         "erik_baseline": 43,
         "monitoring_cadence": "monthly",
-        "limitations": ["domain_weighting", "floor_effects", "linearity_assumption"]
+        "limitations": [
+          "domain_weighting",
+          "floor_effects",
+          "linearity_assumption"
+        ]
       }
     }
   },
@@ -46,18 +72,33 @@
     "id": "evi:combination_protocol_oncology",
     "claim": "Oncology combination therapy principles (non-overlapping mechanisms, tolerable toxicity, synergistic targets) should guide ALS combination protocol design",
     "direction": "supports",
-    "source_refs": ["pmid:23303908"],
+    "source_refs": [
+      "pmid:23303908"
+    ],
     "strength": "moderate",
     "notes": "Combination therapy is standard in oncology. ALS field moving toward combinations (riluzole backbone + add-on). Key principles: non-overlapping toxicity, mechanistic synergy, biomarker-guided selection. Erik's protocol should layer interventions across protocol layers.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "combination_therapy_design",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "therapeutic_principles",
       "key_endpoints": {
-        "principles": ["non_overlapping_toxicity", "mechanistic_synergy", "biomarker_guided"],
+        "principles": [
+          "non_overlapping_toxicity",
+          "mechanistic_synergy",
+          "biomarker_guided"
+        ],
         "backbone": "riluzole",
         "layered_approach": true
       }
@@ -67,13 +108,24 @@
     "id": "evi:respiratory_monitoring",
     "claim": "FVC decline, SNIP, and nocturnal oximetry are essential for predicting respiratory failure timing and NIV initiation in ALS",
     "direction": "supports",
-    "source_refs": ["pmid:19922456"],
+    "source_refs": [
+      "pmid:19922456"
+    ],
     "strength": "strong",
-    "notes": "EFNS guidelines 2012. FVC<80% triggers enhanced monitoring. SNIP (sniff nasal inspiratory pressure) more sensitive than FVC in bulbar patients. Nocturnal oximetry detects early hypoventilation. Erik FVC 100% — excellent baseline, needs serial tracking.",
+    "notes": "EFNS guidelines 2012. FVC<80% triggers enhanced monitoring. SNIP (sniff nasal inspiratory pressure) more sensitive than FVC in bulbar patients. Nocturnal oximetry detects early hypoventilation. Erik FVC 100% \u2014 excellent baseline, needs serial tracking.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "respiratory_surveillance",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "clinical_guideline",
@@ -81,7 +133,11 @@
         "fvc_threshold": "80%_triggers_enhanced_monitoring",
         "snip_sensitivity": "superior_to_FVC_in_bulbar",
         "erik_fvc_baseline": "100%",
-        "monitoring_tools": ["FVC", "SNIP", "nocturnal_oximetry"]
+        "monitoring_tools": [
+          "FVC",
+          "SNIP",
+          "nocturnal_oximetry"
+        ]
       }
     }
   },
@@ -89,13 +145,24 @@
     "id": "evi:niv_survival",
     "claim": "Non-invasive ventilation (NIV) improves survival by 7-11 months and quality of life in ALS with respiratory compromise",
     "direction": "supports",
-    "source_refs": ["pmid:16407070"],
+    "source_refs": [
+      "pmid:16407070"
+    ],
     "strength": "strong",
     "notes": "Bourke et al 2006, Lancet Neurology. RCT of NIV in ALS. Survival benefit primarily in patients without severe bulbar dysfunction. Quality of life improved across subgroups. Early initiation at FVC<80% recommended.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "ventilatory_support",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "rct",
@@ -111,20 +178,39 @@
     "id": "evi:multidisciplinary_care",
     "claim": "Multidisciplinary ALS clinic care improves survival by 7-10 months and quality of life compared to general neurology care",
     "direction": "supports",
-    "source_refs": ["pmid:25550416"],
+    "source_refs": [
+      "pmid:25550416"
+    ],
     "strength": "strong",
     "notes": "Rooney et al 2015, J Neurol Neurosurg Psychiatry and earlier studies. MDC teams: neurologist, pulmonologist, PT/OT, speech, nutrition, social work, palliative care. Survival benefit comparable to riluzole. Erik should be connected to MDC.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "multidisciplinary_care",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "observational",
       "key_endpoints": {
         "survival_benefit": "7-10_months",
         "quality_of_life": "improved",
-        "team_composition": ["neurologist", "pulmonologist", "PT_OT", "speech", "nutrition", "social_work", "palliative"]
+        "team_composition": [
+          "neurologist",
+          "pulmonologist",
+          "PT_OT",
+          "speech",
+          "nutrition",
+          "social_work",
+          "palliative"
+        ]
       }
     }
   },
@@ -132,21 +218,39 @@
     "id": "evi:riluzole_combination_safety",
     "claim": "Riluzole has manageable drug interaction profile allowing combination with most experimental ALS therapies",
     "direction": "supports",
-    "source_refs": ["pmid:17253456"],
+    "source_refs": [
+      "pmid:17253456"
+    ],
     "strength": "strong",
     "notes": "Riluzole metabolized by CYP1A2. Key interactions: CYP1A2 inhibitors (fluvoxamine, ciprofloxacin) increase riluzole levels. Generally compatible with pridopidine, edaravone, masitinib, rapamycin. Monitor LFTs with hepatotoxic combinations.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "drug_interaction_safety",
       "intervention_ref": "int:riluzole",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "pharmacology",
       "key_endpoints": {
         "metabolism": "CYP1A2",
-        "key_interactions": ["CYP1A2_inhibitors"],
-        "combination_compatible": ["pridopidine", "edaravone", "masitinib", "rapamycin"],
+        "key_interactions": [
+          "CYP1A2_inhibitors"
+        ],
+        "combination_compatible": [
+          "pridopidine",
+          "edaravone",
+          "masitinib",
+          "rapamycin"
+        ],
         "monitoring": "LFTs_q3mo"
       }
     }
@@ -155,13 +259,24 @@
     "id": "evi:weight_monitoring",
     "claim": "Weight loss and BMI decline are independent prognostic markers in ALS; nutritional intervention may slow progression",
     "direction": "supports",
-    "source_refs": ["pmid:24014516"],
+    "source_refs": [
+      "pmid:24014516"
+    ],
     "strength": "strong",
     "notes": "Marin et al 2011, Desport et al 2001. Weight loss >5% is adverse prognostic sign. High-calorie diet may slow progression. Gastrostomy timing important. Erik should have baseline weight/BMI tracking with monthly monitoring.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "nutritional_status",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "observational",
@@ -176,13 +291,22 @@
     "id": "evi:biomarker_guided_therapy",
     "claim": "Biomarker-triggered treatment initiation (tofersen model: SOD1 protein as trigger, NfL as response) represents a new paradigm for precision ALS therapy",
     "direction": "supports",
-    "source_refs": ["pmid:35389978", "pmid:37691292"],
+    "source_refs": [
+      "pmid:35389978",
+      "pmid:37691292"
+    ],
     "strength": "moderate",
     "notes": "Tofersen established precedent: genetic biomarker (SOD1 mutation) identifies patient, protein biomarker (CSF SOD1) confirms target, response biomarker (NfL) monitors efficacy. This model should extend to TDP-43, FUS-targeted therapies.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "precision_therapy_paradigm",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "therapeutic_principles",
@@ -198,19 +322,34 @@
     "id": "evi:adaptive_trial_design",
     "claim": "Adaptive platform trials (HEALEY model) enable efficient testing of multiple ALS therapies with shared placebo and Bayesian interim analyses",
     "direction": "supports",
-    "source_refs": ["pmid:33095013"],
+    "source_refs": [
+      "pmid:33095013"
+    ],
     "strength": "strong",
     "notes": "HEALEY ALS Platform Trial (NCT04297683). Multiple regimens tested simultaneously. Shared placebo arm, Bayesian stopping rules, biomarker substudies. Model for accelerating ALS drug development despite rare disease constraints.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "trial_design_innovation",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "trial_design",
       "key_endpoints": {
         "design_type": "adaptive_platform",
-        "advantages": ["shared_placebo", "bayesian_interim", "multiple_regimens"],
+        "advantages": [
+          "shared_placebo",
+          "bayesian_interim",
+          "multiple_regimens"
+        ],
         "reference": "HEALEY_ALS"
       }
     }
@@ -219,18 +358,31 @@
     "id": "evi:cryptic_exon_biomarker",
     "claim": "Cryptic exon-derived peptides and splice junction signatures are emerging as CSF/blood biomarkers for TDP-43 dysfunction in ALS",
     "direction": "supports",
-    "source_refs": ["pmid:35197626", "pmid:35197625"],
+    "source_refs": [
+      "pmid:35197626",
+      "pmid:35197625"
+    ],
     "strength": "emerging",
-    "notes": "Cryptic exon products from STMN2 and UNC13A detectable in CSF. Could serve as TDP-43 loss-of-function biomarker — direct readout of the molecular defect. Under development as companion diagnostic for TDP-43-targeting therapies.",
+    "notes": "Cryptic exon products from STMN2 and UNC13A detectable in CSF. Could serve as TDP-43 loss-of-function biomarker \u2014 direct readout of the molecular defect. Under development as companion diagnostic for TDP-43-targeting therapies.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "TDP43_dysfunction_biomarker",
-      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "c9orf72",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 1,
       "modality": "biomarker_development",
       "key_endpoints": {
-        "targets": ["STMN2_cryptic_peptide", "UNC13A_cryptic_peptide"],
+        "targets": [
+          "STMN2_cryptic_peptide",
+          "UNC13A_cryptic_peptide"
+        ],
         "specimen": "CSF",
         "clinical_utility": "TDP43_LOF_readout",
         "development_stage": "research"
@@ -241,14 +393,22 @@
     "id": "evi:edaravone_subgroup",
     "claim": "Edaravone efficacy limited to specific subgroup raises questions about oxidative stress as universal ALS target and importance of patient selection",
     "direction": "mixed",
-    "source_refs": ["pmid:28522181"],
+    "source_refs": [
+      "pmid:28522181"
+    ],
     "strength": "moderate",
     "notes": "Edaravone Study 19 positive in enriched population (definite/probable ALS, FVC>=80%, <=2yr). Study 16 (broader) negative. Highlights need for biomarker-guided patient selection. Erik meets Study 19 criteria (probable ALS, FVC 100%, recent onset).",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "patient_selection_biomarkers",
       "intervention_ref": "int:edaravone_oral",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "rct",
@@ -263,13 +423,22 @@
     "id": "evi:cognitive_screening_als",
     "claim": "Up to 50% of ALS patients develop some cognitive/behavioral impairment; screening with Edinburgh Cognitive and Behavioural ALS Screen (ECAS) recommended",
     "direction": "supports",
-    "source_refs": ["pmid:24590118"],
+    "source_refs": [
+      "pmid:24590118"
+    ],
     "strength": "strong",
     "notes": "Phukan et al 2012, Abrahams et al 2014. ALS-FTD spectrum: 15% meet FTD criteria, ~35% additional have subclinical cognitive changes. ECAS designed for motor-impaired patients. Important for treatment decisions and advance planning.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "cognitive_behavioral_monitoring",
-      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "c9orf72",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "clinical_guideline",
@@ -285,18 +454,36 @@
     "id": "evi:als_staging",
     "claim": "Kings Clinical Staging system provides prognostic framework based on regions involved and milestones (gastrostomy, NIV, death)",
     "direction": "supports",
-    "source_refs": ["pmid:25455803"],
+    "source_refs": [
+      "pmid:25455803"
+    ],
     "strength": "strong",
     "notes": "Roche et al 2012. 5 stages: 1 (symptom onset), 2A (diagnosis), 2B (second region), 3 (third region), 4A (gastrostomy), 4B (NIV). Erik likely Stage 2A-2B. Useful for tracking progression and treatment timing.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "disease_staging",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "clinical_validation",
       "key_endpoints": {
-        "stages": ["1_onset", "2A_diagnosis", "2B_second_region", "3_third_region", "4A_gastrostomy", "4B_NIV"],
+        "stages": [
+          "1_onset",
+          "2A_diagnosis",
+          "2B_second_region",
+          "3_third_region",
+          "4A_gastrostomy",
+          "4B_NIV"
+        ],
         "erik_estimated_stage": "2A-2B",
         "prognostic_utility": "validated"
       }
@@ -306,18 +493,33 @@
     "id": "evi:telehealth_als_monitoring",
     "claim": "Remote monitoring and telehealth enable more frequent ALS assessment without travel burden, capturing inter-visit changes",
     "direction": "supports",
-    "source_refs": ["pmid:32479002"],
+    "source_refs": [
+      "pmid:32479002"
+    ],
     "strength": "moderate",
     "notes": "COVID-era acceleration of tele-ALS. Digital ALSFRS-R, remote spirometry, wearable activity monitors. Enables weekly/daily monitoring vs monthly clinic visits. More granular progression data for treatment adjustment.",
     "body": {
-      "protocol_layer": "maintenance_monitoring",
+      "protocol_layer": "adaptive_maintenance",
       "mechanism_target": "remote_monitoring",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "health_technology",
       "key_endpoints": {
-        "tools": ["digital_ALSFRS-R", "remote_spirometry", "wearable_activity"],
+        "tools": [
+          "digital_ALSFRS-R",
+          "remote_spirometry",
+          "wearable_activity"
+        ],
         "frequency": "weekly_to_daily",
         "patient_burden": "reduced"
       }

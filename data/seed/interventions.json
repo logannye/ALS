@@ -3,15 +3,35 @@
     "id": "int:riluzole",
     "name": "Riluzole",
     "intervention_class": "drug",
-    "targets": ["EAAT2"],
+    "targets": [
+      "EAAT2"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["reduce_glutamate_excitotoxicity", "modest_survival_extension"],
-    "known_risks": ["hepatotoxicity", "nausea", "asthenia"],
-    "contraindications": ["severe_hepatic_impairment"],
+    "intended_effects": [
+      "reduce_glutamate_excitotoxicity",
+      "modest_survival_extension"
+    ],
+    "known_risks": [
+      "hepatotoxicity",
+      "nausea",
+      "asthenia"
+    ],
+    "contraindications": [
+      "severe_hepatic_impairment"
+    ],
     "body": {
       "regulatory_status": "approved",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "50mg PO BID",
       "drugbank_id": "DB00740",
       "chembl_id": "CHEMBL744",
@@ -22,15 +42,37 @@
     "id": "int:edaravone_iv",
     "name": "Edaravone IV (Radicava)",
     "intervention_class": "drug",
-    "targets": ["free_radical_scavenging"],
+    "targets": [
+      "free_radical_scavenging"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "intravenous",
-    "intended_effects": ["reduce_oxidative_stress", "slow_functional_decline"],
-    "known_risks": ["infusion_reactions", "bruising", "gait_disturbance", "headache"],
-    "contraindications": ["hypersensitivity_to_edaravone", "sulfite_allergy"],
+    "intended_effects": [
+      "reduce_oxidative_stress",
+      "slow_functional_decline"
+    ],
+    "known_risks": [
+      "infusion_reactions",
+      "bruising",
+      "gait_disturbance",
+      "headache"
+    ],
+    "contraindications": [
+      "hypersensitivity_to_edaravone",
+      "sulfite_allergy"
+    ],
     "body": {
       "regulatory_status": "approved",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "60mg IV over 60min, 14-day on / 14-day off cycles",
       "drugbank_id": "DB12243",
       "chembl_id": "CHEMBL1381",
@@ -42,15 +84,35 @@
     "id": "int:edaravone_oral",
     "name": "Edaravone Oral Suspension (Radicava ORS)",
     "intervention_class": "drug",
-    "targets": ["free_radical_scavenging"],
+    "targets": [
+      "free_radical_scavenging"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["reduce_oxidative_stress", "slow_functional_decline"],
-    "known_risks": ["bruising", "gait_disturbance", "headache"],
-    "contraindications": ["hypersensitivity_to_edaravone"],
+    "intended_effects": [
+      "reduce_oxidative_stress",
+      "slow_functional_decline"
+    ],
+    "known_risks": [
+      "bruising",
+      "gait_disturbance",
+      "headache"
+    ],
+    "contraindications": [
+      "hypersensitivity_to_edaravone"
+    ],
     "body": {
       "regulatory_status": "approved",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "105mg oral suspension daily, 14-day on / 14-day off cycles",
       "drugbank_id": "DB12243",
       "chembl_id": "CHEMBL1381",
@@ -62,15 +124,32 @@
     "id": "int:tofersen",
     "name": "Tofersen (QALSODY)",
     "intervention_class": "aso",
-    "targets": ["SOD1_mRNA"],
+    "targets": [
+      "SOD1_mRNA"
+    ],
     "protocol_layer": "root_cause_suppression",
     "route": "intrathecal",
-    "intended_effects": ["suppress_SOD1_toxic_protein", "reduce_neurofilament", "slow_progression"],
-    "known_risks": ["myelitis", "radiculopathy", "papilledema", "pleocytosis", "lumbar_puncture_risks"],
-    "contraindications": ["active_spinal_infection", "raised_intracranial_pressure"],
+    "intended_effects": [
+      "suppress_SOD1_toxic_protein",
+      "reduce_neurofilament",
+      "slow_progression"
+    ],
+    "known_risks": [
+      "myelitis",
+      "radiculopathy",
+      "papilledema",
+      "pleocytosis",
+      "lumbar_puncture_risks"
+    ],
+    "contraindications": [
+      "active_spinal_infection",
+      "raised_intracranial_pressure"
+    ],
     "body": {
       "regulatory_status": "approved_accelerated",
-      "applicable_subtypes": ["sod1"],
+      "applicable_subtypes": [
+        "sod1"
+      ],
       "dosing": "100mg IT q28d (loading: 3 doses q14d)",
       "drugbank_id": "DB16643",
       "chembl_id": "CHEMBL4650417",
@@ -82,15 +161,29 @@
     "id": "int:sodesta",
     "name": "Sodesta (WVE-003 / AAV-SOD1)",
     "intervention_class": "gene_therapy",
-    "targets": ["SOD1_gene"],
+    "targets": [
+      "SOD1_gene"
+    ],
     "protocol_layer": "root_cause_suppression",
     "route": "intrathecal",
-    "intended_effects": ["silence_SOD1_gene_expression", "durable_SOD1_suppression"],
-    "known_risks": ["immune_response_to_AAV", "transaminitis", "dorsal_root_ganglion_toxicity"],
-    "contraindications": ["pre_existing_AAV_antibodies", "severe_hepatic_impairment"],
+    "intended_effects": [
+      "silence_SOD1_gene_expression",
+      "durable_SOD1_suppression"
+    ],
+    "known_risks": [
+      "immune_response_to_AAV",
+      "transaminitis",
+      "dorsal_root_ganglion_toxicity"
+    ],
+    "contraindications": [
+      "pre_existing_AAV_antibodies",
+      "severe_hepatic_impairment"
+    ],
     "body": {
       "regulatory_status": "approved_accelerated",
-      "applicable_subtypes": ["sod1"],
+      "applicable_subtypes": [
+        "sod1"
+      ],
       "dosing": "single intrathecal administration",
       "erik_eligible": "pending_genetics",
       "notes": "Approved 2025 for SOD1-ALS. One-time gene therapy delivering SOD1 shRNA via AAV vector. ~25% slowing of progression at 1yr."
@@ -100,15 +193,39 @@
     "id": "int:pridopidine",
     "name": "Pridopidine",
     "intervention_class": "drug",
-    "targets": ["SIGMAR1"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "SIGMAR1"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "oral",
-    "intended_effects": ["er_mito_tethering", "calcium_homeostasis", "proteostasis_support", "neuroprotection"],
-    "known_risks": ["nausea", "dizziness", "insomnia", "falls"],
-    "contraindications": ["QT_prolongation", "concurrent_MAO_inhibitors"],
+    "intended_effects": [
+      "er_mito_tethering",
+      "calcium_homeostasis",
+      "proteostasis_support",
+      "neuroprotection"
+    ],
+    "known_risks": [
+      "nausea",
+      "dizziness",
+      "insomnia",
+      "falls"
+    ],
+    "contraindications": [
+      "QT_prolongation",
+      "concurrent_MAO_inhibitors"
+    ],
     "body": {
       "regulatory_status": "phase3",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "45mg PO BID (PREVAiLS dose)",
       "chembl_id": "CHEMBL1257035",
       "trial_id": "NCT05637775",
@@ -120,15 +237,41 @@
     "id": "int:masitinib",
     "name": "Masitinib",
     "intervention_class": "small_molecule",
-    "targets": ["CSF1R", "KIT", "PDGFR"],
+    "targets": [
+      "CSF1R",
+      "KIT",
+      "PDGFR"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["reduce_microgliosis", "reduce_mast_cell_activation", "neuroprotection"],
-    "known_risks": ["rash", "nausea", "edema", "neutropenia", "hepatotoxicity"],
-    "contraindications": ["severe_hepatic_impairment", "severe_renal_impairment"],
+    "intended_effects": [
+      "reduce_microgliosis",
+      "reduce_mast_cell_activation",
+      "neuroprotection"
+    ],
+    "known_risks": [
+      "rash",
+      "nausea",
+      "edema",
+      "neutropenia",
+      "hepatotoxicity"
+    ],
+    "contraindications": [
+      "severe_hepatic_impairment",
+      "severe_renal_impairment"
+    ],
     "body": {
       "regulatory_status": "phase3",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "4.5mg/kg/day PO",
       "chembl_id": "CHEMBL1683590",
       "trial_id": "NCT03127267",
@@ -140,15 +283,30 @@
     "id": "int:jacifusen",
     "name": "Jacifusen (ulefnersen / ION363)",
     "intervention_class": "aso",
-    "targets": ["FUS_mRNA"],
+    "targets": [
+      "FUS_mRNA"
+    ],
     "protocol_layer": "root_cause_suppression",
     "route": "intrathecal",
-    "intended_effects": ["suppress_FUS_protein", "reduce_neurofilament", "slow_progression"],
-    "known_risks": ["myelitis", "radiculopathy", "lumbar_puncture_risks", "pleocytosis"],
-    "contraindications": ["active_spinal_infection"],
+    "intended_effects": [
+      "suppress_FUS_protein",
+      "reduce_neurofilament",
+      "slow_progression"
+    ],
+    "known_risks": [
+      "myelitis",
+      "radiculopathy",
+      "lumbar_puncture_risks",
+      "pleocytosis"
+    ],
+    "contraindications": [
+      "active_spinal_infection"
+    ],
     "body": {
       "regulatory_status": "phase3",
-      "applicable_subtypes": ["fus"],
+      "applicable_subtypes": [
+        "fus"
+      ],
       "dosing": "IT q28d",
       "trial_id": "NCT05985941",
       "erik_eligible": "pending_genetics",
@@ -159,15 +317,29 @@
     "id": "int:vtx002",
     "name": "VTx-002",
     "intervention_class": "gene_therapy",
-    "targets": ["TDP43_aggregation"],
+    "targets": [
+      "TDP43_aggregation"
+    ],
     "protocol_layer": "root_cause_suppression",
     "route": "intrathecal",
-    "intended_effects": ["clear_tdp43_aggregates", "restore_tdp43_nuclear_function"],
-    "known_risks": ["immune_response_to_AAV", "unknown_long_term_effects"],
-    "contraindications": ["pre_existing_AAV_antibodies"],
+    "intended_effects": [
+      "clear_tdp43_aggregates",
+      "restore_tdp43_nuclear_function"
+    ],
+    "known_risks": [
+      "immune_response_to_AAV",
+      "unknown_long_term_effects"
+    ],
+    "contraindications": [
+      "pre_existing_AAV_antibodies"
+    ],
     "body": {
       "regulatory_status": "phase1_2",
-      "applicable_subtypes": ["sporadic_tdp43", "tardbp", "glia_amplified"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "tardbp",
+        "glia_amplified"
+      ],
       "dosing": "single intrathecal administration",
       "trial_id": "PIONEER-ALS",
       "erik_eligible": true,
@@ -178,15 +350,27 @@
     "id": "int:atlx1282",
     "name": "ATLX-1282",
     "intervention_class": "drug",
-    "targets": ["undisclosed"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "undisclosed"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "unknown",
-    "intended_effects": ["neuroprotection"],
-    "known_risks": ["unknown"],
-    "contraindications": ["unknown"],
+    "intended_effects": [
+      "neuroprotection"
+    ],
+    "known_risks": [
+      "unknown"
+    ],
+    "contraindications": [
+      "unknown"
+    ],
     "body": {
       "regulatory_status": "experimental",
-      "applicable_subtypes": ["sporadic_tdp43", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "TBD",
       "erik_eligible": false,
       "notes": "Atlantix Biosciences. Early-stage experimental compound. Mechanism undisclosed."
@@ -196,15 +380,36 @@
     "id": "int:amx0035",
     "name": "AMX0035 / Relyvrio (sodium phenylbutyrate + taurursodiol)",
     "intervention_class": "drug",
-    "targets": ["ER_stress_response", "mitochondrial_permeability_transition_pore"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "ER_stress_response",
+      "mitochondrial_permeability_transition_pore"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "oral",
-    "intended_effects": ["reduce_ER_stress", "reduce_mitochondrial_apoptosis", "slow_functional_decline"],
-    "known_risks": ["diarrhea", "nausea", "abdominal_pain", "upper_respiratory_infection"],
+    "intended_effects": [
+      "reduce_ER_stress",
+      "reduce_mitochondrial_apoptosis",
+      "slow_functional_decline"
+    ],
+    "known_risks": [
+      "diarrhea",
+      "nausea",
+      "abdominal_pain",
+      "upper_respiratory_infection"
+    ],
     "contraindications": [],
     "body": {
       "regulatory_status": "withdrawn",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "formerly 3g PB + 1g TURSO sachet PO BID",
       "drugbank_id": "DB16038",
       "erik_eligible": false,
@@ -215,15 +420,28 @@
     "id": "int:biib078",
     "name": "BIIB078",
     "intervention_class": "aso",
-    "targets": ["C9orf72_repeat_RNA"],
+    "targets": [
+      "C9orf72_repeat_RNA"
+    ],
     "protocol_layer": "root_cause_suppression",
     "route": "intrathecal",
-    "intended_effects": ["reduce_C9orf72_repeat_RNA", "reduce_DPR_proteins"],
-    "known_risks": ["myelitis", "radiculopathy", "lumbar_puncture_risks"],
-    "contraindications": ["active_spinal_infection"],
+    "intended_effects": [
+      "reduce_C9orf72_repeat_RNA",
+      "reduce_DPR_proteins"
+    ],
+    "known_risks": [
+      "myelitis",
+      "radiculopathy",
+      "lumbar_puncture_risks"
+    ],
+    "contraindications": [
+      "active_spinal_infection"
+    ],
     "body": {
       "regulatory_status": "discontinued",
-      "applicable_subtypes": ["c9orf72"],
+      "applicable_subtypes": [
+        "c9orf72"
+      ],
       "dosing": "IT q4-12wk (Phase 1)",
       "erik_eligible": "pending_genetics",
       "notes": "Biogen Phase 1 trial discontinued 2022. Despite adequate CNS distribution, DPR proteins and pTDP-43 persisted. Published Cell 2025 (Bhatt et al). Led to rethinking of C9orf72 ASO strategy."
@@ -233,15 +451,34 @@
     "id": "int:zilucoplan",
     "name": "Zilucoplan",
     "intervention_class": "peptide",
-    "targets": ["C5_complement"],
+    "targets": [
+      "C5_complement"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "subcutaneous",
-    "intended_effects": ["inhibit_terminal_complement", "reduce_neuroinflammation"],
-    "known_risks": ["injection_site_reactions", "meningococcal_infection_risk"],
-    "contraindications": ["unvaccinated_meningococcal"],
+    "intended_effects": [
+      "inhibit_terminal_complement",
+      "reduce_neuroinflammation"
+    ],
+    "known_risks": [
+      "injection_site_reactions",
+      "meningococcal_infection_risk"
+    ],
+    "contraindications": [
+      "unvaccinated_meningococcal"
+    ],
     "body": {
       "regulatory_status": "negative_primary",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "0.3mg/kg SC daily",
       "chembl_id": "CHEMBL4297631",
       "trial_id": "NCT04436497",
@@ -253,15 +490,34 @@
     "id": "int:verdiperstat",
     "name": "Verdiperstat",
     "intervention_class": "small_molecule",
-    "targets": ["MPO"],
+    "targets": [
+      "MPO"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["inhibit_myeloperoxidase", "reduce_neuroinflammation", "reduce_oxidative_damage"],
-    "known_risks": ["methemoglobinemia", "headache", "dizziness"],
+    "intended_effects": [
+      "inhibit_myeloperoxidase",
+      "reduce_neuroinflammation",
+      "reduce_oxidative_damage"
+    ],
+    "known_risks": [
+      "methemoglobinemia",
+      "headache",
+      "dizziness"
+    ],
     "contraindications": [],
     "body": {
       "regulatory_status": "negative",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "600mg PO BID",
       "chembl_id": "CHEMBL4297429",
       "trial_id": "NCT04436510",
@@ -273,15 +529,33 @@
     "id": "int:dnl343",
     "name": "DNL343",
     "intervention_class": "small_molecule",
-    "targets": ["eIF2B"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "eIF2B"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "oral",
-    "intended_effects": ["activate_eIF2B", "reduce_integrated_stress_response", "restore_translation"],
-    "known_risks": ["nausea", "headache"],
+    "intended_effects": [
+      "activate_eIF2B",
+      "reduce_integrated_stress_response",
+      "restore_translation"
+    ],
+    "known_risks": [
+      "nausea",
+      "headache"
+    ],
     "contraindications": [],
     "body": {
       "regulatory_status": "negative",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "TBD (HEALEY dose-finding)",
       "trial_id": "NCT05006352",
       "erik_eligible": false,
@@ -292,15 +566,34 @@
     "id": "int:cnm_au8",
     "name": "CNM-Au8",
     "intervention_class": "small_molecule",
-    "targets": ["NADH_dehydrogenase", "cellular_bioenergetics"],
+    "targets": [
+      "NADH_dehydrogenase",
+      "cellular_bioenergetics"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["enhance_cellular_bioenergetics", "neuroprotection", "remyelination"],
-    "known_risks": ["diarrhea", "nausea"],
+    "intended_effects": [
+      "enhance_cellular_bioenergetics",
+      "neuroprotection",
+      "remyelination"
+    ],
+    "known_risks": [
+      "diarrhea",
+      "nausea"
+    ],
     "contraindications": [],
     "body": {
       "regulatory_status": "negative_primary",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "30mg PO daily",
       "trial_id": "NCT04098406",
       "erik_eligible": false,
@@ -311,15 +604,38 @@
     "id": "int:rapamycin",
     "name": "Rapamycin (Sirolimus)",
     "intervention_class": "small_molecule",
-    "targets": ["mTORC1"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "mTORC1"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "oral",
-    "intended_effects": ["activate_autophagy", "clear_protein_aggregates", "reduce_neuroinflammation"],
-    "known_risks": ["immunosuppression", "hyperlipidemia", "mucositis", "thrombocytopenia"],
-    "contraindications": ["active_infection", "severe_immunodeficiency"],
+    "intended_effects": [
+      "activate_autophagy",
+      "clear_protein_aggregates",
+      "reduce_neuroinflammation"
+    ],
+    "known_risks": [
+      "immunosuppression",
+      "hyperlipidemia",
+      "mucositis",
+      "thrombocytopenia"
+    ],
+    "contraindications": [
+      "active_infection",
+      "severe_immunodeficiency"
+    ],
     "body": {
       "regulatory_status": "off_label",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "2mg PO daily (low-dose immunomodulatory)",
       "drugbank_id": "DB00877",
       "chembl_id": "CHEMBL413",
@@ -331,15 +647,35 @@
     "id": "int:memantine",
     "name": "Memantine",
     "intervention_class": "drug",
-    "targets": ["NMDA_receptor"],
+    "targets": [
+      "NMDA_receptor"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["block_NMDA_excitotoxicity", "neuroprotection"],
-    "known_risks": ["dizziness", "headache", "confusion"],
-    "contraindications": ["severe_renal_impairment"],
+    "intended_effects": [
+      "block_NMDA_excitotoxicity",
+      "neuroprotection"
+    ],
+    "known_risks": [
+      "dizziness",
+      "headache",
+      "confusion"
+    ],
+    "contraindications": [
+      "severe_renal_impairment"
+    ],
     "body": {
       "regulatory_status": "off_label",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "10-20mg PO daily",
       "drugbank_id": "DB01043",
       "chembl_id": "CHEMBL807",
@@ -351,15 +687,36 @@
     "id": "int:perampanel",
     "name": "Perampanel",
     "intervention_class": "drug",
-    "targets": ["AMPA_receptor"],
+    "targets": [
+      "AMPA_receptor"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["block_AMPA_excitotoxicity", "reduce_cortical_hyperexcitability"],
-    "known_risks": ["dizziness", "somnolence", "aggression", "ataxia"],
-    "contraindications": ["severe_hepatic_impairment"],
+    "intended_effects": [
+      "block_AMPA_excitotoxicity",
+      "reduce_cortical_hyperexcitability"
+    ],
+    "known_risks": [
+      "dizziness",
+      "somnolence",
+      "aggression",
+      "ataxia"
+    ],
+    "contraindications": [
+      "severe_hepatic_impairment"
+    ],
     "body": {
       "regulatory_status": "off_label",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "2-8mg PO at bedtime",
       "drugbank_id": "DB08883",
       "chembl_id": "CHEMBL1214124",
@@ -371,15 +728,36 @@
     "id": "int:ibudilast",
     "name": "Ibudilast",
     "intervention_class": "small_molecule",
-    "targets": ["PDE4", "PDE10", "MIF"],
+    "targets": [
+      "PDE4",
+      "PDE10",
+      "MIF"
+    ],
     "protocol_layer": "circuit_stabilization",
     "route": "oral",
-    "intended_effects": ["reduce_neuroinflammation", "neuroprotection", "inhibit_macrophage_migration_inhibitory_factor"],
-    "known_risks": ["nausea", "headache", "depression"],
+    "intended_effects": [
+      "reduce_neuroinflammation",
+      "neuroprotection",
+      "inhibit_macrophage_migration_inhibitory_factor"
+    ],
+    "known_risks": [
+      "nausea",
+      "headache",
+      "depression"
+    ],
     "contraindications": [],
     "body": {
       "regulatory_status": "off_label",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "100mg PO daily",
       "drugbank_id": "DB05266",
       "chembl_id": "CHEMBL100014",
@@ -392,15 +770,35 @@
     "id": "int:trehalose",
     "name": "Trehalose",
     "intervention_class": "small_molecule",
-    "targets": ["autophagy_mTOR_independent"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "autophagy_mTOR_independent"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "oral",
-    "intended_effects": ["activate_autophagy", "clear_protein_aggregates", "stabilize_proteins"],
-    "known_risks": ["gastrointestinal_discomfort", "diarrhea"],
-    "contraindications": ["trehalase_deficiency"],
+    "intended_effects": [
+      "activate_autophagy",
+      "clear_protein_aggregates",
+      "stabilize_proteins"
+    ],
+    "known_risks": [
+      "gastrointestinal_discomfort",
+      "diarrhea"
+    ],
+    "contraindications": [
+      "trehalase_deficiency"
+    ],
     "body": {
       "regulatory_status": "off_label",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "variable (nutraceutical, no established ALS dose)",
       "erik_eligible": true,
       "notes": "Natural disaccharide. mTOR-independent autophagy activator. Preclinical evidence in TDP-43, SOD1, and polyglutamine models. Oral bioavailability limited by trehalase. Safety profile favorable."
@@ -410,15 +808,31 @@
     "id": "int:stmn2_aso",
     "name": "STMN2 Cryptic Exon ASO",
     "intervention_class": "aso",
-    "targets": ["STMN2_cryptic_exon"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "STMN2_cryptic_exon"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "intrathecal",
-    "intended_effects": ["block_STMN2_cryptic_exon_inclusion", "restore_STMN2_protein", "restore_axonal_regeneration"],
-    "known_risks": ["lumbar_puncture_risks", "unknown_long_term_effects"],
-    "contraindications": ["active_spinal_infection"],
+    "intended_effects": [
+      "block_STMN2_cryptic_exon_inclusion",
+      "restore_STMN2_protein",
+      "restore_axonal_regeneration"
+    ],
+    "known_risks": [
+      "lumbar_puncture_risks",
+      "unknown_long_term_effects"
+    ],
+    "contraindications": [
+      "active_spinal_infection"
+    ],
     "body": {
       "regulatory_status": "preclinical",
-      "applicable_subtypes": ["sporadic_tdp43", "tardbp", "c9orf72", "fus"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "tardbp",
+        "c9orf72",
+        "fus"
+      ],
       "dosing": "TBD",
       "erik_eligible": false,
       "notes": "Preclinical ASO targeting STMN2 cryptic exon caused by TDP-43 nuclear loss. Restores STMN2 transcript and protein. Multiple groups developing. Applicable to 97% of ALS (TDP-43 pathology)."
@@ -428,15 +842,31 @@
     "id": "int:unc13a_aso",
     "name": "UNC13A Cryptic Exon ASO",
     "intervention_class": "aso",
-    "targets": ["UNC13A_cryptic_exon"],
-    "protocol_layer": "pathology_modulation",
+    "targets": [
+      "UNC13A_cryptic_exon"
+    ],
+    "protocol_layer": "pathology_reversal",
     "route": "intrathecal",
-    "intended_effects": ["block_UNC13A_cryptic_exon_inclusion", "restore_UNC13A_protein", "restore_synaptic_function"],
-    "known_risks": ["lumbar_puncture_risks", "unknown_long_term_effects"],
-    "contraindications": ["active_spinal_infection"],
+    "intended_effects": [
+      "block_UNC13A_cryptic_exon_inclusion",
+      "restore_UNC13A_protein",
+      "restore_synaptic_function"
+    ],
+    "known_risks": [
+      "lumbar_puncture_risks",
+      "unknown_long_term_effects"
+    ],
+    "contraindications": [
+      "active_spinal_infection"
+    ],
     "body": {
       "regulatory_status": "preclinical",
-      "applicable_subtypes": ["sporadic_tdp43", "tardbp", "c9orf72", "fus"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "tardbp",
+        "c9orf72",
+        "fus"
+      ],
       "dosing": "TBD",
       "erik_eligible": false,
       "notes": "Preclinical ASO targeting UNC13A cryptic exon caused by TDP-43 nuclear loss. Risk SNP rs12973192 modulates severity. Synergistic with STMN2 ASO approach."
@@ -446,15 +876,36 @@
     "id": "int:aav_bdnf",
     "name": "AAV-BDNF",
     "intervention_class": "gene_therapy",
-    "targets": ["BDNF"],
-    "protocol_layer": "regeneration_support",
+    "targets": [
+      "BDNF"
+    ],
+    "protocol_layer": "regeneration_reinnervation",
     "route": "intrathecal",
-    "intended_effects": ["deliver_BDNF_to_motor_neurons", "neurotrophic_support", "promote_survival"],
-    "known_risks": ["immune_response_to_AAV", "off_target_BDNF_effects", "dorsal_root_ganglion_toxicity"],
-    "contraindications": ["pre_existing_AAV_antibodies"],
+    "intended_effects": [
+      "deliver_BDNF_to_motor_neurons",
+      "neurotrophic_support",
+      "promote_survival"
+    ],
+    "known_risks": [
+      "immune_response_to_AAV",
+      "off_target_BDNF_effects",
+      "dorsal_root_ganglion_toxicity"
+    ],
+    "contraindications": [
+      "pre_existing_AAV_antibodies"
+    ],
     "body": {
       "regulatory_status": "preclinical",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "single intrathecal administration",
       "erik_eligible": false,
       "notes": "Preclinical AAV-mediated BDNF delivery. Addresses MN survival and NMJ maintenance. Historical challenge: systemic BDNF failed in ALS trials (poor CNS penetration). Gene therapy approach solves delivery."
@@ -464,15 +915,36 @@
     "id": "int:aav_gdnf",
     "name": "AAV-GDNF",
     "intervention_class": "gene_therapy",
-    "targets": ["GDNF"],
-    "protocol_layer": "regeneration_support",
+    "targets": [
+      "GDNF"
+    ],
+    "protocol_layer": "regeneration_reinnervation",
     "route": "intrathecal",
-    "intended_effects": ["deliver_GDNF_to_motor_neurons", "neurotrophic_support", "promote_axonal_regrowth"],
-    "known_risks": ["immune_response_to_AAV", "weight_loss", "dorsal_root_ganglion_toxicity"],
-    "contraindications": ["pre_existing_AAV_antibodies"],
+    "intended_effects": [
+      "deliver_GDNF_to_motor_neurons",
+      "neurotrophic_support",
+      "promote_axonal_regrowth"
+    ],
+    "known_risks": [
+      "immune_response_to_AAV",
+      "weight_loss",
+      "dorsal_root_ganglion_toxicity"
+    ],
+    "contraindications": [
+      "pre_existing_AAV_antibodies"
+    ],
     "body": {
       "regulatory_status": "preclinical",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "dosing": "single intrathecal administration",
       "erik_eligible": false,
       "notes": "Preclinical AAV-mediated GDNF delivery. GDNF potently supports motor neuron survival and axonal regrowth. Preclinical efficacy in SOD1-G93A models. Delivery route critical for efficacy."

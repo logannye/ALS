@@ -3,13 +3,25 @@
     "id": "evi:nmj_dying_back",
     "claim": "ALS is a dying-back neuropathy where neuromuscular junction (NMJ) withdrawal precedes motor neuron soma death",
     "direction": "supports",
-    "source_refs": ["pmid:9134378", "pmid:16388308"],
+    "source_refs": [
+      "pmid:9134378",
+      "pmid:16388308"
+    ],
     "strength": "strong",
     "notes": "Fischer et al 2004, Gould et al 2006. NMJ denervation occurs weeks to months before MN cell body death in SOD1 models. Implies NMJ stabilization/reinnervation as valid therapeutic window before irreversible MN loss.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "NMJ_withdrawal",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "transgenic_model",
@@ -24,13 +36,18 @@
     "id": "evi:axonal_transport_kif5a",
     "claim": "KIF5A mutations disrupt axonal transport and are associated with ALS, linking cargo trafficking failure to motor neuron degeneration",
     "direction": "supports",
-    "source_refs": ["pmid:29566793"],
+    "source_refs": [
+      "pmid:29566793"
+    ],
     "strength": "moderate",
     "notes": "Nicolas et al 2018, Neuron. KIF5A C-terminal mutations identified in ALS GWAS. KIF5A is a kinesin motor protein for axonal transport. Mutations impair autoregulation, causing transport disruption in long motor neuron axons.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "axonal_transport",
-      "applicable_subtypes": ["sporadic_tdp43", "mixed"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "mixed"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "gwas",
@@ -45,13 +62,24 @@
     "id": "evi:bdnf_mn_survival",
     "claim": "BDNF (brain-derived neurotrophic factor) promotes motor neuron survival and NMJ maintenance through TrkB signaling",
     "direction": "supports",
-    "source_refs": ["pmid:8531888"],
+    "source_refs": [
+      "pmid:8531888"
+    ],
     "strength": "strong",
     "notes": "Yan et al 1992, Oppenheim et al 1992 and extensive follow-up. BDNF is a key motor neuron survival factor. Historical clinical trials of systemic BDNF failed due to poor CNS penetration. Gene therapy delivery may overcome this limitation.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "neurotrophic_support_BDNF",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "preclinical",
@@ -67,13 +95,24 @@
     "id": "evi:gdnf_mn_survival",
     "claim": "GDNF (glial cell-derived neurotrophic factor) is the most potent known motor neuron survival factor, promoting both survival and axonal regrowth",
     "direction": "supports",
-    "source_refs": ["pmid:7700630"],
+    "source_refs": [
+      "pmid:7700630"
+    ],
     "strength": "strong",
     "notes": "Henderson et al 1994, Lin et al 1993. GDNF signals through RET/GFRalpha1 complex. Most potent MN survival factor identified. Like BDNF, systemic delivery failed; CNS-targeted delivery (AAV, cells) promising.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "neurotrophic_support_GDNF",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "preclinical",
@@ -89,15 +128,26 @@
     "id": "evi:aav_bdnf_preclinical",
     "claim": "AAV-mediated BDNF delivery to motor neurons extends survival and preserves NMJs in ALS animal models",
     "direction": "supports",
-    "source_refs": ["pmid:18615016"],
+    "source_refs": [
+      "pmid:18615016"
+    ],
     "strength": "preclinical",
     "notes": "Azzouz et al 2004 (VEGF) and related BDNF gene therapy work. AAV vectors delivering neurotrophic factors to spinal cord show efficacy in SOD1 models. Challenge: timing, dose, and vector selection for clinical translation.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "AAV_BDNF_delivery",
       "intervention_ref": "int:aav_bdnf",
       "intervention_class": "gene_therapy",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": false,
       "pch_layer": 1,
       "modality": "preclinical",
@@ -112,15 +162,26 @@
     "id": "evi:aav_gdnf_preclinical",
     "claim": "AAV-mediated GDNF delivery preserves motor neurons and extends survival in SOD1-G93A mouse and rat models",
     "direction": "supports",
-    "source_refs": ["pmid:15329388"],
+    "source_refs": [
+      "pmid:15329388"
+    ],
     "strength": "preclinical",
     "notes": "Kaspar et al 2003, Wang et al 2002 and related work. Retrograde AAV-GDNF delivery to spinal MNs. Significant MN preservation and delayed disease onset. Most advanced neurotrophic gene therapy for ALS.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "AAV_GDNF_delivery",
       "intervention_ref": "int:aav_gdnf",
       "intervention_class": "gene_therapy",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": false,
       "pch_layer": 1,
       "modality": "preclinical",
@@ -135,19 +196,34 @@
     "id": "evi:agrin_musk_nmj",
     "claim": "Agrin/MuSK/LRP4 signaling pathway is essential for NMJ formation and maintenance; therapeutic activation could stabilize denervating NMJs in ALS",
     "direction": "supports",
-    "source_refs": ["pmid:23929950"],
+    "source_refs": [
+      "pmid:23929950"
+    ],
     "strength": "preclinical",
     "notes": "Agrin released from motor nerve terminal activates MuSK via LRP4 co-receptor, clustering AChRs at NMJ. In ALS, agrin signaling disrupted. Engineered agrin fragments or MuSK agonists could stabilize NMJs.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "NMJ_stabilization",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "preclinical",
       "key_endpoints": {
         "nmj_stabilization": "in_model",
-        "targets": ["agrin", "MuSK", "LRP4"],
+        "targets": [
+          "agrin",
+          "MuSK",
+          "LRP4"
+        ],
         "achr_clustering": "restored"
       }
     }
@@ -156,13 +232,24 @@
     "id": "evi:ipsc_mn_transplant",
     "claim": "iPSC-derived motor neuron transplantation shows engraftment and functional integration in animal models but faces major translational challenges",
     "direction": "mixed",
-    "source_refs": ["pmid:29763119"],
+    "source_refs": [
+      "pmid:29763119"
+    ],
     "strength": "preclinical",
     "notes": "iPSC-MN transplantation can produce engrafted neurons that extend axons toward muscle. Challenges: axon guidance over long distances, NMJ formation, immune rejection, tumor risk, scalability. Likely decades from clinical application for ALS.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "motor_neuron_replacement",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": false,
       "pch_layer": 1,
       "modality": "preclinical",
@@ -177,13 +264,19 @@
     "id": "evi:glial_progenitor_transplant",
     "claim": "Transplanted glial progenitor cells can replace toxic astrocytes and provide trophic support to motor neurons in ALS models",
     "direction": "supports",
-    "source_refs": ["pmid:25533486"],
+    "source_refs": [
+      "pmid:25533486"
+    ],
     "strength": "preclinical",
     "notes": "Lepore et al 2008. Glial-restricted precursor cells (GRPs) transplanted to ALS rat spinal cord differentiated into healthy astrocytes, extended survival. More feasible than MN transplant (glia don't need to project axons to muscle).",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "glial_replacement",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "glia_amplified"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "glia_amplified"
+      ],
       "erik_eligible": false,
       "pch_layer": 1,
       "modality": "preclinical",
@@ -198,13 +291,24 @@
     "id": "evi:neurturin_trophic",
     "claim": "Neurturin is an alternative GDNF-family trophic factor that supports motor neuron survival through GFRalpha2/RET signaling",
     "direction": "supports",
-    "source_refs": ["pmid:9312004"],
+    "source_refs": [
+      "pmid:9312004"
+    ],
     "strength": "preclinical",
-    "notes": "Kotzbauer et al 1996. Neurturin (NRTN) signals through GFRalpha2/RET. Less potent than GDNF for MN survival but broader expression. AAV-NRTN used in Parkinson's trials — infrastructure could be adapted for ALS.",
+    "notes": "Kotzbauer et al 1996. Neurturin (NRTN) signals through GFRalpha2/RET. Less potent than GDNF for MN survival but broader expression. AAV-NRTN used in Parkinson's trials \u2014 infrastructure could be adapted for ALS.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "neurotrophic_support_neurturin",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": false,
       "pch_layer": 1,
       "modality": "preclinical",
@@ -219,13 +323,24 @@
     "id": "evi:exercise_neuroprotection",
     "claim": "Moderate exercise may provide neuroprotective benefit in ALS through BDNF upregulation, NMJ maintenance, and anti-inflammatory effects",
     "direction": "mixed",
-    "source_refs": ["pmid:25428574"],
+    "source_refs": [
+      "pmid:25428574"
+    ],
     "strength": "moderate",
     "notes": "Carreras et al 2010, Deforges et al 2009. Moderate exercise extends survival in SOD1 mice. ALS clinical observational data mixed. High-intensity exercise may be harmful. Mechanism: BDNF upregulation, NMJ activity-dependent maintenance.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "exercise_neuroprotection",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "mixed_preclinical_clinical",
@@ -241,13 +356,24 @@
     "id": "evi:denervation_reinnervation",
     "claim": "ALS progression reflects the balance between ongoing denervation and compensatory reinnervation by surviving motor neurons",
     "direction": "supports",
-    "source_refs": ["pmid:16945116"],
+    "source_refs": [
+      "pmid:16945116"
+    ],
     "strength": "strong",
     "notes": "Gordon et al 2004, de Carvalho et al 2014. Motor unit number estimation (MUNE) shows progressive loss. Compensatory reinnervation (collateral sprouting) temporarily maintains function. Clinical plateau occurs when reinnervation capacity is exhausted.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "denervation_reinnervation_balance",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "neurophysiology",
@@ -263,13 +389,22 @@
     "id": "evi:stathmin2_axonal_repair",
     "claim": "Stathmin-2 (STMN2) is required for axonal regeneration after injury; its loss in ALS prevents compensatory reinnervation",
     "direction": "supports",
-    "source_refs": ["pmid:30996110"],
+    "source_refs": [
+      "pmid:30996110"
+    ],
     "strength": "strong",
-    "notes": "Klim et al 2019. STMN2 is essential for axonal regeneration. TDP-43 loss → STMN2 loss → impaired axonal repair. This directly links TDP-43 pathology to the failure of compensatory reinnervation that defines ALS progression.",
+    "notes": "Klim et al 2019. STMN2 is essential for axonal regeneration. TDP-43 loss \u2192 STMN2 loss \u2192 impaired axonal repair. This directly links TDP-43 pathology to the failure of compensatory reinnervation that defines ALS progression.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "STMN2_axonal_repair",
-      "applicable_subtypes": ["sporadic_tdp43", "c9orf72", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "c9orf72",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 3,
       "modality": "cell_biology",
@@ -284,13 +419,24 @@
     "id": "evi:schwann_cell_support",
     "claim": "Terminal Schwann cells at the NMJ play critical roles in reinnervation guidance; their dysfunction in ALS impairs compensatory sprouting",
     "direction": "supports",
-    "source_refs": ["pmid:22325200"],
+    "source_refs": [
+      "pmid:22325200"
+    ],
     "strength": "moderate",
     "notes": "Kang et al 2014 and related work. Terminal Schwann cells (tSCs) guide axonal sprouts to denervated endplates. In ALS, tSC dysfunction contributes to reinnervation failure. Potential therapeutic target for NMJ maintenance.",
     "body": {
-      "protocol_layer": "regeneration_support",
+      "protocol_layer": "regeneration_reinnervation",
       "mechanism_target": "terminal_schwann_cell_function",
-      "applicable_subtypes": ["sporadic_tdp43", "sod1", "c9orf72", "fus", "tardbp", "glia_amplified", "mixed", "unresolved"],
+      "applicable_subtypes": [
+        "sporadic_tdp43",
+        "sod1",
+        "c9orf72",
+        "fus",
+        "tardbp",
+        "glia_amplified",
+        "mixed",
+        "unresolved"
+      ],
       "erik_eligible": true,
       "pch_layer": 2,
       "modality": "cell_biology",
