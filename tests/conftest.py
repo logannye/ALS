@@ -23,3 +23,10 @@ def db_available() -> bool:
     if not available:
         pytest.skip("erik_kg PostgreSQL database not accessible — skipping DB tests")
     return True
+
+
+@pytest.fixture
+def evidence_store():
+    """Return a fresh EvidenceStore instance for each test."""
+    from evidence.evidence_store import EvidenceStore
+    return EvidenceStore()
