@@ -85,23 +85,44 @@ Erik's complete clinical trajectory is ingested as **51 structured observations*
 
 ---
 
-## Current Status: Phase 0 Complete
+## Current Status: Phase 1A Complete
 
-Phase 0 (Canonical Substrate) delivers the foundational data layer:
+### Phase 0: Canonical Substrate (Complete)
 
-- **25 canonical Pydantic models** — Patient, ALSTrajectory, Observation (with LabResult, EMGFinding, RespiratoryMetric, ImagingFinding, PhysicalExamFinding), Interpretation, EtiologicDriverProfile, 9 latent state models (TDP-43, Splicing, Glial, NMJ, Respiratory, Functional, Reversibility, Uncertainty, DiseaseStateSnapshot), EvidenceBundle, EvidenceItem, Intervention, CureProtocolCandidate, MonitoringPlan, MechanismHypothesis, ExperimentProposal, LearningEpisode, ErrorRecord, ImprovementProposal, Branch
-- **15 type-safe enums** — SubtypeClass, ProtocolLayer, PCHLayer, ObservationKind, ALSOnsetRegion, etc.
+- **25 canonical Pydantic models** — Patient, ALSTrajectory, Observation, Interpretation, EtiologicDriverProfile, 9 latent state models, EvidenceBundle, EvidenceItem, Intervention, CureProtocolCandidate, MonitoringPlan, MechanismHypothesis, ExperimentProposal, LearningEpisode, ErrorRecord, ImprovementProposal, Branch
+- **16 type-safe enums** — SubtypeClass, ProtocolLayer, PCHLayer, EvidenceStrength, ObservationKind, InterventionClass (with gene_therapy, cell_therapy, peptide), etc.
 - **38 typed relations** with 12 observational guards (never promote to L3)
 - **6 PostgreSQL tables** across 2 schemas (erik_core, erik_ops)
-- **441 tests** passing in 0.19s
-- **Erik Draper's full clinical trajectory** structured from real medical records
+- **Erik Draper's full clinical trajectory** — 51 structured observations from real medical records
+
+### Phase 1A: Evidence Seed (Complete)
+
+Protocol-first evidence fabric organized around the 5 cure protocol layers:
+
+- **93 curated evidence items** across all 5 protocol layers, each tagged with mechanism target, applicable subtypes, Erik eligibility, PCH level, and real PMIDs
+- **25 intervention objects** covering approved therapies (riluzole, edaravone, tofersen, Sodesta), Phase 3 trials (pridopidine PREVAiLS, masitinib, jacifusen FUSION), Phase 1/2 (VTx-002 TDP-43 intrabody), failed/withdrawn (AMX0035, BIIB078, zilucoplan), off-label candidates (rapamycin, memantine, perampanel), and preclinical (STMN2/UNC13A ASOs, AAV-BDNF/GDNF)
+- **16 canonical ALS drug targets** with UniProt IDs, druggability assessments, and subtype mapping (TDP-43, SOD1, FUS, C9orf72, STMN2, UNC13A, Sigma-1R, EAAT2, BDNF, GDNF, OPTN, TBK1, NEK1, C5, CSF1R, mTOR)
+- **10 computational drug design targets** with PDB structures and compound library references
+- **Evidence store** with PostgreSQL CRUD, upsert, and protocol-layer queries
+- **514 tests** passing in 0.28s
+
+**Evidence coverage by protocol layer:**
+
+| Layer | Name | Evidence Items | Key Interventions |
+|-------|------|---------------|-------------------|
+| A | Root-cause suppression | 22 | Tofersen, Sodesta, VTx-002, jacifusen |
+| B | Pathology reversal | 23 | Pridopidine, rapamycin, STMN2/UNC13A ASOs |
+| C | Circuit stabilization | 19 | Riluzole, masitinib, ibudilast, perampanel |
+| D | Regeneration | 14 | AAV-BDNF, AAV-GDNF, NMJ stabilization |
+| E | Adaptive maintenance | 15 | NfL monitoring, MDC, respiratory surveillance |
 
 ### Roadmap
 
 | Phase | Name | Status | Description |
 |-------|------|--------|-------------|
 | 0 | Canonical Substrate | **Complete** | Ontology, schema, patient ingestion, Erik's data |
-| 1 | Evidence Fabric | Planned | PubMed, ChEMBL, ClinicalTrials.gov connectors |
+| 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
+| 1B | Evidence Connectors | Planned | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets APIs |
 | 2 | World Model MVP | Planned | Latent state estimation, subtype posterior, progression forecast |
 | 3 | RL Loop | Planned | Experience stream, action space, reward function, value function |
 | 4 | Cure Protocol Generation | Planned | Planner, protocol builder, abstention logic |
@@ -112,14 +133,20 @@ Phase 0 (Canonical Substrate) delivers the foundational data layer:
 
 ```
 scripts/
-  ontology/         # 25 canonical Pydantic models + enums + relations + registry
+  ontology/         # 25 canonical Pydantic models + 16 enums + relations + registry
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
+  evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
+  targets/          # Canonical ALS drug target definitions (16 targets)
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
-tests/              # 441 pytest tests mirroring scripts/ structure
-data/               # Runtime config (erik_config.json)
-docs/plans/         # Implementation plans
+data/
+  seed/             # Curated evidence seed (7 JSON files, 128 objects)
+  erik_config.json  # Hot-reloadable runtime config
+tests/              # 514 pytest tests mirroring scripts/ structure
+docs/
+  specs/            # Design specifications
+  plans/            # Implementation plans
 ```
 
 ---
@@ -159,21 +186,31 @@ pytest tests/ -v
 ```bash
 conda activate erik-core
 cd /path/to/ALS
-pytest tests/ -v          # All 441 tests
-pytest tests/ -v -k erik  # Just Erik trajectory tests
+pytest tests/ -v              # All 514 tests
+pytest tests/ -v -k erik      # Just Erik trajectory tests
+pytest tests/ -v -k seed      # Evidence seed validation
 ```
 
 ### Quick Verification
 
 ```python
+# Patient trajectory
 from ingestion.patient_builder import build_erik_draper
 patient, trajectory, observations = build_erik_draper()
-
 print(f"Patient: {patient.patient_key}")
-print(f"Onset: {trajectory.onset_date}")
-print(f"Diagnosis: {trajectory.diagnosis_date}")
 print(f"ALSFRS-R: {trajectory.alsfrs_r_scores[0].total}/48")
 print(f"Observations: {len(observations)}")
+
+# Evidence fabric
+from evidence.seed_builder import load_seed
+from evidence.evidence_store import EvidenceStore
+stats = load_seed()
+store = EvidenceStore()
+print(f"Interventions: {stats['interventions_loaded']}")
+print(f"Evidence items: {stats['evidence_items_loaded']}")
+for layer in ['root_cause_suppression', 'pathology_reversal', 'circuit_stabilization',
+              'regeneration_reinnervation', 'adaptive_maintenance']:
+    print(f"  {layer}: {len(store.query_by_protocol_layer(layer))} items")
 ```
 
 ---
@@ -200,7 +237,11 @@ Applied to ALS: Erik doesn't memorize treatment guidelines. It builds a causal m
 **Therapeutics:**
 - Bensimon et al., 1994 — Riluzole RCT
 - Miller et al., 2022 — VALOR tofersen RCT (SOD1-ALS)
-- HEALEY platform trial publications (verdiperstat, zilucoplan, pridopidine)
+- Miller et al., 2025 — Tofersen 3.5-year OLE (JAMA Neurology)
+- Pridopidine PREVAiLS Phase 3 (500 patients, enrolling Jan 2026)
+- VTx-002 TDP-43 intrabody (FDA Fast Track Jan 2026, PIONEER-ALS Phase 1/2)
+- HEALEY platform trial publications (verdiperstat, zilucoplan, pridopidine, CNM-Au8, DNL343)
+- Jacifusen/ulefnersen FUSION Phase 3 (FUS-ALS, readout H2 2026)
 
 **Data sources:**
 - PRO-ACT (13K patient records, 38 trials)
