@@ -176,6 +176,38 @@ class EvidenceStore:
         """
         return self._run_query(sql, (target,))
 
+    def query_by_intervention_ref(self, intervention_id: str) -> list[dict]:
+        """Return active EvidenceItems whose body.intervention_ref matches."""
+        sql = """
+            SELECT id, type, status, body
+            FROM erik_core.objects
+            WHERE type = 'EvidenceItem'
+              AND status = 'active'
+              AND body->>'intervention_ref' = %s
+        """
+        return self._run_query(sql, (intervention_id,))
+
+    def query_all_interventions(self) -> list[dict]:
+        """Return all active Intervention objects."""
+        sql = """
+            SELECT id, type, status, body
+            FROM erik_core.objects
+            WHERE type = 'Intervention' AND status = 'active'
+        """
+        return self._run_query(sql, ())
+
+    def upsert_object(self, obj) -> None:
+        """Upsert any BaseEnvelope object into erik_core.objects."""
+        raw = obj.model_dump(mode="json")
+        self._upsert_object(
+            obj_id=raw["id"],
+            obj_type=raw["type"],
+            status=raw.get("status", "active"),
+            body=raw.get("body", {}),
+            provenance_source_system=raw.get("provenance", {}).get("source_system"),
+            confidence=raw.get("uncertainty", {}).get("confidence"),
+        )
+
     def _run_query(self, sql: str, params: tuple) -> list[dict]:
         with get_connection() as conn:
             with conn.cursor() as cur:
