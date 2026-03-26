@@ -14,3 +14,6 @@ dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts"]
+markers = [
+    "network: marks tests that require network access (deselect with '-m \"not network\"')",
+]
