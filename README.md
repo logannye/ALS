@@ -104,7 +104,7 @@ Protocol-first evidence fabric organized around the 5 cure protocol layers:
 - **16 canonical ALS drug targets** with UniProt IDs, druggability assessments, and subtype mapping (TDP-43, SOD1, FUS, C9orf72, STMN2, UNC13A, Sigma-1R, EAAT2, BDNF, GDNF, OPTN, TBK1, NEK1, C5, CSF1R, mTOR)
 - **10 computational drug design targets** with PDB structures and compound library references
 - **Evidence store** with PostgreSQL CRUD, upsert, and protocol-layer queries
-- **514 tests** passing in 0.28s
+- **632 tests** passing in 4.4s
 
 **Evidence coverage by protocol layer:**
 
@@ -116,13 +116,24 @@ Protocol-first evidence fabric organized around the 5 cure protocol layers:
 | D | Regeneration | 14 | AAV-BDNF, AAV-GDNF, NMJ stabilization |
 | E | Adaptive maintenance | 15 | NfL monitoring, MDC, respiratory surveillance |
 
+### Phase 1B: Evidence Connectors (Complete)
+
+5 on-demand API connectors that expand the evidence fabric with live data:
+
+- **PubMedConnector** — E-utilities XML parsing, curated per-layer ALS queries (5 protocol layers), abstract extraction, publication type → modality mapping
+- **ClinicalTrialsConnector** — v2 REST API, active ALS Phase 2/3 trial parsing, **Erik eligibility engine** (checks age, sex, ALSFRS-R, FVC, genetic status, comorbidities, medications against each trial's criteria), Ohio site detection
+- **ChEMBLConnector** — Local SQL queries against ChEMBL 36 for compound bioactivity on ALS targets (SIGMAR1, EAAT2, mTOR, CSF1R, TDP-43)
+- **OpenTargetsConnector** — GraphQL for ranked ALS target-disease associations with tractability scoring
+- **DrugBankConnector** — XML parser for drug profiles, MOA, ADMET, and drug-drug interaction checking (critical for combination protocol safety)
+- **632 tests** passing in 4.4s
+
 ### Roadmap
 
 | Phase | Name | Status | Description |
 |-------|------|--------|-------------|
 | 0 | Canonical Substrate | **Complete** | Ontology, schema, patient ingestion, Erik's data |
 | 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
-| 1B | Evidence Connectors | Planned | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets APIs |
+| 1B | Evidence Connectors | **Complete** | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank |
 | 2 | World Model MVP | Planned | Latent state estimation, subtype posterior, progression forecast |
 | 3 | RL Loop | Planned | Experience stream, action space, reward function, value function |
 | 4 | Cure Protocol Generation | Planned | Planner, protocol builder, abstention logic |
@@ -137,6 +148,7 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
+  connectors/       # 5 API connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank)
   targets/          # Canonical ALS drug target definitions (16 targets)
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config

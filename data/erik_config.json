@@ -1,10 +1,15 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "database_name": "erik_kg",
   "llm_server_enabled": false,
   "temperature": 1.0,
   "exploration_epsilon": 0.30,
   "action_timeout_s": 120,
   "hot_reload_interval_steps": 10,
-  "audit_enabled": true
+  "audit_enabled": true,
+  "ncbi_api_key": null,
+  "chembl_db_path": "/Volumes/Databank/databases/chembl_36.db",
+  "drugbank_xml_path": null,
+  "connector_max_retries": 3,
+  "connector_backoff_seconds": [1, 2, 4]
 }
