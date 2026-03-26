@@ -16,4 +16,5 @@ testpaths = ["tests"]
 pythonpath = ["scripts"]
 markers = [
     "network: marks tests that require network access (deselect with '-m \"not network\"')",
+    "chembl: marks tests that require the local ChEMBL 36 SQLite database",
 ]
