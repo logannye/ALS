@@ -18,5 +18,18 @@
   "llm_max_tokens_default": 1000,
   "llm_timeout_s": 120,
   "reasoning_verify_critical": true,
-  "reasoning_strip_uncited": true
+  "reasoning_strip_uncited": true,
+  "research_loop_enabled": true,
+  "research_max_steps": 500,
+  "research_protocol_regen_threshold": 10,
+  "research_convergence_window": 3,
+  "research_llm_model": "fallback",
+  "research_protocol_llm_model": "primary",
+  "research_step_timeout_s": 120,
+  "research_hypothesis_max_active": 10,
+  "research_causal_chain_target_depth": 5,
+  "research_exploration_fraction": 0.15,
+  "research_inter_step_pause_s": 1.0,
+  "research_pubmed_max_per_query": 20,
+  "research_trials_max_per_search": 30
 }
