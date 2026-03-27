@@ -4,8 +4,8 @@ import pytest
 from research.actions import ActionType, ActionResult, build_action_params
 
 class TestActionType:
-    def test_all_10_actions_exist(self):
-        assert len(ActionType) == 10
+    def test_all_15_actions_exist(self):
+        assert len(ActionType) == 15
 
     def test_evidence_actions(self):
         assert ActionType.SEARCH_PUBMED.value == "search_pubmed"

@@ -15,11 +15,21 @@ class ActionType(str, Enum):
     VALIDATE_HYPOTHESIS = "validate_hypothesis"
     SCORE_NEW_EVIDENCE = "score_new_evidence"
     REGENERATE_PROTOCOL = "regenerate_protocol"
+    # Phase 3B: Evidence expansion
+    QUERY_PATHWAYS = "query_pathways"
+    QUERY_PPI_NETWORK = "query_ppi_network"
+    MATCH_COHORT = "match_cohort"
+    INTERPRET_VARIANT = "interpret_variant"
+    CHECK_PHARMACOGENOMICS = "check_pharmacogenomics"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,
     ActionType.SEARCH_TRIALS,
     ActionType.QUERY_OPENTARGETS,
+    ActionType.QUERY_PATHWAYS,
+    ActionType.QUERY_PPI_NETWORK,
+    ActionType.INTERPRET_VARIANT,
+    ActionType.CHECK_PHARMACOGENOMICS,
 }
 
 LLM_ACTIONS = {

@@ -31,5 +31,14 @@
   "research_exploration_fraction": 0.15,
   "research_inter_step_pause_s": 1.0,
   "research_pubmed_max_per_query": 20,
-  "research_trials_max_per_search": 30
+  "research_trials_max_per_search": 30,
+  "reactome_base_url": "https://reactome.org/ContentService",
+  "kegg_base_url": "https://rest.kegg.jp",
+  "string_base_url": "https://string-db.org/api",
+  "string_min_score": 400,
+  "clinvar_enabled": true,
+  "omim_api_key": null,
+  "pharmgkb_base_url": "https://api.pharmgkb.org/v1",
+  "proact_data_dir": null,
+  "genetics_received": false
 }

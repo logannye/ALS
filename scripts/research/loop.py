@@ -247,6 +247,11 @@ def _execute_action(
             ActionType.VALIDATE_HYPOTHESIS: _exec_validate_hypothesis,
             ActionType.SCORE_NEW_EVIDENCE: _exec_score_new_evidence,
             ActionType.REGENERATE_PROTOCOL: _exec_regenerate_protocol,
+            ActionType.QUERY_PATHWAYS: _exec_query_pathways,
+            ActionType.QUERY_PPI_NETWORK: _exec_query_ppi_network,
+            ActionType.MATCH_COHORT: _exec_match_cohort,
+            ActionType.INTERPRET_VARIANT: _exec_interpret_variant,
+            ActionType.CHECK_PHARMACOGENOMICS: _exec_check_pharmacogenomics,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -594,3 +599,119 @@ def _exec_regenerate_protocol(
             llm_manager.unload_protocol_model()
         except Exception:
             pass
+
+
+# ---------------------------------------------------------------------------
+# Phase 3B action executors
+# ---------------------------------------------------------------------------
+
+def _exec_query_pathways(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query Reactome + KEGG for pathway data on a target."""
+    from connectors.reactome import ReactomeConnector
+    from connectors.kegg import KEGGConnector
+    from targets.als_targets import ALS_TARGETS
+
+    target_name = params.get("target_name", "")
+    target = ALS_TARGETS.get(target_name, {})
+    uniprot_id = target.get("uniprot_id", "")
+    gene = target.get("gene", "")
+    total_added = 0
+    errors: list[str] = []
+    if uniprot_id:
+        try:
+            cr = ReactomeConnector(evidence_store=store).fetch(
+                uniprot_id=uniprot_id, gene_symbol=gene,
+            )
+            total_added += cr.evidence_items_added
+            errors.extend(cr.errors)
+        except Exception as e:
+            errors.append(str(e))
+    if gene:
+        try:
+            cr = KEGGConnector(evidence_store=store).fetch(gene_symbol=gene)
+            total_added += cr.evidence_items_added
+            errors.extend(cr.errors)
+        except Exception as e:
+            errors.append(str(e))
+    return ActionResult(
+        action=ActionType.QUERY_PATHWAYS,
+        evidence_items_added=total_added,
+        success=not errors,
+        error="; ".join(errors) if errors else None,
+    )
+
+
+def _exec_query_ppi_network(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query STRING-DB for protein-protein interactions."""
+    from connectors.string_db import STRINGConnector
+
+    gene_symbol = params.get("gene_symbol", "")
+    cr = STRINGConnector(evidence_store=store).fetch(gene_symbol=gene_symbol)
+    return ActionResult(
+        action=ActionType.QUERY_PPI_NETWORK,
+        evidence_items_added=cr.evidence_items_added,
+        success=not cr.errors,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_match_cohort(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Match patient to PRO-ACT historical cohort."""
+    from research.trajectory import ProACTAnalyzer
+
+    analyzer = ProACTAnalyzer(data_dir=params.get("proact_data_dir"))
+    analyzer.load()
+    match = analyzer.match_cohort(
+        age=67, sex="male", onset_region="lower_limb",
+        baseline_alsfrs_r=43, decline_rate=-0.39,
+    )
+    return ActionResult(
+        action=ActionType.MATCH_COHORT,
+        detail={
+            "cohort_match": {
+                "n_patients": match.n_patients,
+                "median_decline": match.median_decline_rate,
+                "erik_percentile": match.erik_percentile,
+            },
+        },
+    )
+
+
+def _exec_interpret_variant(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Retrieve ClinVar variant interpretations for a gene."""
+    from connectors.clinvar import ClinVarConnector
+
+    gene = params.get("gene", "")
+    cv = ClinVarConnector(evidence_store=store)
+    cr = cv.fetch(gene=gene)
+    return ActionResult(
+        action=ActionType.INTERPRET_VARIANT,
+        evidence_items_added=cr.evidence_items_added,
+        success=not cr.errors,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_check_pharmacogenomics(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Check PharmGKB for pharmacogenomic drug annotations."""
+    from connectors.pharmgkb import PharmGKBConnector
+
+    drug_name = params.get("drug_name", "")
+    cr = PharmGKBConnector(evidence_store=store).fetch(drug_name=drug_name)
+    return ActionResult(
+        action=ActionType.CHECK_PHARMACOGENOMICS,
+        evidence_items_added=cr.evidence_items_added,
+        interaction_safe=not cr.errors,
+        success=not cr.errors,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
