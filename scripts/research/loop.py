@@ -197,11 +197,23 @@ def run_research_loop(
     """
     state = initial_state(subject_ref=subject_ref)
 
+    # Initialize evidence count from DB (not zero)
+    if not dry_run:
+        try:
+            state = replace(state, total_evidence_items=evidence_store.count_by_type("EvidenceItem"))
+            print(f"[RESEARCH] Evidence in DB: {state.total_evidence_items}")
+        except Exception:
+            pass
+
     # Bootstrap: generate the initial protocol so the policy has
     # uncertainties, causal chain targets, and a protocol version to work with
     if not dry_run:
         print("[RESEARCH] Bootstrapping: generating initial protocol...")
         state = _bootstrap_initial_protocol(state, evidence_store, llm_manager)
+
+    # Persist initial state for monitor
+    if not dry_run:
+        _persist_state(state, evidence_store)
 
     for _i in range(max_steps):
         state = research_step(
@@ -212,9 +224,14 @@ def run_research_loop(
             regen_threshold=regen_threshold,
         )
 
+        # Persist state for monitor (every step)
+        if not dry_run:
+            _persist_state(state, evidence_store)
+
         # Check convergence (protocol stable for 3+ cycles)
         if state.converged or state.protocol_stable_cycles >= 3:
             state = replace(state, converged=True)
+            _persist_state(state, evidence_store)
             print(f"[RESEARCH] Converged at step {state.step_count}.")
             break
 
@@ -225,6 +242,10 @@ def run_research_loop(
         # Periodic memory cleanup
         if state.step_count % 50 == 0:
             gc.collect()
+
+    # Final persist
+    if not dry_run:
+        _persist_state(state, evidence_store)
 
     return state
 
@@ -287,6 +308,40 @@ def _bootstrap_initial_protocol(
         llm_manager.unload_protocol_model()
 
     return state
+
+
+# ---------------------------------------------------------------------------
+# State persistence (for monitor)
+# ---------------------------------------------------------------------------
+
+def _persist_state(state: ResearchState, evidence_store: Any) -> None:
+    """Write current research state to erik_ops.research_state for the monitor.
+
+    Uses a single-row upsert keyed on subject_ref. Best-effort — never
+    crashes the loop on persistence failure.
+    """
+    import json
+    try:
+        from db.pool import get_connection
+        state_json = json.dumps(state.to_dict(), default=str)
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS erik_ops.research_state (
+                        subject_ref TEXT PRIMARY KEY,
+                        state_json JSONB NOT NULL,
+                        updated_at TIMESTAMPTZ DEFAULT NOW()
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO erik_ops.research_state (subject_ref, state_json, updated_at)
+                    VALUES (%s, %s, NOW())
+                    ON CONFLICT (subject_ref) DO UPDATE
+                    SET state_json = EXCLUDED.state_json, updated_at = NOW()
+                """, (state.subject_ref, state_json))
+            conn.commit()
+    except Exception:
+        pass  # Never crash the loop on persistence failure
 
 
 # ---------------------------------------------------------------------------
