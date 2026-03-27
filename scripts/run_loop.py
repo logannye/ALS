@@ -26,6 +26,10 @@ import sys
 import time
 from dataclasses import replace
 
+# Force unbuffered stdout/stderr so LaunchAgent logs write immediately
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 # Ensure scripts/ is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
