@@ -1,0 +1,596 @@
+"""Main research loop — orchestrates action execution, reward tracking, and convergence.
+
+Public API
+----------
+research_step(state, evidence_store, llm_manager, dry_run, ...) -> ResearchState
+    Execute one research step: select action, execute, compute reward, update state.
+
+run_research_loop(subject_ref, evidence_store, llm_manager, max_steps, ...) -> ResearchState
+    Run the full research loop until convergence or max_steps.
+"""
+from __future__ import annotations
+
+import gc
+import time
+from copy import deepcopy
+from dataclasses import replace
+from typing import Any, Optional
+
+from research.actions import ActionResult, ActionType, build_action_params
+from research.episode_logger import build_episode
+from research.policy import select_action
+from research.rewards import RewardComponents, compute_reward
+from research.state import ResearchState, initial_state
+
+# EMA learning rate for action value updates
+_EMA_ALPHA = 0.2
+
+
+# ---------------------------------------------------------------------------
+# Main research step
+# ---------------------------------------------------------------------------
+
+def research_step(
+    state: ResearchState,
+    evidence_store: Any,
+    llm_manager: Any,
+    dry_run: bool = False,
+    regen_threshold: int = 10,
+    target_depth: int = 5,
+) -> ResearchState:
+    """Execute a single research step and return the updated state.
+
+    1. Select action via policy
+    2. Execute action (or skip if dry_run)
+    3. Compute reward
+    4. Update EMA action values
+    5. Update state fields
+    6. Log episode
+    7. Print progress
+
+    Returns a new ResearchState (never mutates the input).
+    """
+    # 1. Select action
+    action, params = select_action(
+        state, regen_threshold=regen_threshold, target_depth=target_depth,
+    )
+
+    # 2. Execute
+    if dry_run:
+        result = ActionResult(action=action, success=True)
+    else:
+        result = _execute_action(action, params, state, evidence_store, llm_manager)
+
+    # 3. Compute reward
+    # Estimate uncertainty before/after (proportion of layers with zero evidence)
+    total_layers = max(len(state.evidence_by_layer), 1)
+    empty_before = sum(1 for v in state.evidence_by_layer.values() if v == 0)
+    uncertainty_before = empty_before / total_layers
+
+    new_evidence_by_layer = dict(state.evidence_by_layer)
+    # For protocol-regeneration, evidence added is zero but protocol may improve
+    # For other actions, distribute evidence across the relevant layer
+    total_evidence = state.total_evidence_items + result.evidence_items_added
+
+    empty_after = empty_before  # conservative: unchanged unless we know the layer
+    uncertainty_after = empty_after / total_layers
+
+    reward = compute_reward(
+        evidence_items_added=result.evidence_items_added,
+        uncertainty_before=uncertainty_before,
+        uncertainty_after=uncertainty_after,
+        protocol_score_delta=result.protocol_score_delta,
+        hypothesis_resolved=result.hypothesis_resolved,
+        causal_depth_added=result.causal_depth_added,
+        interaction_safe=result.interaction_safe,
+        eligibility_confirmed=result.eligibility_confirmed,
+        protocol_stable=result.protocol_stable,
+    )
+    reward_total = reward.total()
+
+    # 4. Update EMA action values
+    action_key = action.value
+    action_values = dict(state.action_values)
+    action_counts = dict(state.action_counts)
+    old_value = action_values.get(action_key, 0.0)
+    action_values[action_key] = old_value + _EMA_ALPHA * (reward_total - old_value)
+    action_counts[action_key] = action_counts.get(action_key, 0) + 1
+
+    # 5. Update state
+    new_step = state.step_count + 1
+    new_evidence_since_regen = state.new_evidence_since_regen + result.evidence_items_added
+    protocol_version = state.protocol_version
+    protocol_stable_cycles = state.protocol_stable_cycles
+
+    if result.protocol_regenerated:
+        protocol_version += 1
+        new_evidence_since_regen = 0
+        if result.protocol_stable:
+            protocol_stable_cycles += 1
+        else:
+            protocol_stable_cycles = 0
+
+    # Track active hypotheses
+    active_hyps = list(state.active_hypotheses)
+    if result.hypothesis_generated:
+        active_hyps.append(result.hypothesis_generated)
+    if result.hypothesis_resolved and active_hyps:
+        # Remove first hypothesis (the one that was being validated)
+        active_hyps.pop(0)
+
+    # Update causal chains
+    causal_chains = dict(state.causal_chains)
+    if result.causal_depth_added > 0 and params.get("intervention_id"):
+        int_id = params["intervention_id"]
+        causal_chains[int_id] = causal_chains.get(int_id, 0) + result.causal_depth_added
+
+    new_state = replace(
+        state,
+        step_count=new_step,
+        total_evidence_items=total_evidence,
+        action_values=action_values,
+        action_counts=action_counts,
+        last_action=action_key,
+        last_reward=reward_total,
+        new_evidence_since_regen=new_evidence_since_regen,
+        protocol_version=protocol_version,
+        protocol_stable_cycles=protocol_stable_cycles,
+        active_hypotheses=active_hyps,
+        causal_chains=causal_chains,
+        resolved_hypotheses=state.resolved_hypotheses + (1 if result.hypothesis_resolved else 0),
+    )
+
+    # 6. Log episode (best-effort, do not fail the step)
+    try:
+        _episode = build_episode(
+            step_count=new_step,
+            subject_ref=state.subject_ref,
+            action_result=result,
+            reward=reward,
+            protocol_ref=state.current_protocol_id,
+        )
+    except Exception:
+        pass
+
+    # 7. Print progress
+    print(
+        f"[RESEARCH] Step {new_step}: {action_key} | "
+        f"evidence={result.evidence_items_added} | "
+        f"reward={reward_total:.2f} | "
+        f"total_evidence={total_evidence}"
+    )
+
+    return new_state
+
+
+# ---------------------------------------------------------------------------
+# Full loop
+# ---------------------------------------------------------------------------
+
+def run_research_loop(
+    subject_ref: str,
+    evidence_store: Any,
+    llm_manager: Any,
+    max_steps: int = 500,
+    dry_run: bool = False,
+    regen_threshold: int = 10,
+    inter_step_pause: float = 1.0,
+) -> ResearchState:
+    """Run the research loop until convergence or *max_steps*.
+
+    Parameters
+    ----------
+    subject_ref:
+        Trajectory/patient reference (e.g. ``"traj:draper_001"``).
+    evidence_store:
+        Evidence store instance with query/upsert methods.
+    llm_manager:
+        DualLLMManager providing research and protocol engines.
+    max_steps:
+        Hard ceiling on number of steps.
+    dry_run:
+        When True, skip actual action execution.
+    regen_threshold:
+        Number of new evidence items before regenerating the protocol.
+    inter_step_pause:
+        Seconds to pause between steps (0 for dry_run).
+    """
+    state = initial_state(subject_ref=subject_ref)
+
+    for _i in range(max_steps):
+        state = research_step(
+            state=state,
+            evidence_store=evidence_store,
+            llm_manager=llm_manager,
+            dry_run=dry_run,
+            regen_threshold=regen_threshold,
+        )
+
+        # Check convergence (protocol stable for 3+ cycles)
+        if state.converged or state.protocol_stable_cycles >= 3:
+            state = replace(state, converged=True)
+            print(f"[RESEARCH] Converged at step {state.step_count}.")
+            break
+
+        # Pause between steps (skip for dry_run)
+        if not dry_run and inter_step_pause > 0:
+            time.sleep(inter_step_pause)
+
+        # Periodic memory cleanup
+        if state.step_count % 50 == 0:
+            gc.collect()
+
+    return state
+
+
+# ---------------------------------------------------------------------------
+# Action execution dispatcher
+# ---------------------------------------------------------------------------
+
+def _execute_action(
+    action: ActionType,
+    params: dict[str, Any],
+    state: ResearchState,
+    evidence_store: Any,
+    llm_manager: Any,
+) -> ActionResult:
+    """Dispatch action to the appropriate executor, catching all exceptions."""
+    try:
+        dispatch = {
+            ActionType.SEARCH_PUBMED: _exec_search_pubmed,
+            ActionType.SEARCH_TRIALS: _exec_search_trials,
+            ActionType.QUERY_CHEMBL: _exec_query_chembl,
+            ActionType.QUERY_OPENTARGETS: _exec_query_opentargets,
+            ActionType.CHECK_INTERACTIONS: _exec_check_interactions,
+            ActionType.GENERATE_HYPOTHESIS: _exec_generate_hypothesis,
+            ActionType.DEEPEN_CAUSAL_CHAIN: _exec_deepen_chain,
+            ActionType.VALIDATE_HYPOTHESIS: _exec_validate_hypothesis,
+            ActionType.SCORE_NEW_EVIDENCE: _exec_score_new_evidence,
+            ActionType.REGENERATE_PROTOCOL: _exec_regenerate_protocol,
+        }
+        fn = dispatch.get(action)
+        if fn is None:
+            return ActionResult(action=action, success=False, error=f"Unknown action: {action}")
+        return fn(params, state, evidence_store, llm_manager)
+    except Exception as e:
+        return ActionResult(action=action, success=False, error=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Individual action executors
+# ---------------------------------------------------------------------------
+
+def _exec_search_pubmed(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Search PubMed for literature evidence."""
+    from connectors.pubmed import PubMedConnector
+
+    connector = PubMedConnector(store=store)
+    query = params.get("query", f"ALS {state.subject_ref} treatment")
+    max_results = params.get("max_results", 20)
+    cr = connector.fetch(query=query, max_results=max_results)
+    return ActionResult(
+        action=ActionType.SEARCH_PUBMED,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_search_trials(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Search ClinicalTrials.gov for active ALS trials."""
+    from connectors.clinical_trials import ClinicalTrialsConnector
+
+    connector = ClinicalTrialsConnector(store=store)
+    cr = connector.fetch_active_als_trials()
+    return ActionResult(
+        action=ActionType.SEARCH_TRIALS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        interventions_added=cr.interventions_added,
+        eligibility_confirmed=cr.evidence_items_added > 0,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_query_chembl(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query ChEMBL for bioactivity data."""
+    from connectors.chembl import ChEMBLConnector
+
+    connector = ChEMBLConnector(store=store)
+    target_name = params.get("target_name", "")
+    if target_name:
+        cr = connector.fetch(target_name=target_name)
+    else:
+        cr = connector.fetch()
+    return ActionResult(
+        action=ActionType.QUERY_CHEMBL,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        interventions_added=cr.interventions_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_query_opentargets(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query OpenTargets for ALS drug targets."""
+    from connectors.opentargets import OpenTargetsConnector
+
+    connector = OpenTargetsConnector(store=store)
+    cr = connector.fetch_als_targets()
+    return ActionResult(
+        action=ActionType.QUERY_OPENTARGETS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        interventions_added=cr.interventions_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_check_interactions(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Check drug-drug interactions via DrugBank."""
+    from connectors.drugbank import DrugBankConnector
+
+    connector = DrugBankConnector(store=store)
+    drug_ids = params.get("drug_ids", [])
+    if drug_ids:
+        interactions = connector.fetch_drug_interactions(drug_ids)
+        has_interactions = any(len(v) > 0 for v in interactions.values())
+        return ActionResult(
+            action=ActionType.CHECK_INTERACTIONS,
+            success=True,
+            interaction_safe=not has_interactions,
+            detail={"interactions": interactions},
+        )
+    # Fallback: fetch ALS drugs first
+    cr = connector.fetch_als_drugs()
+    return ActionResult(
+        action=ActionType.CHECK_INTERACTIONS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        interventions_added=cr.interventions_added,
+        interaction_safe=True,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_generate_hypothesis(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Generate a new hypothesis using the research LLM."""
+    from research.hypotheses import create_hypothesis
+
+    engine = llm_manager.get_research_engine()
+    if engine is None:
+        return ActionResult(
+            action=ActionType.GENERATE_HYPOTHESIS,
+            success=False,
+            error="No research engine available",
+        )
+
+    topic = params.get("topic", "root_cause_suppression")
+    uncertainty = params.get("uncertainty", "")
+
+    # Gather evidence context
+    evidence_items = store.query_by_protocol_layer(topic)
+
+    prompt = (
+        f"Based on the following ALS evidence, generate a testable hypothesis "
+        f"about {topic}.\n"
+        f"Uncertainty to address: {uncertainty}\n"
+        f"Return JSON with keys: statement, cited_evidence\n"
+    )
+
+    result = engine.reason(
+        template=prompt,
+        evidence_items=evidence_items[:20],
+        max_tokens=500,
+    )
+
+    if result and result.get("statement"):
+        statement = result["statement"]
+        cited = result.get("cited_evidence", [])
+        hyp = create_hypothesis(
+            statement=statement,
+            subject_ref=state.subject_ref,
+            topic=topic,
+            cited_evidence=cited,
+        )
+        try:
+            store.upsert_object(hyp)
+        except Exception:
+            pass
+
+        return ActionResult(
+            action=ActionType.GENERATE_HYPOTHESIS,
+            success=True,
+            hypothesis_generated=hyp.id,
+        )
+
+    return ActionResult(
+        action=ActionType.GENERATE_HYPOTHESIS,
+        success=False,
+        error="LLM returned no valid hypothesis",
+    )
+
+
+def _exec_validate_hypothesis(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Validate a hypothesis by searching PubMed for supporting/refuting evidence."""
+    from connectors.pubmed import PubMedConnector
+
+    hypothesis_id = params.get("hypothesis_id", "")
+    if not hypothesis_id:
+        return ActionResult(
+            action=ActionType.VALIDATE_HYPOTHESIS,
+            success=False,
+            error="No hypothesis_id provided",
+        )
+
+    # Search PubMed for evidence related to the hypothesis
+    connector = PubMedConnector(store=store)
+    query = f"ALS {hypothesis_id.replace('hyp:', '')} mechanism validation"
+    cr = connector.fetch(query=query, max_results=10)
+
+    return ActionResult(
+        action=ActionType.VALIDATE_HYPOTHESIS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        hypothesis_resolved=cr.evidence_items_added > 0,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_deepen_chain(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Extend a causal chain using the research LLM."""
+    engine = llm_manager.get_research_engine()
+    if engine is None:
+        return ActionResult(
+            action=ActionType.DEEPEN_CAUSAL_CHAIN,
+            success=False,
+            error="No research engine available",
+        )
+
+    intervention_id = params.get("intervention_id", "")
+    if not intervention_id:
+        return ActionResult(
+            action=ActionType.DEEPEN_CAUSAL_CHAIN,
+            success=False,
+            error="No intervention_id provided",
+        )
+
+    # Gather evidence about this intervention
+    evidence_items = store.query_by_intervention_ref(intervention_id)
+
+    prompt = (
+        f"Extend the causal chain for intervention '{intervention_id}' in ALS.\n"
+        f"Identify the next mechanistic step from intervention to patient outcome.\n"
+        f"Return JSON with keys: source, target, mechanism, cited_evidence\n"
+    )
+
+    result = engine.reason(
+        template=prompt,
+        evidence_items=evidence_items[:20],
+        max_tokens=500,
+    )
+
+    if result and result.get("mechanism"):
+        return ActionResult(
+            action=ActionType.DEEPEN_CAUSAL_CHAIN,
+            success=True,
+            causal_depth_added=1,
+            detail={"link": result},
+        )
+
+    return ActionResult(
+        action=ActionType.DEEPEN_CAUSAL_CHAIN,
+        success=False,
+        error="LLM returned no valid causal link",
+    )
+
+
+def _exec_score_new_evidence(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Score recently added evidence items using the research LLM."""
+    engine = llm_manager.get_research_engine()
+    if engine is None:
+        return ActionResult(
+            action=ActionType.SCORE_NEW_EVIDENCE,
+            success=False,
+            error="No research engine available",
+        )
+
+    # Get recent unscored evidence
+    evidence_items: list[dict] = []
+    for layer in ("root_cause_suppression", "pathology_reversal",
+                   "circuit_stabilization", "regeneration_reinnervation",
+                   "adaptive_maintenance"):
+        evidence_items.extend(store.query_by_protocol_layer(layer))
+    evidence_items = evidence_items[:20]
+
+    if not evidence_items:
+        return ActionResult(action=ActionType.SCORE_NEW_EVIDENCE, success=True)
+
+    prompt = (
+        "Score each evidence item for relevance to ALS treatment.\n"
+        "Return JSON with keys: scores (list of {id, relevance_score})\n"
+    )
+
+    result = engine.reason(
+        template=prompt,
+        evidence_items=evidence_items,
+        max_tokens=800,
+    )
+
+    scored = 0
+    if result and result.get("scores"):
+        scored = len(result["scores"])
+
+    return ActionResult(
+        action=ActionType.SCORE_NEW_EVIDENCE,
+        success=True,
+        evidence_items_added=0,
+        detail={"items_scored": scored},
+    )
+
+
+def _exec_regenerate_protocol(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Regenerate the cure protocol using the protocol-tier (35B) LLM.
+
+    ALWAYS calls unload_protocol_model() after to free 35B memory.
+    """
+    try:
+        from world_model.protocol_generator import generate_cure_protocol
+
+        engine = llm_manager.get_protocol_engine()
+        model_path = getattr(engine, "_llm", None)
+        model_path_str = getattr(model_path, "model_path", None) if model_path else None
+
+        pipeline_result = generate_cure_protocol(
+            use_llm=True,
+            model_path=model_path_str,
+        )
+
+        protocol = pipeline_result.get("protocol")
+        protocol_id = getattr(protocol, "id", None) if protocol else None
+        score_delta = 0.0
+
+        # Determine stability: protocol exists and has layers
+        stable = protocol is not None and hasattr(protocol, "layers") and len(protocol.layers) > 0
+
+        return ActionResult(
+            action=ActionType.REGENERATE_PROTOCOL,
+            success=protocol is not None,
+            protocol_regenerated=True,
+            protocol_score_delta=score_delta,
+            protocol_stable=stable,
+            detail={"protocol_id": protocol_id},
+        )
+    except Exception as e:
+        return ActionResult(
+            action=ActionType.REGENERATE_PROTOCOL,
+            success=False,
+            error=str(e),
+            protocol_regenerated=False,
+        )
+    finally:
+        # ALWAYS free the 35B model memory
+        try:
+            llm_manager.unload_protocol_model()
+        except Exception:
+            pass
