@@ -160,3 +160,19 @@ class LLMInference:
         """
         text = self.generate(prompt, max_tokens=max_tokens)
         return _extract_json(text)
+
+    def unload(self) -> None:
+        """Explicitly free model and tokenizer memory."""
+        if self._model is not None:
+            del self._model
+            self._model = None
+        if self._tokenizer is not None:
+            del self._tokenizer
+            self._tokenizer = None
+        import gc
+        gc.collect()
+        try:
+            import mlx.core
+            mlx.core.clear_cache()
+        except (ImportError, AttributeError):
+            pass
