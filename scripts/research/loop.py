@@ -197,6 +197,12 @@ def run_research_loop(
     """
     state = initial_state(subject_ref=subject_ref)
 
+    # Bootstrap: generate the initial protocol so the policy has
+    # uncertainties, causal chain targets, and a protocol version to work with
+    if not dry_run:
+        print("[RESEARCH] Bootstrapping: generating initial protocol...")
+        state = _bootstrap_initial_protocol(state, evidence_store, llm_manager)
+
     for _i in range(max_steps):
         state = research_step(
             state=state,
@@ -219,6 +225,66 @@ def run_research_loop(
         # Periodic memory cleanup
         if state.step_count % 50 == 0:
             gc.collect()
+
+    return state
+
+
+# ---------------------------------------------------------------------------
+# Bootstrap
+# ---------------------------------------------------------------------------
+
+def _bootstrap_initial_protocol(
+    state: ResearchState, evidence_store: Any, llm_manager: Any,
+) -> ResearchState:
+    """Generate the initial protocol and populate state with uncertainties
+    and causal chain targets so the policy can make informed decisions."""
+    try:
+        from world_model.protocol_generator import generate_cure_protocol
+
+        engine = llm_manager.get_protocol_engine()
+        model_path = engine._llm.model_path if engine and hasattr(engine, '_llm') else None
+
+        result_dict = generate_cure_protocol(use_llm=True, model_path=model_path)
+        llm_manager.unload_protocol_model()
+
+        protocol = result_dict.get("protocol")
+        if protocol is None:
+            print("[RESEARCH] Bootstrap: protocol generation failed (no protocol returned)")
+            return state
+
+        # Extract uncertainties from protocol body
+        top_uncertainties = []
+        body = protocol.body or {}
+        for unc in body.get("key_uncertainties", [])[:5]:
+            top_uncertainties.append(str(unc))
+        # Add the standard missing measurements
+        if not top_uncertainties:
+            top_uncertainties = list(state.missing_measurements[:5])
+
+        # Extract causal chain targets from protocol layers
+        causal_chains: dict[str, int] = {}
+        for layer_entry in protocol.layers:
+            for int_ref in layer_entry.intervention_refs:
+                causal_chains[int_ref] = 0  # Depth 0 = needs deepening
+
+        # Update state
+        state = replace(
+            state,
+            current_protocol_id=protocol.id,
+            protocol_version=1,
+            top_uncertainties=top_uncertainties,
+            causal_chains=causal_chains,
+            new_evidence_since_regen=0,
+        )
+
+        n_targets = len(causal_chains)
+        print(f"[RESEARCH] Bootstrap complete: {protocol.id}")
+        print(f"  Uncertainties: {len(top_uncertainties)}")
+        print(f"  Causal chain targets: {n_targets}")
+
+    except Exception as e:
+        print(f"[RESEARCH] Bootstrap failed: {e}")
+        llm_manager.unload_protocol_model()
 
     return state
 

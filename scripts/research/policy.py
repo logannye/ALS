@@ -26,8 +26,8 @@ def select_action(
     target_depth: int = 5,
     exploration_fraction: float = 0.15,
 ) -> tuple[ActionType, dict[str, Any]]:
-    # 1. Protocol regeneration if enough new evidence
-    if state.new_evidence_since_regen >= regen_threshold and state.protocol_version > 0:
+    # 1. Protocol regeneration if enough new evidence (or first protocol if version 0)
+    if state.new_evidence_since_regen >= regen_threshold and state.protocol_version >= 1:
         return ActionType.REGENERATE_PROTOCOL, build_action_params(ActionType.REGENERATE_PROTOCOL)
 
     # 2. Validate pending hypotheses
