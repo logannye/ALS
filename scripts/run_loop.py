@@ -67,20 +67,130 @@ def _load_state_from_db(subject_ref: str) -> ResearchState | None:
 
 
 # ---------------------------------------------------------------------------
-# Monitoring mode (post-convergence)
+# Deep research mode (post-convergence continuous evidence expansion)
 # ---------------------------------------------------------------------------
+
+# Systematic queries to run in deep research mode — rotated through
+_DEEP_RESEARCH_QUERIES = [
+    # PubMed: specific mechanism queries beyond the 5 layer queries
+    ("search_pubmed", {"query": "ALS TDP-43 intrabody gene therapy 2025 2026"}),
+    ("search_pubmed", {"query": "ALS antisense oligonucleotide STMN2 UNC13A 2025 2026"}),
+    ("search_pubmed", {"query": "ALS sigma-1R agonist neuroprotection clinical trial"}),
+    ("search_pubmed", {"query": "ALS C9orf72 repeat expansion therapy antisense 2025 2026"}),
+    ("search_pubmed", {"query": "ALS riluzole combination therapy augmentation 2025"}),
+    ("search_pubmed", {"query": "ALS biomarker neurofilament treatment response prediction"}),
+    ("search_pubmed", {"query": "ALS drug combination synergy preclinical motor neuron"}),
+    ("search_pubmed", {"query": "ALS rapamycin mTOR autophagy proteostasis clinical"}),
+    ("search_pubmed", {"query": "ALS masitinib tyrosine kinase inhibitor neuroinflammation Phase 3"}),
+    ("search_pubmed", {"query": "ALS ibudilast phosphodiesterase neuroinflammation clinical"}),
+    # Clinical trials
+    ("search_trials", {}),
+    # STRING PPI for each major target
+    ("query_ppi_network", {"gene_symbol": "TARDBP"}),
+    ("query_ppi_network", {"gene_symbol": "SIGMAR1"}),
+    ("query_ppi_network", {"gene_symbol": "SOD1"}),
+    ("query_ppi_network", {"gene_symbol": "FUS"}),
+    ("query_ppi_network", {"gene_symbol": "SLC1A2"}),  # EAAT2
+    ("query_ppi_network", {"gene_symbol": "MTOR"}),
+    # Pathway queries for key targets
+    ("query_pathways", {"target_name": "TDP-43"}),
+    ("query_pathways", {"target_name": "Sigma-1R"}),
+    ("query_pathways", {"target_name": "mTOR"}),
+    ("query_pathways", {"target_name": "CSF1R"}),
+    # PharmGKB drug safety for protocol drugs
+    ("check_pharmacogenomics", {"drug_name": "riluzole"}),
+    ("check_pharmacogenomics", {"drug_name": "edaravone"}),
+    ("check_pharmacogenomics", {"drug_name": "rapamycin"}),
+]
+
+
+def _deep_research_step(
+    state: ResearchState,
+    evidence_store: EvidenceStore,
+    llm_manager: DualLLMManager,
+) -> ResearchState:
+    """Execute one deep research step — systematic evidence expansion
+    that continues even after protocol convergence.
+
+    Rotates through _DEEP_RESEARCH_QUERIES, executing one per call.
+    When new evidence accumulates past the regen threshold, triggers
+    protocol regeneration and re-convergence.
+    """
+    from research.actions import ActionType, ActionResult
+    from research.loop import _execute_action, _persist_state
+    from research.rewards import compute_reward
+
+    # Pick the next query in the rotation
+    deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
+    action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
+
+    # Map string to ActionType
+    action_map = {
+        "search_pubmed": ActionType.SEARCH_PUBMED,
+        "search_trials": ActionType.SEARCH_TRIALS,
+        "query_ppi_network": ActionType.QUERY_PPI_NETWORK,
+        "query_pathways": ActionType.QUERY_PATHWAYS,
+        "check_pharmacogenomics": ActionType.CHECK_PHARMACOGENOMICS,
+    }
+    action = action_map.get(action_name, ActionType.SEARCH_PUBMED)
+    params["action"] = action
+
+    # Execute
+    result = _execute_action(action, params, state, evidence_store, llm_manager)
+
+    # Compute simple reward
+    reward = compute_reward(
+        evidence_items_added=result.evidence_items_added,
+        uncertainty_before=0.3,
+        uncertainty_after=0.3,
+        protocol_score_delta=0.0,
+        hypothesis_resolved=False,
+        causal_depth_added=0,
+        interaction_safe=result.interaction_safe,
+        eligibility_confirmed=result.eligibility_confirmed,
+        protocol_stable=False,
+    )
+
+    # Update state
+    new_evidence = state.total_evidence_items + result.evidence_items_added
+    new_since_regen = state.new_evidence_since_regen + result.evidence_items_added
+
+    # Update action counts
+    action_counts = dict(state.action_counts)
+    action_counts[action.value] = action_counts.get(action.value, 0) + 1
+
+    state = replace(
+        state,
+        step_count=state.step_count + 1,
+        total_evidence_items=new_evidence,
+        new_evidence_since_regen=new_since_regen,
+        last_action=f"deep:{action.value}",
+        last_reward=reward.total(),
+        action_counts=action_counts,
+    )
+
+    print(
+        f"[ERIK-DEEP] Step {state.step_count}: {action.value} | "
+        f"evidence={result.evidence_items_added} | "
+        f"total={new_evidence} | "
+        f"since_regen={new_since_regen}"
+    )
+
+    return state
+
 
 def _monitoring_cycle(
     state: ResearchState,
     evidence_store: EvidenceStore,
     llm_manager: DualLLMManager,
+    regen_threshold: int = 15,
 ) -> ResearchState:
-    """One monitoring cycle — check for new data that would re-open research.
+    """One monitoring cycle — runs deep research AND checks for triggers.
 
-    Checks:
-    1. genetics_received flag in config → triggers INTERPRET_VARIANT
-    2. New evidence in DB since last check → re-enters active research
-    3. Config changes (hot-reload)
+    Instead of passively sleeping, the monitoring cycle:
+    1. Checks for genetic results (immediate reactivation trigger)
+    2. Runs one deep research step (systematic evidence expansion)
+    3. If enough new evidence accumulated, triggers full re-convergence
     """
     cfg = ConfigLoader()
 
@@ -95,17 +205,17 @@ def _monitoring_cycle(
         )
         return state
 
-    # Check if evidence has grown (e.g. from external ingestion)
-    current_evidence = evidence_store.count_by_type("EvidenceItem")
-    if current_evidence > state.total_evidence_items + 20:
-        print(f"[ERIK-MONITOR] Significant new evidence detected ({current_evidence} vs {state.total_evidence_items}). Re-entering active research.")
+    # Run a deep research step (evidence expansion continues post-convergence)
+    state = _deep_research_step(state, evidence_store, llm_manager)
+
+    # If enough new evidence since last protocol, trigger re-convergence
+    if state.new_evidence_since_regen >= regen_threshold:
+        print(f"[ERIK-MONITOR] {state.new_evidence_since_regen} new evidence items since last protocol. Re-entering active research for re-convergence.")
         state = replace(
             state,
             converged=False,
             protocol_stable_cycles=0,
-            total_evidence_items=current_evidence,
         )
-        return state
 
     return state
 
@@ -154,26 +264,24 @@ def main():
     # Config
     regen_threshold = cfg.get("research_protocol_regen_threshold", 15)
     active_pause = cfg.get("research_inter_step_pause_s", 1.0)
-    monitoring_interval = 300  # 5 minutes between monitoring checks
+    monitoring_interval = 30  # 30 seconds between deep research steps (active evidence expansion)
 
     print("[ERIK] Entering main loop...")
 
     while True:
         try:
             if state.converged:
-                # Monitoring mode: slow poll for new data
-                print(f"[ERIK-MONITOR] Protocol converged. Checking for new data... "
-                      f"({time.strftime('%H:%M:%S')})")
-                state = _monitoring_cycle(state, evidence_store, llm_manager)
+                # Deep research mode: actively expand evidence even while converged
+                state = _monitoring_cycle(state, evidence_store, llm_manager, regen_threshold)
+                _persist_state(state, evidence_store)
 
                 if state.converged:
-                    # Still converged — sleep and check again
-                    _persist_state(state, evidence_store)
+                    # Still converged — pause then do another deep research step
                     time.sleep(monitoring_interval)
                     continue
                 else:
-                    # New data detected — fall through to active research
-                    print("[ERIK] Re-entering active research mode.")
+                    # Re-convergence triggered — fall through to active research
+                    print("[ERIK] Re-entering active research mode for re-convergence.")
 
             # Active research mode — hot-reload config
             cfg.reload_if_changed()
