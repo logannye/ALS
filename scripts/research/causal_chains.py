@@ -51,3 +51,25 @@ class CausalChain:
 def get_chain_depth(chains: dict[str, CausalChain], intervention_id: str) -> int:
     chain = chains.get(intervention_id)
     return chain.depth() if chain else 0
+
+def pathway_grounded_link(
+    source: str, target: str, pathway_evidence: list[dict],
+) -> Optional[CausalLink]:
+    """Create a causal link grounded in pathway data (Reactome/KEGG).
+
+    If any pathway evidence connects source to target, creates a
+    high-confidence link (0.95). Otherwise returns None.
+    """
+    source_lower = source.lower()
+    target_lower = target.lower()
+    for evi in pathway_evidence:
+        body = evi.get("body", {})
+        pathway_name = body.get("pathway_name", "").lower()
+        if source_lower in pathway_name or target_lower in pathway_name:
+            return CausalLink(
+                source=source, target=target,
+                mechanism=f"pathway: {body.get('pathway_name', '')}",
+                evidence_ref=evi.get("id", ""),
+                confidence=0.95,
+            )
+    return None

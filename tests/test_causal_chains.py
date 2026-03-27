@@ -54,3 +54,18 @@ class TestGetChainDepth:
         chains = {"int:a": CausalChain(intervention_id="int:a")}
         chains["int:a"].add_link(CausalLink(source="A", target="B", mechanism="x", evidence_ref="evi:1", confidence=0.8))
         assert get_chain_depth(chains, "int:a") == 1
+
+class TestPathwayGroundedLink:
+    def test_finds_pathway_connection(self):
+        from research.causal_chains import pathway_grounded_link
+        evidence = [{"id": "evi:reactome:R-HSA-123", "body": {"pathway_name": "Cellular response to ER stress", "data_source": "reactome"}}]
+        link = pathway_grounded_link("sigma-1R", "ER stress", evidence)
+        assert link is not None
+        assert link.confidence == 0.95
+        assert "reactome" in link.evidence_ref
+
+    def test_returns_none_when_no_match(self):
+        from research.causal_chains import pathway_grounded_link
+        evidence = [{"id": "evi:reactome:R-HSA-999", "body": {"pathway_name": "Cholesterol biosynthesis", "data_source": "reactome"}}]
+        link = pathway_grounded_link("sigma-1R", "TDP-43 proteostasis", evidence)
+        assert link is None
