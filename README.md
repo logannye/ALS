@@ -195,7 +195,31 @@ The system re-enters active research mode automatically when new data changes th
 
 ---
 
-## Operational Phases
+## Operational Status
+
+**Erik is running 24/7** via macOS LaunchAgent (`ai.erik.researcher.plist`), coexisting with Galen on the same M4 Max 128GB.
+
+### First Live Run Results (March 26, 2026)
+
+| Metric | Result |
+|--------|--------|
+| Steps to convergence | **74** |
+| Protocol versions generated | 4 |
+| Evidence items acquired | 199 new (342 total) |
+| Causal chains at depth 5 | **7/7** (all interventions fully traced) |
+| Hypotheses generated | 10 |
+| Hypotheses resolved | 2 |
+| Action types exercised | 8 of 15 |
+| Time to convergence | ~17 minutes |
+
+### Current Mode: Monitoring
+
+The system has converged on `proto:erik_draper_v1` and is now in monitoring mode, checking every 5 minutes for:
+- **Genetic results** — set `genetics_received: true` in config to trigger reactivation
+- **New evidence** — >20 new items in DB triggers active research
+- **Config changes** — hot-reloaded on each monitoring cycle
+
+### Build Phases
 
 | Phase | Name | Status | Description |
 |-------|------|--------|-------------|
@@ -205,10 +229,10 @@ The system re-enters active research mode automatically when new data changes th
 | 2 | World Model Pipeline | **Complete** | 6-stage protocol generation: state → subtype → scoring → assembly → counterfactual → output |
 | 3 | Autonomous Research Loop | **Complete** | 15-action hypothesis-driven loop with causal chains, convergence detection, episode logging |
 | 3B | Evidence Expansion | **Complete** | 7 new data sources (Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB) |
-| **4** | **Live Execution** | **Next** | **Run the research loop, generate Erik's first protocol, iterate to convergence** |
-| 5 | Clinical Translation | Planned | Physician review, trial enrollment, compassionate use applications |
+| 4 | Live Execution | **Complete** | First convergence achieved — 24/7 LaunchAgent running |
+| 5 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-**796 tests passing.** System is architecturally complete and ready for live execution.
+**796 tests passing.** System is fully operational.
 
 ---
 
@@ -228,11 +252,14 @@ scripts/
     prompts/        # Evidence-grounded LLM prompt templates
   research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses,
                     #   causal chains, convergence, trajectory)
+  run_loop.py       # 24/7 continuous entry point (LaunchAgent target)
+  monitor.py        # Real-time terminal dashboard for loop progress
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
   erik_config.json  # Hot-reloadable runtime config (~45 keys)
+logs/               # LaunchAgent log output (erik_research.log, erik_research.err)
 tests/              # 796 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
@@ -271,34 +298,52 @@ PYTHONPATH=scripts python -m db.migrate
 pytest tests/ -v -k "not network and not chembl and not llm"
 ```
 
-### Running the Research Loop
+### Running Erik 24/7
 
 ```bash
-# Generate Erik's first cure protocol (single pass)
-PYTHONPATH=scripts conda run -n erik-core python -c "
+# Start the continuous research loop (LaunchAgent — survives reboots)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.erik.researcher.plist
+
+# Watch progress in real time (separate terminal)
+cd /Users/logannye/.openclaw/erik
+PYTHONPATH=scripts /opt/homebrew/Caskroom/miniconda/base/envs/erik-core/bin/python scripts/monitor.py
+
+# Tail the log file
+tail -f /Users/logannye/.openclaw/erik/logs/erik_research.log
+
+# Stop the loop
+launchctl bootout gui/$(id -u)/ai.erik.researcher
+```
+
+### Manual Single Run
+
+```bash
+# Generate Erik's first cure protocol (single pass, no loop)
+PYTHONPATH=scripts /opt/homebrew/Caskroom/miniconda/base/envs/erik-core/bin/python -c "
 from world_model.protocol_generator import generate_cure_protocol
 result = generate_cure_protocol(use_llm=True)
 print(f'Protocol: {result[\"protocol\"].id}')
 print(f'Layers: {len(result[\"protocol\"].layers)}')
 "
 
-# Run the autonomous research loop (iterative refinement)
-PYTHONPATH=scripts conda run -n erik-core python -c "
+# Run N steps of the research loop (foreground, live output)
+PYTHONPATH=scripts /opt/homebrew/Caskroom/miniconda/base/envs/erik-core/bin/python -c "
 from evidence.evidence_store import EvidenceStore
 from research.dual_llm import DualLLMManager
 from research.loop import run_research_loop
-
-state = run_research_loop(
-    subject_ref='traj:draper_001',
-    evidence_store=EvidenceStore(),
-    llm_manager=DualLLMManager(),
-    max_steps=500,
-)
-print(f'Steps: {state.step_count}')
-print(f'Evidence: {state.total_evidence_items}')
-print(f'Protocol versions: {state.protocol_version}')
-print(f'Converged: {state.converged}')
+state = run_research_loop('traj:draper_001', EvidenceStore(), DualLLMManager(), max_steps=100)
+print(f'Converged: {state.converged}, Steps: {state.step_count}, Evidence: {state.total_evidence_items}')
 "
+```
+
+### When Genetic Results Arrive
+
+```bash
+# Edit config to trigger re-activation:
+# In data/erik_config.json, change: "genetics_received": false → true
+# Erik detects this within 5 minutes and re-enters active research,
+# running ClinVar variant interpretation and regenerating the protocol
+# with the updated subtype posterior.
 ```
 
 ---
