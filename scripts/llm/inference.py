@@ -135,15 +135,17 @@ class LLMInference:
         nothing within *max_tokens*).
         """
         from mlx_lm import generate  # type: ignore[import-untyped]
+        from mlx_lm.sample_utils import make_sampler  # type: ignore[import-untyped]
 
         self._ensure_loaded()
         tokens = max_tokens if max_tokens is not None else self.max_tokens
+        sampler = make_sampler(temp=self.temperature)
         result = generate(
             self._model,
             self._tokenizer,
             prompt=prompt,
             max_tokens=tokens,
-            temp=self.temperature,
+            sampler=sampler,
             verbose=False,
         )
         # mlx_lm.generate returns the generated text as a string.

@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "database_name": "erik_kg",
   "llm_server_enabled": false,
   "temperature": 1.0,
@@ -11,5 +11,12 @@
   "chembl_db_path": "/Volumes/Databank/databases/chembl_36.db",
   "drugbank_xml_path": null,
   "connector_max_retries": 3,
-  "connector_backoff_seconds": [1, 2, 4]
+  "connector_backoff_seconds": [1, 2, 4],
+  "llm_model_path": "/Volumes/Databank/models/mlx/Qwen3.5-35B-A3B-mlx-lm-mxfp4",
+  "llm_fallback_model_path": "/Volumes/Databank/models/mlx/Qwen3.5-9B-mlx-lm-4bit",
+  "llm_temperature": 0.1,
+  "llm_max_tokens_default": 1000,
+  "llm_timeout_s": 120,
+  "reasoning_verify_critical": true,
+  "reasoning_strip_uncited": true
 }

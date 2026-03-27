@@ -85,7 +85,7 @@ Erik's complete clinical trajectory is ingested as **51 structured observations*
 
 ---
 
-## Current Status: Phase 1A Complete
+## Current Status: Phase 2 Complete
 
 ### Phase 0: Canonical Substrate (Complete)
 
@@ -127,6 +127,21 @@ Protocol-first evidence fabric organized around the 5 cure protocol layers:
 - **DrugBankConnector** — XML parser for drug profiles, MOA, ADMET, and drug-drug interaction checking (critical for combination protocol safety)
 - **632 tests** passing in 4.4s
 
+### Phase 2: World Model + Cure Protocol Generation (Complete)
+
+A 6-stage evidence-grounded reasoning pipeline that produces Erik's first cure protocol candidate:
+
+- **LLM inference wrapper** — local Qwen 3.5-35B via `mlx-lm`, lazy loading, JSON extraction, 9B fallback
+- **Evidence-grounded reasoning engine** — citation-mandatory output, hallucination stripping, dual verification on critical claims
+- **6 LLM prompt templates** — reversibility, molecular state, subtype, intervention scoring, counterfactual, verification
+- **Stage 1: State materializer** — Erik's 51 observations → FunctionalState, NMJIntegrityState, RespiratoryReserveState, UncertaintyState, DiseaseStateSnapshot
+- **Stage 2: Subtype inference** — posterior over 8 ALS subtypes with conditional genetics arms
+- **Stage 3: Intervention scorer** — all ~25 interventions scored with evidence-grounded causal arguments, top-5 verified
+- **Stage 4: Protocol assembler** — 5-layer protocol with timing, abstention logic
+- **Stage 5: Counterfactual verification** — stress-test each layer, identify weakest links and missing measurements
+- **Stage 6: Pipeline orchestrator** — runs all stages, outputs `CureProtocolCandidate` with full provenance
+- **697 tests** passing
+
 ### Roadmap
 
 | Phase | Name | Status | Description |
@@ -134,7 +149,7 @@ Protocol-first evidence fabric organized around the 5 cure protocol layers:
 | 0 | Canonical Substrate | **Complete** | Ontology, schema, patient ingestion, Erik's data |
 | 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
 | 1B | Evidence Connectors | **Complete** | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank |
-| 2 | World Model MVP | Planned | Latent state estimation, subtype posterior, progression forecast |
+| 2 | World Model MVP | **Complete** | 6-stage pipeline: state → subtype → scoring → protocol → counterfactual → output |
 | 3 | RL Loop | Planned | Experience stream, action space, reward function, value function |
 | 4 | Cure Protocol Generation | Planned | Planner, protocol builder, abstention logic |
 
@@ -150,12 +165,15 @@ scripts/
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
   connectors/       # 5 API connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank)
   targets/          # Canonical ALS drug target definitions (16 targets)
+  llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading)
+  world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
+    prompts/        # Evidence-grounded LLM prompt templates
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
   erik_config.json  # Hot-reloadable runtime config
-tests/              # 514 pytest tests mirroring scripts/ structure
+tests/              # 697 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans
