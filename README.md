@@ -48,10 +48,10 @@ Erik runs as a single Python process on a MacBook Pro M4 Max (128GB), sharing ha
             └─────────────────────────────────────────────┘
                          |                 |
                          v                 v
-              World Model (Phase 2)   RL Loop (Phase 3)
+              World Model (Phase 2)   Research Loop (Phase 3)
                          |                 |
                          v                 v
-              Cure Protocol Generation (Phase 4)
+              Cure Protocol Refinement (Phase 4)
 ```
 
 **Key design decisions:**
@@ -85,7 +85,7 @@ Erik's complete clinical trajectory is ingested as **51 structured observations*
 
 ---
 
-## Current Status: Phase 2 Complete
+## Current Status: Phase 3 Complete
 
 ### Phase 0: Canonical Substrate (Complete)
 
