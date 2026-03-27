@@ -17,11 +17,11 @@ Erik takes a different approach: build a causal world model of ALS biology groun
 The system is designed to:
 
 1. **Ingest and structure** clinical observations, biomarkers, genomics, imaging, and literature into a typed ontology with provenance and uncertainty
-2. **Build a causal knowledge graph** of ALS mechanisms, drawing from ChEMBL, PubMed, ClinicalTrials.gov, PRO-ACT, and other ALS data sources
+2. **Build a causal knowledge graph** of ALS mechanisms, drawing from 12 data sources (PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB)
 3. **Materialize a latent disease state** for Erik at each timepoint, factorized into etiologic, molecular, neural circuit, functional, reversibility, and uncertainty components
 4. **Estimate subtype posterior** over ALS driver programs (SOD1, C9orf72, FUS, TARDBP, sporadic TDP-43, glia-amplified, mixed, unresolved)
-5. **Generate cure protocol candidates** as layered interventions (root-cause suppression, pathology reversal, circuit stabilization, regeneration, adaptive maintenance)
-6. **Learn autonomously** via reinforcement learning, grounded in measurable environmental effects
+5. **Generate and iteratively refine cure protocol candidates** as layered interventions (root-cause suppression, pathology reversal, circuit stabilization, regeneration, adaptive maintenance)
+6. **Converge autonomously** on the optimal therapeutic strategy through hypothesis-driven evidence acquisition, causal chain deepening, and protocol regeneration
 
 ---
 
@@ -30,35 +30,54 @@ The system is designed to:
 Erik runs as a single Python process on a MacBook Pro M4 Max (128GB), sharing hardware with its sibling project [Galen](https://github.com/logannye/galen) (a pan-cancer causal research engine). The architecture is inspired by Galen's battle-tested patterns, adapted for ALS-specific ontology and patient-centric reasoning.
 
 ```
-                        Erik ALS Engine
-                    ========================
+                          Erik ALS Engine
+                      ========================
 
-  Clinical Records ──> Ingestion Pipeline ──> Canonical Objects
-  (PDFs, labs, EMG)     (patient_builder)      (BaseEnvelope)
-                                                     |
-                                                     v
-            ┌─────────────────────────────────────────────┐
-            │           PostgreSQL (erik_kg)               │
-            │  ┌──────────┐  ┌────────────┐  ┌─────────┐ │
-            │  │erik_core  │  │erik_core   │  │erik_ops │ │
-            │  │.objects   │  │.entities   │  │.audit   │ │
-            │  │(canonical)│  │.relations  │  │.config  │ │
-            │  └──────────┘  │(KG + PCH)  │  └─────────┘ │
-            │                └────────────┘               │
-            └─────────────────────────────────────────────┘
-                         |                 |
-                         v                 v
-              World Model (Phase 2)   Research Loop (Phase 3)
-                         |                 |
-                         v                 v
-              Cure Protocol Refinement (Phase 4)
+    Clinical Records ──> Ingestion Pipeline ──> Canonical Objects
+    (PDFs, labs, EMG)     (patient_builder)      (BaseEnvelope)
+                                                       |
+                                                       v
+              ┌─────────────────────────────────────────────┐
+              │           PostgreSQL (erik_kg)               │
+              │  ┌──────────┐  ┌────────────┐  ┌─────────┐ │
+              │  │erik_core  │  │erik_core   │  │erik_ops │ │
+              │  │.objects   │  │.entities   │  │.audit   │ │
+              │  │(canonical)│  │.relations  │  │.config  │ │
+              │  └──────────┘  │(KG + PCH)  │  └─────────┘ │
+              │                └────────────┘               │
+              └─────────────────────────────────────────────┘
+                           |                 |
+                           v                 v
+               ┌───────────────┐   ┌────────────────────┐
+               │  World Model  │   │   Research Loop     │
+               │  (6 stages)   │   │  (15 actions,       │
+               │               │◄──│   12 data sources,  │
+               │  State → Sub- │   │   hypothesis-driven │
+               │  type → Score │   │   convergence)      │
+               │  → Assemble → │   │                     │
+               │  Counterfact  │   └────────────────────┘
+               │  → Output     │             |
+               └───────┬───────┘             |
+                       |                     |
+                       v                     v
+              ┌──────────────────────────────────────┐
+              │     CureProtocolCandidate             │
+              │  (5 layers, evidence-grounded,        │
+              │   uncertainty-bounded, approval-gated) │
+              └──────────────────────────────────────┘
+                                 |
+                                 v
+                    ACTION READINESS ASSESSMENT
+                    (see "When to Act" below)
 ```
 
 **Key design decisions:**
 - **PostgreSQL as single source of truth** — no SQLite, no file-based state
 - **Pydantic v2 canonical models** — every clinical or discovery object inherits from `BaseEnvelope` with provenance, uncertainty, time, and privacy fields
 - **Pearl Causal Hierarchy** — relationships are tagged L1 (associational), L2 (interventional), or L3 (counterfactual). Observational relation types are guarded against spurious promotion to L3.
-- **Hot-reloadable config** — ~10 parameters in JSON, reloaded without restart
+- **Single-threaded sequential execution** — no daemon threads (lesson from Galen's GIL contention); one action at a time, deterministic
+- **Dual-LLM memory management** — 9B model stays loaded (4.7GB) for research; 35B loaded on demand for protocol generation then unloaded (~1.6s overhead)
+- **Hot-reloadable config** — ~45 parameters in JSON, reloaded without restart
 - **Append-only audit log** — every mutation is traceable
 
 ---
@@ -85,103 +104,111 @@ Erik's complete clinical trajectory is ingested as **51 structured observations*
 
 ---
 
-## Current Status: Phase 3 Complete
+## How It Works: From Evidence to Cure Protocol
 
-### Phase 0: Canonical Substrate (Complete)
+### Stage 1: Build (Complete)
 
-- **25 canonical Pydantic models** — Patient, ALSTrajectory, Observation, Interpretation, EtiologicDriverProfile, 9 latent state models, EvidenceBundle, EvidenceItem, Intervention, CureProtocolCandidate, MonitoringPlan, MechanismHypothesis, ExperimentProposal, LearningEpisode, ErrorRecord, ImprovementProposal, Branch
-- **16 type-safe enums** — SubtypeClass, ProtocolLayer, PCHLayer, EvidenceStrength, ObservationKind, InterventionClass (with gene_therapy, cell_therapy, peptide), etc.
-- **38 typed relations** with 12 observational guards (never promote to L3)
-- **6 PostgreSQL tables** across 2 schemas (erik_core, erik_ops)
-- **Erik Draper's full clinical trajectory** — 51 structured observations from real medical records
+The system infrastructure is fully operational:
 
-### Phase 1A: Evidence Seed (Complete)
+- **Canonical Substrate** — 25 Pydantic models, 16 enums, 38 typed relations, PostgreSQL schema, Erik's 51 observations
+- **Evidence Fabric** — 93 curated evidence items, 25 interventions, 16 drug targets, 10 computational design targets
+- **12 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB
+- **World Model Pipeline** — 6-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → protocol assembly → counterfactual verification → output
+- **Research Loop** — 15 action types, uncertainty-directed policy, hypothesis system, causal chain construction, protocol convergence detection, episode logging
 
-Protocol-first evidence fabric organized around the 5 cure protocol layers:
+### Stage 2: Research (Operational — ready to run)
 
-- **93 curated evidence items** across all 5 protocol layers, each tagged with mechanism target, applicable subtypes, Erik eligibility, PCH level, and real PMIDs
-- **25 intervention objects** covering approved therapies (riluzole, edaravone, tofersen, Sodesta), Phase 3 trials (pridopidine PREVAiLS, masitinib, jacifusen FUSION), Phase 1/2 (VTx-002 TDP-43 intrabody), failed/withdrawn (AMX0035, BIIB078, zilucoplan), off-label candidates (rapamycin, memantine, perampanel), and preclinical (STMN2/UNC13A ASOs, AAV-BDNF/GDNF)
-- **16 canonical ALS drug targets** with UniProt IDs, druggability assessments, and subtype mapping (TDP-43, SOD1, FUS, C9orf72, STMN2, UNC13A, Sigma-1R, EAAT2, BDNF, GDNF, OPTN, TBK1, NEK1, C5, CSF1R, mTOR)
-- **10 computational drug design targets** with PDB structures and compound library references
-- **Evidence store** with PostgreSQL CRUD, upsert, and protocol-layer queries
-- **632 tests** passing in 4.4s
+The autonomous research loop executes a cycle:
 
-**Evidence coverage by protocol layer:**
+1. **Assess** — What are the top uncertainties in the current protocol? Where are the weakest causal chain links?
+2. **Hypothesize** — Generate testable mechanistic hypotheses targeting those uncertainties
+3. **Search** — Query PubMed, ClinicalTrials.gov, Reactome, STRING, ChEMBL, and other sources for evidence
+4. **Validate** — Resolve hypotheses as supported/refuted/mixed based on accumulated evidence
+5. **Deepen** — Extend causal chains using pathway-grounded evidence from Reactome/KEGG
+6. **Regenerate** — When enough new evidence accumulates, re-run the full 6-stage protocol pipeline
+7. **Converge** — When the top interventions stabilize across 3 consecutive regenerations, declare convergence
 
-| Layer | Name | Evidence Items | Key Interventions |
-|-------|------|---------------|-------------------|
-| A | Root-cause suppression | 22 | Tofersen, Sodesta, VTx-002, jacifusen |
-| B | Pathology reversal | 23 | Pridopidine, rapamycin, STMN2/UNC13A ASOs |
-| C | Circuit stabilization | 19 | Riluzole, masitinib, ibudilast, perampanel |
-| D | Regeneration | 14 | AAV-BDNF, AAV-GDNF, NMJ stabilization |
-| E | Adaptive maintenance | 15 | NfL monitoring, MDC, respiratory surveillance |
+Each cycle produces a better protocol. The evidence fabric grows. Causal chains deepen. Uncertainties shrink. The protocol improves.
 
-### Phase 1B: Evidence Connectors (Complete)
+### Stage 3: Converge
 
-5 on-demand API connectors that expand the evidence fabric with live data:
+The system produces a **CureProtocolCandidate** — a 5-layer treatment strategy with:
+- Evidence-grounded intervention selection per layer
+- Full causal chains from mechanism to patient outcome
+- Drug interaction safety validation
+- Uncertainty disclosure and missing measurement recommendations
+- Human approval gate (always `approval_state=pending`)
 
-- **PubMedConnector** — E-utilities XML parsing, curated per-layer ALS queries (5 protocol layers), abstract extraction, publication type → modality mapping
-- **ClinicalTrialsConnector** — v2 REST API, active ALS Phase 2/3 trial parsing, **Erik eligibility engine** (checks age, sex, ALSFRS-R, FVC, genetic status, comorbidities, medications against each trial's criteria), Ohio site detection
-- **ChEMBLConnector** — Local SQL queries against ChEMBL 36 for compound bioactivity on ALS targets (SIGMAR1, EAAT2, mTOR, CSF1R, TDP-43)
-- **OpenTargetsConnector** — GraphQL for ranked ALS target-disease associations with tractability scoring
-- **DrugBankConnector** — XML parser for drug profiles, MOA, ADMET, and drug-drug interaction checking (critical for combination protocol safety)
-- **632 tests** passing in 4.4s
+---
 
-### Phase 2: World Model + Cure Protocol Generation (Complete)
+## When to Act: The Decision Framework
 
-A 6-stage evidence-grounded reasoning pipeline that produces Erik's first cure protocol candidate:
+**The central tension:** ALS is progressive. Every day of inaction costs Erik motor neurons. But acting on a poorly-grounded protocol wastes time on ineffective interventions. The system resolves this tension with a principled readiness framework.
 
-- **LLM inference wrapper** — local Qwen 3.5-35B via `mlx-lm`, lazy loading, JSON extraction, 9B fallback
-- **Evidence-grounded reasoning engine** — citation-mandatory output, hallucination stripping, dual verification on critical claims
-- **6 LLM prompt templates** — reversibility, molecular state, subtype, intervention scoring, counterfactual, verification
-- **Stage 1: State materializer** — Erik's 51 observations → FunctionalState, NMJIntegrityState, RespiratoryReserveState, UncertaintyState, DiseaseStateSnapshot
-- **Stage 2: Subtype inference** — posterior over 8 ALS subtypes with conditional genetics arms
-- **Stage 3: Intervention scorer** — all ~25 interventions scored with evidence-grounded causal arguments, top-5 verified
-- **Stage 4: Protocol assembler** — 5-layer protocol with timing, abstention logic
-- **Stage 5: Counterfactual verification** — stress-test each layer, identify weakest links and missing measurements
-- **Stage 6: Pipeline orchestrator** — runs all stages, outputs `CureProtocolCandidate` with full provenance
-- **697 tests** passing
+### Convergence Signals (system-assessed)
 
-### Phase 3: Autonomous Research Loop (Complete)
+The system declares **protocol convergence** when:
 
-Hypothesis-driven autonomous research that deepens causal understanding and iteratively refines the cure protocol:
+| Signal | Threshold | Meaning |
+|--------|-----------|---------|
+| **Intervention stability** | Top intervention per layer unchanged across 3 consecutive regenerations | The system has explored thoroughly and keeps arriving at the same answer |
+| **Evidence saturation** | New searches return <2 novel evidence items per cycle | The available literature has been exhausted for these targets |
+| **Causal chain depth** | All top-3 interventions have chains of depth >= 5 | The mechanism from drug to patient outcome is well-grounded |
+| **Hypothesis resolution** | >80% of generated hypotheses resolved (supported or refuted) | The system's questions about Erik's disease have been answered |
 
-- **15 research actions** — 10 connector-based evidence acquisition (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, ClinVar, PharmGKB) + 5 LLM-based reasoning (hypothesis generation, causal chain deepening, hypothesis validation, evidence scoring, protocol regeneration)
-- **Uncertainty-directed policy** — prioritizes: protocol regen → hypothesis validation → causal chain deepening → hypothesis generation → layer-rotation evidence search
-- **Hypothesis system** — generates testable mechanistic hypotheses about Erik's disease, plans validation actions, resolves via evidence accumulation (supports/refutes/mixed/insufficient)
-- **Causal chain construction** — builds evidence-grounded mechanism chains from intervention → target → pathway → phenotype with weakest-link analysis, pathway-grounded links from Reactome/KEGG (confidence 0.95)
-- **8-component reward** — evidence gain, uncertainty reduction, protocol improvement, hypothesis resolution, causal depth, interaction safety, eligibility confirmation, convergence bonus
-- **DualLLMManager** — 9B model stays loaded (4.7GB) for research, 35B loaded on demand for protocol regeneration then unloaded (~1.6s overhead)
-- **Protocol convergence detection** — stable top interventions across 3 consecutive regenerations triggers convergence
-- **Episode logging** — every step produces a LearningEpisode with full action/reward trace
-- **796 tests** passing
+### Action Readiness Criteria (human-assessed)
 
-### Phase 3B: Evidence Expansion (Complete)
+Even after convergence, the protocol requires human judgment on:
 
-7 new data sources for deep mechanistic reasoning, population benchmarking, genetic interpretation, and drug safety:
+| Criterion | Question | Who Decides |
+|-----------|----------|-------------|
+| **Clinical accessibility** | Can Erik actually access the top interventions? (approved drugs vs. trial enrollment vs. compassionate use) | Physician + patient |
+| **Safety clearance** | Are drug interactions acceptable? Does Erik's comorbidity profile allow the combination? | Physician |
+| **Genetic integration** | Have Invitae results arrived? Has the subtype posterior been updated? | System (auto-triggers `INTERPRET_VARIANT` when `genetics_received=true`) |
+| **Timing urgency** | Is Erik's decline rate accelerating? Has ALSFRS-R dropped below a critical threshold? | Physician + PRO-ACT trajectory comparison |
+| **Regulatory pathway** | Which interventions need IND applications, IRB approval, or compassionate use requests? | Physician + regulatory |
 
-- **Reactome** — curated biological pathway cascades (peer-reviewed reaction steps, compartment annotations)
-- **KEGG** — pathway ontology and gene-pathway mapping (metabolic/signaling contexts, off-target detection)
-- **STRING** — protein-protein interaction network (confidence-scored physical/functional interactions)
-- **PRO-ACT** — ALS natural history cohort (10,600+ patients, trajectory prediction, decline rate benchmarking)
-- **ClinVar** — genetic variant pathogenicity classifications (ready for Erik's Invitae results)
-- **OMIM** — gene-phenotype mapping (ALS subtypes, inheritance patterns)
-- **PharmGKB** — pharmacogenomics and drug safety (CYP metabolism, drug-gene interactions, dosing guidelines)
-- **Pathway-grounded causal chains** — Reactome/KEGG evidence as ground truth for mechanism links (confidence 0.95)
-- **5 new research actions** — QUERY_PATHWAYS, QUERY_PPI_NETWORK, MATCH_COHORT, INTERPRET_VARIANT, CHECK_PHARMACOGENOMICS
-- **12 total data sources** — expanded from 5, fully wired into the 15-action research loop
+### The Decision Rule
 
-### Roadmap
+**Act when:** The protocol has converged AND the top-layer interventions are clinically accessible AND drug safety is cleared AND genetic results have been integrated (or genetics are negative and sporadic TDP-43 is confirmed as dominant subtype).
+
+**Do NOT wait for:**
+- Perfect certainty (it will never arrive — all medicine operates under uncertainty)
+- All 5 layers to have strong-evidence interventions (Layer D regeneration is preclinical by nature — this should not block Layer A-C action)
+- A single "cure" (the protocol is a multi-layer combination strategy; each layer contributes partial benefit)
+
+**Continue running the loop while:**
+- Acting on accessible interventions (start riluzole optimization, enroll in eligible trials)
+- New evidence is arriving (trial readouts, preprints, genetic results)
+- Erik's clinical state changes (new measurements update the disease state snapshot)
+
+### The Protocol is a Living Document
+
+The converged protocol is not a final answer — it is the **best answer given current evidence**. The system continues to refine it as:
+
+- **Genetic results arrive** — subtype posterior shifts, Layer A may restructure entirely
+- **Trial results read out** — pridopidine PREVAiLS (H2 2026), VTx-002 PIONEER-ALS (ongoing), jacifusen FUSION (H2 2026) could dramatically change intervention scores
+- **Erik's state changes** — new ALSFRS-R assessments, NfL measurements, respiratory tests update the disease state and timing urgency
+- **New research publishes** — the loop discovers new evidence and regenerates
+
+The system re-enters active research mode automatically when new data changes the protocol's top-3 interventions.
+
+---
+
+## Operational Phases
 
 | Phase | Name | Status | Description |
 |-------|------|--------|-------------|
-| 0 | Canonical Substrate | **Complete** | Ontology, schema, patient ingestion, Erik's data |
-| 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
-| 1B | Evidence Connectors | **Complete** | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank |
-| 2 | World Model MVP | **Complete** | 6-stage pipeline: state → subtype → scoring → protocol → counterfactual → output |
-| 3 | Autonomous Research Loop | **Complete** | 15-action hypothesis-driven research loop with causal chains and convergence detection |
-| 3B | Evidence Expansion | **Complete** | 7 new data sources: Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB |
-| 4 | Cure Protocol Refinement | Planned | Live execution, trajectory prediction, genetic integration |
+| 0 | Canonical Substrate | **Complete** | Ontology, schema, patient ingestion, Erik's 51 observations |
+| 1A | Evidence Seed | **Complete** | 93 curated evidence items, 25 interventions, 16 drug targets |
+| 1B | Evidence Connectors | **Complete** | 5 original API connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank) |
+| 2 | World Model Pipeline | **Complete** | 6-stage protocol generation: state → subtype → scoring → assembly → counterfactual → output |
+| 3 | Autonomous Research Loop | **Complete** | 15-action hypothesis-driven loop with causal chains, convergence detection, episode logging |
+| 3B | Evidence Expansion | **Complete** | 7 new data sources (Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB) |
+| **4** | **Live Execution** | **Next** | **Run the research loop, generate Erik's first protocol, iterate to convergence** |
+| 5 | Clinical Translation | Planned | Physician review, trial enrollment, compassionate use applications |
+
+**796 tests passing.** System is architecturally complete and ready for live execution.
 
 ---
 
@@ -193,17 +220,19 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
-  connectors/       # 11 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB)
+  connectors/       # 11 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
+                    #   Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB)
   targets/          # Canonical ALS drug target definitions (16 targets)
   llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
   world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
     prompts/        # Evidence-grounded LLM prompt templates
-  research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses, causal chains, convergence, trajectory)
+  research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses,
+                    #   causal chains, convergence, trajectory)
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
-  erik_config.json  # Hot-reloadable runtime config
+  erik_config.json  # Hot-reloadable runtime config (~45 keys)
 tests/              # 796 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
@@ -230,7 +259,7 @@ cd ALS
 # Create conda environment
 conda create -n erik-core python=3.12 -y
 conda activate erik-core
-pip install pydantic "psycopg[binary]" psycopg_pool pytest python-dateutil
+pip install pydantic "psycopg[binary]" psycopg_pool pytest python-dateutil requests mlx-lm
 
 # Create database
 createdb erik_kg
@@ -239,39 +268,37 @@ createdb erik_kg
 PYTHONPATH=scripts python -m db.migrate
 
 # Verify
-pytest tests/ -v
+pytest tests/ -v -k "not network and not chembl and not llm"
 ```
 
-### Running Tests
+### Running the Research Loop
 
 ```bash
-conda activate erik-core
-cd /path/to/ALS
-pytest tests/ -v              # All 514 tests
-pytest tests/ -v -k erik      # Just Erik trajectory tests
-pytest tests/ -v -k seed      # Evidence seed validation
-```
+# Generate Erik's first cure protocol (single pass)
+PYTHONPATH=scripts conda run -n erik-core python -c "
+from world_model.protocol_generator import generate_cure_protocol
+result = generate_cure_protocol(use_llm=True)
+print(f'Protocol: {result[\"protocol\"].id}')
+print(f'Layers: {len(result[\"protocol\"].layers)}')
+"
 
-### Quick Verification
-
-```python
-# Patient trajectory
-from ingestion.patient_builder import build_erik_draper
-patient, trajectory, observations = build_erik_draper()
-print(f"Patient: {patient.patient_key}")
-print(f"ALSFRS-R: {trajectory.alsfrs_r_scores[0].total}/48")
-print(f"Observations: {len(observations)}")
-
-# Evidence fabric
-from evidence.seed_builder import load_seed
+# Run the autonomous research loop (iterative refinement)
+PYTHONPATH=scripts conda run -n erik-core python -c "
 from evidence.evidence_store import EvidenceStore
-stats = load_seed()
-store = EvidenceStore()
-print(f"Interventions: {stats['interventions_loaded']}")
-print(f"Evidence items: {stats['evidence_items_loaded']}")
-for layer in ['root_cause_suppression', 'pathology_reversal', 'circuit_stabilization',
-              'regeneration_reinnervation', 'adaptive_maintenance']:
-    print(f"  {layer}: {len(store.query_by_protocol_layer(layer))} items")
+from research.dual_llm import DualLLMManager
+from research.loop import run_research_loop
+
+state = run_research_loop(
+    subject_ref='traj:draper_001',
+    evidence_store=EvidenceStore(),
+    llm_manager=DualLLMManager(),
+    max_steps=500,
+)
+print(f'Steps: {state.step_count}')
+print(f'Evidence: {state.total_evidence_items}')
+print(f'Protocol versions: {state.protocol_version}')
+print(f'Converged: {state.converged}')
+"
 ```
 
 ---
@@ -283,6 +310,8 @@ Erik follows the "Era of Experience" philosophy (Silver & Sutton, 2025):
 > The agent learns primarily from its own interaction with the environment, not from human-curated labels or static datasets. Rewards are grounded in measurable effects — knowledge gained, predictions validated, gaps reduced, truth verified — not in proxy scores.
 
 Applied to ALS: Erik doesn't memorize treatment guidelines. It builds a causal model from first principles, tests its understanding against real data, and generates protocol candidates that it can explain and uncertainty-bound. Every recommendation carries provenance, confidence, and explicit disclosure of what it doesn't know.
+
+The system is designed with a clear ethical boundary: it generates recommendations, never decisions. The `approval_state=pending` gate ensures that every protocol is reviewed by a qualified physician before any action is taken on Erik's behalf. The system's job is to be the most informed, most rigorous, most honest research assistant possible — not to replace clinical judgment.
 
 ---
 
@@ -309,6 +338,10 @@ Applied to ALS: Erik doesn't memorize treatment guidelines. It builds a causal m
 - Answer ALS / Neuromine (multi-omic consortium)
 - Project MinE (ALS WGS consortium)
 - ALSoD, ClinVar, OMIM (gene/variant databases)
+- Reactome, KEGG (curated biological pathways)
+- STRING (protein-protein interaction network)
+- PharmGKB (pharmacogenomics)
+- ChEMBL 36 (compound bioactivity)
 
 ---
 
