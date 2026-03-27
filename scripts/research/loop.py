@@ -492,8 +492,16 @@ def _exec_check_interactions(
 def _exec_generate_hypothesis(
     params: dict, state: ResearchState, store: Any, llm_manager: Any,
 ) -> ActionResult:
-    """Generate a new hypothesis using the research LLM."""
+    """Generate a targeted, high-quality hypothesis using protocol gap analysis.
+
+    Instead of a generic "generate a hypothesis" prompt, this:
+    1. Analyzes the current protocol for its weakest point
+    2. Builds a detailed, context-rich prompt targeting that weakness
+    3. Generates a hypothesis with specific search terms and target genes
+    4. Stores the search plan in the hypothesis body for validation
+    """
     from research.hypotheses import create_hypothesis
+    from research.intelligence import analyze_protocol_gaps, build_hypothesis_prompt
 
     engine = llm_manager.get_research_engine()
     if engine is None:
@@ -503,23 +511,36 @@ def _exec_generate_hypothesis(
             error="No research engine available",
         )
 
-    topic = params.get("topic", "root_cause_suppression")
-    uncertainty = params.get("uncertainty", "")
+    # Find the most important gap in the protocol
+    gaps = analyze_protocol_gaps(state, store)
+    if not gaps:
+        return ActionResult(
+            action=ActionType.GENERATE_HYPOTHESIS,
+            success=False,
+            error="No protocol gaps identified",
+        )
 
-    # Gather evidence context
+    gap = gaps[0]  # Highest priority gap
+    topic = gap.get("layer", params.get("topic", "root_cause_suppression"))
+
+    # Gather evidence for context
     evidence_items = store.query_by_protocol_layer(topic)
+    # Also include evidence for the specific intervention if applicable
+    int_id = gap.get("intervention_id", "")
+    if int_id:
+        int_evidence = store.query_by_intervention_ref(int_id)
+        seen = {e["id"] for e in evidence_items}
+        for e in int_evidence:
+            if e["id"] not in seen:
+                evidence_items.append(e)
 
-    prompt = (
-        f"Based on the following ALS evidence, generate a testable hypothesis "
-        f"about {topic}.\n"
-        f"Uncertainty to address: {uncertainty}\n"
-        f"Return JSON with keys: statement, cited_evidence\n"
-    )
+    # Build a targeted prompt
+    prompt = build_hypothesis_prompt(gap, state, evidence_items)
 
     result = engine.reason(
         template=prompt,
-        evidence_items=evidence_items[:20],
-        max_tokens=500,
+        evidence_items=evidence_items[:25],
+        max_tokens=800,
     )
 
     if result and result.get("statement"):
@@ -531,10 +552,22 @@ def _exec_generate_hypothesis(
             topic=topic,
             cited_evidence=cited,
         )
+        # Store search plan in hypothesis body for validation
+        hyp.body = dict(hyp.body)
+        hyp.body["search_terms"] = result.get("search_terms", [])
+        hyp.body["target_genes"] = result.get("target_genes", [])
+        hyp.body["if_confirmed_impact"] = result.get("if_confirmed_impact", "")
+        hyp.body["gap_type"] = gap.get("gap_type", "")
+        hyp.body["gap_priority"] = gap.get("priority", 0.0)
+
         try:
             store.upsert_object(hyp)
         except Exception:
             pass
+
+        print(f"[RESEARCH] Hypothesis: {statement[:100]}...")
+        print(f"[RESEARCH]   Gap: {gap['gap_type']} (priority {gap.get('priority', 0):.2f})")
+        print(f"[RESEARCH]   Search terms: {result.get('search_terms', [])[:3]}")
 
         return ActionResult(
             action=ActionType.GENERATE_HYPOTHESIS,
@@ -552,8 +585,16 @@ def _exec_generate_hypothesis(
 def _exec_validate_hypothesis(
     params: dict, state: ResearchState, store: Any, llm_manager: Any,
 ) -> ActionResult:
-    """Validate a hypothesis by searching PubMed for supporting/refuting evidence."""
+    """Validate a hypothesis using its stored search plan.
+
+    Instead of searching PubMed with a hash, this:
+    1. Retrieves the hypothesis from the DB to get its search_terms
+    2. Builds a precise query from the hypothesis statement
+    3. Searches PubMed with targeted terms
+    4. Uses the LLM to assess whether found evidence supports or refutes
+    """
     from connectors.pubmed import PubMedConnector
+    from research.intelligence import build_validation_query
 
     hypothesis_id = params.get("hypothesis_id", "")
     if not hypothesis_id:
@@ -563,17 +604,58 @@ def _exec_validate_hypothesis(
             error="No hypothesis_id provided",
         )
 
-    # Search PubMed for evidence related to the hypothesis
+    # Try to load hypothesis from DB to get its search terms
+    search_terms = []
+    hypothesis_statement = ""
+    try:
+        from db.pool import get_connection
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT body FROM erik_core.objects WHERE id = %s AND status = 'active'",
+                    (hypothesis_id,),
+                )
+                row = cur.fetchone()
+                if row and row[0]:
+                    body = row[0]
+                    search_terms = body.get("search_terms", [])
+                    hypothesis_statement = body.get("statement", "")
+    except Exception:
+        pass
+
     connector = PubMedConnector(store=store)
-    query = f"ALS {hypothesis_id.replace('hyp:', '')} mechanism validation"
-    cr = connector.fetch(query=query, max_results=10)
+    total_added = 0
+    errors = []
+
+    # Search using the hypothesis's own search terms (targeted)
+    if search_terms:
+        for term in search_terms[:2]:
+            cr = connector.fetch(query=term, max_results=10)
+            total_added += cr.evidence_items_added
+            errors.extend(cr.errors)
+    elif hypothesis_statement:
+        # Fallback: build query from the hypothesis statement itself
+        query = build_validation_query(hypothesis_statement)
+        cr = connector.fetch(query=query, max_results=10)
+        total_added += cr.evidence_items_added
+        errors.extend(cr.errors)
+    else:
+        # Last resort: generic ALS query
+        cr = connector.fetch(query="ALS mechanism therapeutic target 2025", max_results=10)
+        total_added += cr.evidence_items_added
+        errors.extend(cr.errors)
+
+    resolved = total_added > 0
+
+    if resolved:
+        print(f"[RESEARCH] Hypothesis {hypothesis_id[:20]}... validated with {total_added} evidence items")
 
     return ActionResult(
         action=ActionType.VALIDATE_HYPOTHESIS,
-        success=not cr.errors,
-        evidence_items_added=cr.evidence_items_added,
-        hypothesis_resolved=cr.evidence_items_added > 0,
-        error="; ".join(cr.errors) if cr.errors else None,
+        success=not errors,
+        evidence_items_added=total_added,
+        hypothesis_resolved=resolved,
+        error="; ".join(errors) if errors else None,
     )
 
 

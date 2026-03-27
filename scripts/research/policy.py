@@ -77,15 +77,11 @@ def select_action(
             ActionType.DEEPEN_CAUSAL_CHAIN, intervention_id=int_id,
         )
 
-    # 5. Generate hypothesis targeting top uncertainty
-    if state.top_uncertainties:
-        # Rotate through uncertainties
-        unc_idx = step % len(state.top_uncertainties)
-        uncertainty = state.top_uncertainties[unc_idx]
+    # 5. Generate hypothesis — the intelligence module picks the best gap
+    #    (top_uncertainties is checked by the intelligence module internally)
+    if state.top_uncertainties or state.protocol_version > 0:
         return ActionType.GENERATE_HYPOTHESIS, build_action_params(
             ActionType.GENERATE_HYPOTHESIS,
-            topic=_uncertainty_to_layer(uncertainty),
-            uncertainty=uncertainty,
         )
 
     # 6. Fallback: evidence acquisition

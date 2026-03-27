@@ -116,28 +116,35 @@ The system infrastructure is fully operational:
 - **World Model Pipeline** — 6-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → protocol assembly → counterfactual verification → output
 - **Research Loop** — 15 action types, uncertainty-directed policy, hypothesis system, causal chain construction, protocol convergence detection, episode logging
 
-### Stage 2: Research (Operational — ready to run)
+### Stage 2: Research (Running 24/7)
 
-The autonomous research loop executes a cycle:
+The autonomous research loop operates in two modes:
 
-1. **Assess** — What are the top uncertainties in the current protocol? Where are the weakest causal chain links?
-2. **Hypothesize** — Generate testable mechanistic hypotheses targeting those uncertainties
-3. **Search** — Query PubMed, ClinicalTrials.gov, Reactome, STRING, ChEMBL, and other sources for evidence
-4. **Validate** — Resolve hypotheses as supported/refuted/mixed based on accumulated evidence
-5. **Deepen** — Extend causal chains using pathway-grounded evidence from Reactome/KEGG
-6. **Regenerate** — When enough new evidence accumulates, re-run the full 6-stage protocol pipeline
-7. **Converge** — When the top interventions stabilize across 3 consecutive regenerations, declare convergence
+**Active research mode** (pre-convergence): A 15-action cycle driven by protocol gap analysis:
 
-Each cycle produces a better protocol. The evidence fabric grows. Causal chains deepen. Uncertainties shrink. The protocol improves.
+1. **Analyze gaps** — The intelligence module examines the current protocol to identify the weakest evidence link, shallowest causal chain, most uncertain layer, and missing measurements. Each gap is ranked by priority.
+2. **Generate targeted hypotheses** — Instead of generic "generate a hypothesis" prompts, the LLM receives Erik's full clinical context, the specific gap being addressed, relevant evidence items, and a structured prompt asking for a testable claim with search terms and target genes.
+3. **Search with purpose** — Hypothesis validation uses the hypothesis's own search terms (extracted by the LLM) to query PubMed, not generic queries. Target genes drive STRING and Reactome lookups.
+4. **Deepen causal chains** — For each protocol intervention, build the full mechanism chain (drug → target → pathway → cellular effect → motor neuron survival) grounded in pathway databases.
+5. **Regenerate protocol** — When 15+ new evidence items accumulate, re-run the full 6-stage pipeline with the expanded evidence fabric.
+6. **Converge** — When top interventions stabilize across 3 consecutive regenerations.
 
-### Stage 3: Converge
+**Deep research mode** (post-convergence): The system does NOT stop. It continuously expands the evidence fabric:
+
+- Every 30 seconds: executes a research query (PubMed, ClinicalTrials, STRING PPI, Reactome pathways, PharmGKB safety)
+- Every 3rd step: uses protocol gap analysis to pick the most impactful query instead of rotating through hardcoded searches
+- When 15+ new evidence items accumulate: triggers re-convergence with an improved protocol
+- Checks for genetic results and config changes on every cycle
+
+### Stage 3: Converge and Refine
 
 The system produces a **CureProtocolCandidate** — a 5-layer treatment strategy with:
 - Evidence-grounded intervention selection per layer
 - Full causal chains from mechanism to patient outcome
-- Drug interaction safety validation
+- Drug interaction safety validation (PharmGKB)
 - Uncertainty disclosure and missing measurement recommendations
 - Human approval gate (always `approval_state=pending`)
+- The protocol is regenerated with deeper evidence each time the system re-converges
 
 ---
 
@@ -232,7 +239,7 @@ The system has converged on `proto:erik_draper_v1` and is now in monitoring mode
 | 4 | Live Execution | **Complete** | First convergence achieved — 24/7 LaunchAgent running |
 | 5 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-**796 tests passing.** System is fully operational.
+**811 tests passing.** System is fully operational with intelligent, gap-driven research.
 
 ---
 
@@ -251,7 +258,7 @@ scripts/
   world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
     prompts/        # Evidence-grounded LLM prompt templates
   research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses,
-                    #   causal chains, convergence, trajectory)
+                    #   causal chains, convergence, trajectory, intelligence)
   run_loop.py       # 24/7 continuous entry point (LaunchAgent target)
   monitor.py        # Real-time terminal dashboard for loop progress
   audit/            # Append-only event logger
@@ -260,7 +267,7 @@ data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
   erik_config.json  # Hot-reloadable runtime config (~45 keys)
 logs/               # LaunchAgent log output (erik_research.log, erik_research.err)
-tests/              # 796 pytest tests mirroring scripts/ structure
+tests/              # 811 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans

@@ -109,20 +109,46 @@ def _deep_research_step(
     evidence_store: EvidenceStore,
     llm_manager: DualLLMManager,
 ) -> ResearchState:
-    """Execute one deep research step — systematic evidence expansion
+    """Execute one deep research step — intelligent evidence expansion
     that continues even after protocol convergence.
 
-    Rotates through _DEEP_RESEARCH_QUERIES, executing one per call.
-    When new evidence accumulates past the regen threshold, triggers
-    protocol regeneration and re-convergence.
+    Alternates between:
+    - Gap-driven research: analyze protocol gaps, search for what matters most
+    - Systematic rotation: cycle through hardcoded queries for broad coverage
+
+    Every 3rd step is gap-driven (uses protocol gap analysis to pick the
+    most impactful query). Other steps use the hardcoded rotation.
     """
     from research.actions import ActionType, ActionResult
     from research.loop import _execute_action, _persist_state
     from research.rewards import compute_reward
 
-    # Pick the next query in the rotation
-    deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
-    action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
+    # Every 3rd step: gap-driven research
+    use_gap_analysis = (state.step_count % 3 == 0)
+
+    if use_gap_analysis:
+        try:
+            from research.intelligence import analyze_protocol_gaps
+            gaps = analyze_protocol_gaps(state, evidence_store)
+            if gaps:
+                gap = gaps[0]
+                queries = gap.get("search_queries", [])
+                if queries:
+                    # Use the top gap's first search query
+                    action_name = "search_pubmed"
+                    params = {"query": queries[0], "max_results": 20}
+                    print(f"[ERIK-DEEP] Gap-driven: {gap['gap_type']} — {gap['description'][:60]}...")
+                else:
+                    use_gap_analysis = False
+            else:
+                use_gap_analysis = False
+        except Exception:
+            use_gap_analysis = False
+
+    if not use_gap_analysis:
+        # Systematic rotation through hardcoded queries
+        deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
+        action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
 
     # Map string to ActionType
     action_map = {
