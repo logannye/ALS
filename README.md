@@ -146,15 +146,30 @@ A 6-stage evidence-grounded reasoning pipeline that produces Erik's first cure p
 
 Hypothesis-driven autonomous research that deepens causal understanding and iteratively refines the cure protocol:
 
-- **10 research actions** — 5 connector-based evidence acquisition (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank) + 5 LLM-based reasoning (hypothesis generation, causal chain deepening, hypothesis validation, evidence scoring, protocol regeneration)
+- **15 research actions** — 10 connector-based evidence acquisition (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, ClinVar, PharmGKB) + 5 LLM-based reasoning (hypothesis generation, causal chain deepening, hypothesis validation, evidence scoring, protocol regeneration)
 - **Uncertainty-directed policy** — prioritizes: protocol regen → hypothesis validation → causal chain deepening → hypothesis generation → layer-rotation evidence search
 - **Hypothesis system** — generates testable mechanistic hypotheses about Erik's disease, plans validation actions, resolves via evidence accumulation (supports/refutes/mixed/insufficient)
-- **Causal chain construction** — builds evidence-grounded mechanism chains from intervention → target → pathway → phenotype with weakest-link analysis
+- **Causal chain construction** — builds evidence-grounded mechanism chains from intervention → target → pathway → phenotype with weakest-link analysis, pathway-grounded links from Reactome/KEGG (confidence 0.95)
 - **8-component reward** — evidence gain, uncertainty reduction, protocol improvement, hypothesis resolution, causal depth, interaction safety, eligibility confirmation, convergence bonus
 - **DualLLMManager** — 9B model stays loaded (4.7GB) for research, 35B loaded on demand for protocol regeneration then unloaded (~1.6s overhead)
 - **Protocol convergence detection** — stable top interventions across 3 consecutive regenerations triggers convergence
 - **Episode logging** — every step produces a LearningEpisode with full action/reward trace
-- **750 tests** passing
+- **796 tests** passing
+
+### Phase 3B: Evidence Expansion (Complete)
+
+7 new data sources for deep mechanistic reasoning, population benchmarking, genetic interpretation, and drug safety:
+
+- **Reactome** — curated biological pathway cascades (peer-reviewed reaction steps, compartment annotations)
+- **KEGG** — pathway ontology and gene-pathway mapping (metabolic/signaling contexts, off-target detection)
+- **STRING** — protein-protein interaction network (confidence-scored physical/functional interactions)
+- **PRO-ACT** — ALS natural history cohort (10,600+ patients, trajectory prediction, decline rate benchmarking)
+- **ClinVar** — genetic variant pathogenicity classifications (ready for Erik's Invitae results)
+- **OMIM** — gene-phenotype mapping (ALS subtypes, inheritance patterns)
+- **PharmGKB** — pharmacogenomics and drug safety (CYP metabolism, drug-gene interactions, dosing guidelines)
+- **Pathway-grounded causal chains** — Reactome/KEGG evidence as ground truth for mechanism links (confidence 0.95)
+- **5 new research actions** — QUERY_PATHWAYS, QUERY_PPI_NETWORK, MATCH_COHORT, INTERPRET_VARIANT, CHECK_PHARMACOGENOMICS
+- **12 total data sources** — expanded from 5, fully wired into the 15-action research loop
 
 ### Roadmap
 
@@ -164,8 +179,9 @@ Hypothesis-driven autonomous research that deepens causal understanding and iter
 | 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
 | 1B | Evidence Connectors | **Complete** | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank |
 | 2 | World Model MVP | **Complete** | 6-stage pipeline: state → subtype → scoring → protocol → counterfactual → output |
-| 3 | Autonomous Research Loop | **Complete** | 10-action hypothesis-driven research loop with causal chains and convergence detection |
-| 4 | Cure Protocol Generation | Planned | Planner, protocol builder, abstention logic |
+| 3 | Autonomous Research Loop | **Complete** | 15-action hypothesis-driven research loop with causal chains and convergence detection |
+| 3B | Evidence Expansion | **Complete** | 7 new data sources: Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB |
+| 4 | Cure Protocol Refinement | Planned | Live execution, trajectory prediction, genetic integration |
 
 ---
 
@@ -177,18 +193,18 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
-  connectors/       # 5 API connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank)
+  connectors/       # 11 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB)
   targets/          # Canonical ALS drug target definitions (16 targets)
   llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
   world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
     prompts/        # Evidence-grounded LLM prompt templates
-  research/         # Autonomous research loop (10 actions, policy, rewards, hypotheses, causal chains, convergence)
+  research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses, causal chains, convergence, trajectory)
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
   erik_config.json  # Hot-reloadable runtime config
-tests/              # 750 pytest tests mirroring scripts/ structure
+tests/              # 796 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans
