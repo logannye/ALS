@@ -37,12 +37,19 @@ def select_action(
             ActionType.VALIDATE_HYPOTHESIS, hypothesis_id=hyp_id,
         )
 
-    # 3. Deepen shallow causal chains
-    for int_id, depth in state.causal_chains.items():
-        if depth < target_depth:
-            return ActionType.DEEPEN_CAUSAL_CHAIN, build_action_params(
-                ActionType.DEEPEN_CAUSAL_CHAIN, intervention_id=int_id,
-            )
+    # 3. Deepen shallow causal chains (skip if last 3 actions were all chain deepening with 0 reward — stall detection)
+    chain_stalled = (
+        state.action_counts.get("deepen_causal_chain", 0) >= 3
+        and state.last_action == "deepen_causal_chain"
+        and state.last_reward == 0.0
+        and state.action_counts.get("deepen_causal_chain", 0) > state.action_counts.get("generate_hypothesis", 0) + state.action_counts.get("search_pubmed", 0)
+    )
+    if not chain_stalled:
+        for int_id, depth in state.causal_chains.items():
+            if depth < target_depth:
+                return ActionType.DEEPEN_CAUSAL_CHAIN, build_action_params(
+                    ActionType.DEEPEN_CAUSAL_CHAIN, intervention_id=int_id,
+                )
 
     # 4. Generate hypothesis targeting top uncertainty
     if state.top_uncertainties:

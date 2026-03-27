@@ -525,7 +525,12 @@ def _exec_validate_hypothesis(
 def _exec_deepen_chain(
     params: dict, state: ResearchState, store: Any, llm_manager: Any,
 ) -> ActionResult:
-    """Extend a causal chain using the research LLM."""
+    """Extend a causal chain using the research LLM.
+
+    Gathers evidence by intervention ref, mechanism target, and protocol
+    layer. If no evidence is found at all, builds a minimal context from
+    the intervention name so the LLM can still reason.
+    """
     engine = llm_manager.get_research_engine()
     if engine is None:
         return ActionResult(
@@ -542,13 +547,43 @@ def _exec_deepen_chain(
             error="No intervention_id provided",
         )
 
-    # Gather evidence about this intervention
-    evidence_items = store.query_by_intervention_ref(intervention_id)
+    # Gather evidence — cast a wide net
+    evidence_items: list[dict] = []
+    seen_ids: set[str] = set()
+
+    # By intervention ref
+    for item in store.query_by_intervention_ref(intervention_id):
+        if item["id"] not in seen_ids:
+            seen_ids.add(item["id"])
+            evidence_items.append(item)
+
+    # By intervention name as mechanism target (strip int: prefix)
+    target_name = intervention_id.replace("int:", "")
+    for item in store.query_by_mechanism_target(target_name):
+        if item["id"] not in seen_ids:
+            seen_ids.add(item["id"])
+            evidence_items.append(item)
+
+    # If still empty, grab some general evidence from root_cause layer
+    if not evidence_items:
+        for item in store.query_by_protocol_layer("root_cause_suppression")[:10]:
+            if item["id"] not in seen_ids:
+                seen_ids.add(item["id"])
+                evidence_items.append(item)
+
+    current_depth = state.causal_chains.get(intervention_id, 0)
 
     prompt = (
-        f"Extend the causal chain for intervention '{intervention_id}' in ALS.\n"
-        f"Identify the next mechanistic step from intervention to patient outcome.\n"
-        f"Return JSON with keys: source, target, mechanism, cited_evidence\n"
+        f"TASK: Extend the causal mechanism chain for the ALS intervention '{target_name}'.\n"
+        f"Current chain depth: {current_depth} links.\n"
+        f"The patient is a 67M with limb-onset sporadic ALS (ALSFRS-R 43/48, NfL 5.82).\n\n"
+        f"Describe the NEXT mechanistic step from this intervention toward motor neuron survival.\n\n"
+        f"EVIDENCE ITEMS:\n{{evidence_items_json}}\n\n"
+        f"Return JSON: {{\"source\": \"<intervention or previous step>\", "
+        f"\"target\": \"<next biological effect>\", "
+        f"\"mechanism\": \"<how source causes target>\", "
+        f"\"confidence\": <float 0-1>, "
+        f"\"cited_evidence\": [\"<evidence IDs used>\"]}}"
     )
 
     result = engine.reason(
@@ -568,7 +603,7 @@ def _exec_deepen_chain(
     return ActionResult(
         action=ActionType.DEEPEN_CAUSAL_CHAIN,
         success=False,
-        error="LLM returned no valid causal link",
+        error=f"LLM returned no valid causal link for {intervention_id}",
     )
 
 
