@@ -142,6 +142,20 @@ A 6-stage evidence-grounded reasoning pipeline that produces Erik's first cure p
 - **Stage 6: Pipeline orchestrator** — runs all stages, outputs `CureProtocolCandidate` with full provenance
 - **697 tests** passing
 
+### Phase 3: Autonomous Research Loop (Complete)
+
+Hypothesis-driven autonomous research that deepens causal understanding and iteratively refines the cure protocol:
+
+- **10 research actions** — 5 connector-based evidence acquisition (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank) + 5 LLM-based reasoning (hypothesis generation, causal chain deepening, hypothesis validation, evidence scoring, protocol regeneration)
+- **Uncertainty-directed policy** — prioritizes: protocol regen → hypothesis validation → causal chain deepening → hypothesis generation → layer-rotation evidence search
+- **Hypothesis system** — generates testable mechanistic hypotheses about Erik's disease, plans validation actions, resolves via evidence accumulation (supports/refutes/mixed/insufficient)
+- **Causal chain construction** — builds evidence-grounded mechanism chains from intervention → target → pathway → phenotype with weakest-link analysis
+- **8-component reward** — evidence gain, uncertainty reduction, protocol improvement, hypothesis resolution, causal depth, interaction safety, eligibility confirmation, convergence bonus
+- **DualLLMManager** — 9B model stays loaded (4.7GB) for research, 35B loaded on demand for protocol regeneration then unloaded (~1.6s overhead)
+- **Protocol convergence detection** — stable top interventions across 3 consecutive regenerations triggers convergence
+- **Episode logging** — every step produces a LearningEpisode with full action/reward trace
+- **750 tests** passing
+
 ### Roadmap
 
 | Phase | Name | Status | Description |
@@ -150,7 +164,7 @@ A 6-stage evidence-grounded reasoning pipeline that produces Erik's first cure p
 | 1A | Evidence Seed | **Complete** | Curated evidence corpus, interventions, drug targets |
 | 1B | Evidence Connectors | **Complete** | PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank |
 | 2 | World Model MVP | **Complete** | 6-stage pipeline: state → subtype → scoring → protocol → counterfactual → output |
-| 3 | RL Loop | Planned | Experience stream, action space, reward function, value function |
+| 3 | Autonomous Research Loop | **Complete** | 10-action hypothesis-driven research loop with causal chains and convergence detection |
 | 4 | Cure Protocol Generation | Planned | Planner, protocol builder, abstention logic |
 
 ---
@@ -165,15 +179,16 @@ scripts/
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
   connectors/       # 5 API connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank)
   targets/          # Canonical ALS drug target definitions (16 targets)
-  llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading)
+  llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
   world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
     prompts/        # Evidence-grounded LLM prompt templates
+  research/         # Autonomous research loop (10 actions, policy, rewards, hypotheses, causal chains, convergence)
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
   erik_config.json  # Hot-reloadable runtime config
-tests/              # 697 pytest tests mirroring scripts/ structure
+tests/              # 750 pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans
