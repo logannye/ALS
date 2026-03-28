@@ -29,6 +29,9 @@ class ResearchState:
     last_reward: float = 0.0
     converged: bool = False
     new_evidence_since_regen: int = 0
+    uncertainty_score: float = 1.0
+    uncertainty_history: list[float] = field(default_factory=list)
+    challenge_counts: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -51,6 +54,9 @@ class ResearchState:
             "last_reward": self.last_reward,
             "converged": self.converged,
             "new_evidence_since_regen": self.new_evidence_since_regen,
+            "uncertainty_score": self.uncertainty_score,
+            "uncertainty_history": list(self.uncertainty_history),
+            "challenge_counts": dict(self.challenge_counts),
         }
 
     @classmethod

@@ -53,5 +53,9 @@
   "trajectory_refresh_interval_steps": 100,
   "biorxiv_enabled": true,
   "biorxiv_lookback_days": 90,
-  "biorxiv_max_per_query": 15
+  "biorxiv_max_per_query": 15,
+  "adversarial_verification_enabled": true,
+  "adversarial_max_challenges_per_intervention": 3,
+  "adversarial_contested_threshold": 3,
+  "adversarial_reward_multiplier": 1.5
 }

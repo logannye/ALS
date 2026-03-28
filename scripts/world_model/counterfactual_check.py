@@ -38,6 +38,8 @@ class CounterfactualResult(BaseModel):
     weakest_evidence: str = ""
     next_best_measurement: str = ""
     cited_evidence: list[str] = Field(default_factory=list)
+    strongest_counterargument: str = ""
+    counterargument_strength: str = "none"  # none, weak, moderate, strong
 
 
 # ---------------------------------------------------------------------------
