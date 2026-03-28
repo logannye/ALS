@@ -46,5 +46,9 @@
   "trial_eligibility_enabled": true,
   "trial_geographic_region": "Ohio",
   "trial_alsfrs_r_current": 43,
-  "trial_fvc_current": 100
+  "trial_fvc_current": 100,
+  "proact_enabled": true,
+  "proact_cohort_age_window": 5,
+  "proact_top_k_matches": 50,
+  "trajectory_refresh_interval_steps": 100
 }

@@ -21,6 +21,8 @@ class ActionType(str, Enum):
     MATCH_COHORT = "match_cohort"
     INTERPRET_VARIANT = "interpret_variant"
     CHECK_PHARMACOGENOMICS = "check_pharmacogenomics"
+    QUERY_GALEN_KG = "query_galen_kg"
+    UPDATE_TRAJECTORY = "update_trajectory"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,
@@ -30,6 +32,7 @@ NETWORK_ACTIONS = {
     ActionType.QUERY_PPI_NETWORK,
     ActionType.INTERPRET_VARIANT,
     ActionType.CHECK_PHARMACOGENOMICS,
+    ActionType.QUERY_GALEN_KG,
 }
 
 LLM_ACTIONS = {
@@ -55,6 +58,8 @@ class ActionResult:
     protocol_stable: bool = False
     interaction_safe: bool = False
     eligibility_confirmed: bool = False
+    protocol_layer: Optional[str] = None
+    evidence_strength: Optional[str] = None
     detail: dict[str, Any] = field(default_factory=dict)
 
 def build_action_params(action: ActionType, **kwargs: Any) -> dict[str, Any]:
