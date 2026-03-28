@@ -257,7 +257,7 @@ def compute_eligibility(
     enrollment_status: str,
     sites: list[str],
     current_protocol_top_interventions: list[str],
-    geographic_region: str = "Ohio",
+    geographic_region: Optional[str] = None,
 ) -> EligibilityVerdict:
     """Compute full eligibility verdict for a single clinical trial.
 
@@ -292,7 +292,16 @@ def compute_eligibility(
     -------
     EligibilityVerdict
     """
-    erik = ERIK_ELIGIBILITY_PROFILE
+    from config.loader import ConfigLoader
+    cfg = ConfigLoader()
+
+    profile = dict(ERIK_ELIGIBILITY_PROFILE)
+    profile["alsfrs_r"] = cfg.get("trial_alsfrs_r_current", profile["alsfrs_r"])
+    profile["fvc_percent"] = cfg.get("trial_fvc_current", profile["fvc_percent"])
+
+    geographic_region = geographic_region or cfg.get("trial_geographic_region", "Ohio")
+
+    erik = profile
 
     blocking: list[str] = []
     pending: list[str] = []
@@ -397,7 +406,7 @@ def compute_eligibility(
 # Watchlist persistence
 # ---------------------------------------------------------------------------
 
-def upsert_watchlist(verdict: EligibilityVerdict) -> None:
+def upsert_watchlist(verdict: EligibilityVerdict, reviewed: bool = False) -> None:
     """Persist an EligibilityVerdict to the erik_ops.trial_watchlist table.
 
     Uses the shared db pool. Safe to call multiple times (upsert on nct_id).
@@ -406,6 +415,8 @@ def upsert_watchlist(verdict: EligibilityVerdict) -> None:
     ----------
     verdict:
         The computed eligibility verdict for a trial.
+    reviewed:
+        Whether the trial has been manually reviewed. Defaults to False.
     """
     import json
     from db.pool import get_connection
@@ -413,11 +424,11 @@ def upsert_watchlist(verdict: EligibilityVerdict) -> None:
     sql = """
         INSERT INTO erik_ops.trial_watchlist
             (nct_id, title, eligible_status, enrollment_status, phase,
-             intervention_name, protocol_alignment, sites, last_checked)
+             intervention_name, protocol_alignment, sites, reviewed, last_checked)
         VALUES
             (%(nct_id)s, %(title)s, %(eligible_status)s, %(enrollment_status)s,
              %(phase)s, %(intervention_name)s, %(protocol_alignment)s,
-             %(sites)s::jsonb, now())
+             %(sites)s::jsonb, %(reviewed)s, now())
         ON CONFLICT (nct_id) DO UPDATE SET
             title               = EXCLUDED.title,
             eligible_status     = EXCLUDED.eligible_status,
@@ -426,6 +437,7 @@ def upsert_watchlist(verdict: EligibilityVerdict) -> None:
             intervention_name   = EXCLUDED.intervention_name,
             protocol_alignment  = EXCLUDED.protocol_alignment,
             sites               = EXCLUDED.sites,
+            reviewed            = EXCLUDED.reviewed,
             last_checked        = now()
     """
     params = {
@@ -437,6 +449,7 @@ def upsert_watchlist(verdict: EligibilityVerdict) -> None:
         "intervention_name": verdict.intervention_name,
         "protocol_alignment": verdict.protocol_alignment,
         "sites": json.dumps(verdict.sites_near_erik),
+        "reviewed": reviewed,
     }
     with get_connection() as conn:
         conn.execute(sql, params)
