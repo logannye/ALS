@@ -15,6 +15,7 @@ _SCRIPTS_DIR = pathlib.Path(__file__).parent
 _SCHEMA_FILES = [
     _SCRIPTS_DIR / "core_schema.sql",
     _SCRIPTS_DIR / "ops_schema.sql",
+    _SCRIPTS_DIR / "trial_watchlist.sql",
 ]
 
 _DB_NAME = "erik_kg"
