@@ -127,7 +127,12 @@ _FVC_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _DURATION_PATTERN = re.compile(
-    r"(?:within|less\s+than|<)\s*(\d+)\s*months?",
+    r"(?:"
+    r"(?:onset|diagnosis|symptom|disease|screening|ALS|duration)\b[^.]{0,60}?"
+    r"(?:within|less\s+than|<)\s*(\d+)\s*months?"
+    r"|"
+    r"(?:within|less\s+than|<)\s*(\d+)\s*months?\s*(?:of\s*)?(?:onset|diagnosis|symptom|disease|screening)"
+    r")",
     re.IGNORECASE,
 )
 _RILUZOLE_PATTERN = re.compile(r"\briluzole\b", re.IGNORECASE)
@@ -182,7 +187,8 @@ def extract_criteria_from_text(text: str) -> dict:
     # Maximum disease duration in months
     m = _DURATION_PATTERN.search(text)
     if m:
-        max_duration_months = int(m.group(1))
+        # group(1) = prefix-context branch; group(2) = suffix-context branch
+        max_duration_months = int(m.group(1) or m.group(2))
 
     # Riluzole required
     if _RILUZOLE_PATTERN.search(text):
@@ -292,14 +298,18 @@ def compute_eligibility(
     -------
     EligibilityVerdict
     """
-    from config.loader import ConfigLoader
-    cfg = ConfigLoader()
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
 
     profile = dict(ERIK_ELIGIBILITY_PROFILE)
-    profile["alsfrs_r"] = cfg.get("trial_alsfrs_r_current", profile["alsfrs_r"])
-    profile["fvc_percent"] = cfg.get("trial_fvc_current", profile["fvc_percent"])
+    profile["alsfrs_r"] = cfg.get("trial_alsfrs_r_current", profile["alsfrs_r"]) if cfg else profile["alsfrs_r"]
+    profile["fvc_percent"] = cfg.get("trial_fvc_current", profile["fvc_percent"]) if cfg else profile["fvc_percent"]
 
-    geographic_region = geographic_region or cfg.get("trial_geographic_region", "Ohio")
+    if geographic_region is None:
+        geographic_region = cfg.get("trial_geographic_region", "Ohio") if cfg else "Ohio"
 
     erik = profile
 
@@ -406,7 +416,7 @@ def compute_eligibility(
 # Watchlist persistence
 # ---------------------------------------------------------------------------
 
-def upsert_watchlist(verdict: EligibilityVerdict, reviewed: bool = False) -> None:
+def upsert_watchlist(verdict: EligibilityVerdict, raw_enrollment_status: str = "", reviewed: bool = False) -> None:
     """Persist an EligibilityVerdict to the erik_ops.trial_watchlist table.
 
     Uses the shared db pool. Safe to call multiple times (upsert on nct_id).
@@ -444,7 +454,7 @@ def upsert_watchlist(verdict: EligibilityVerdict, reviewed: bool = False) -> Non
         "nct_id": verdict.trial_nct_id,
         "title": verdict.trial_title,
         "eligible_status": verdict.eligible,
-        "enrollment_status": verdict.urgency,
+        "enrollment_status": raw_enrollment_status or verdict.urgency,
         "phase": verdict.trial_phase,
         "intervention_name": verdict.intervention_name,
         "protocol_alignment": verdict.protocol_alignment,
