@@ -33,6 +33,8 @@ _ACQUISITION_ROTATION = [
     ActionType.QUERY_PATHWAYS,
     ActionType.QUERY_PPI_NETWORK,
     ActionType.CHECK_PHARMACOGENOMICS,
+    ActionType.QUERY_GALEN_KG,
+    ActionType.SEARCH_PREPRINTS,
     ActionType.SEARCH_PUBMED,
 ]
 
@@ -133,37 +135,90 @@ def _select_acquisition_action(
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
         query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
-        return action, build_action_params(action, query=query)
+        return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
-        return action, build_action_params(action)
+        return action, build_action_params(action, protocol_layer="circuit_stabilization")
 
     elif action == ActionType.QUERY_PATHWAYS:
-        targets = list(state.causal_chains.keys())
-        if targets:
-            target_idx = step % len(targets)
-            return action, build_action_params(action, target_name=targets[target_idx].replace("int:", ""))
-        return ActionType.SEARCH_PUBMED, build_action_params(
-            ActionType.SEARCH_PUBMED, query="ALS treatment 2025 2026",
-        )
+        from targets.als_targets import ALS_TARGETS
+        target_keys = list(ALS_TARGETS.keys())
+        if target_keys:
+            target_idx = step % len(target_keys)
+            target_key = target_keys[target_idx]
+            target = ALS_TARGETS[target_key]
+            layers = target.get("protocol_layers", ["root_cause_suppression"])
+            return action, build_action_params(
+                action,
+                target_name=target_key,
+                uniprot_id=target.get("uniprot_id", ""),
+                gene_symbol=target.get("gene", ""),
+                protocol_layer=layers[0] if layers else "root_cause_suppression",
+            )
+        # Fallback: rotate to next acquisition action
+        return _fallback_acquisition(state, step, skip=ActionType.QUERY_PATHWAYS)
 
     elif action == ActionType.QUERY_PPI_NETWORK:
         from targets.als_targets import ALS_TARGETS
-        target_genes = [t["gene"] for t in ALS_TARGETS.values() if t.get("gene")]
+        target_keys = list(ALS_TARGETS.keys())
+        target_genes = [(k, t["gene"]) for k, t in ALS_TARGETS.items() if t.get("gene")]
         if target_genes:
             gene_idx = step % len(target_genes)
-            return action, build_action_params(action, gene_symbol=target_genes[gene_idx])
-        return ActionType.SEARCH_PUBMED, build_action_params(
-            ActionType.SEARCH_PUBMED, query="ALS protein interaction 2025",
-        )
+            target_key, gene = target_genes[gene_idx]
+            target = ALS_TARGETS[target_key]
+            layers = target.get("protocol_layers", ["root_cause_suppression"])
+            return action, build_action_params(
+                action,
+                gene_symbol=gene,
+                protocol_layer=layers[0] if layers else "root_cause_suppression",
+            )
+        # Fallback: rotate to next acquisition action
+        return _fallback_acquisition(state, step, skip=ActionType.QUERY_PPI_NETWORK)
 
     elif action == ActionType.CHECK_PHARMACOGENOMICS:
         drugs = ["riluzole", "edaravone", "rapamycin", "pridopidine", "masitinib"]
         drug_idx = step % len(drugs)
-        return action, build_action_params(action, drug_name=drugs[drug_idx])
+        return action, build_action_params(action, drug_name=drugs[drug_idx], protocol_layer="adaptive_maintenance")
 
+    elif action == ActionType.QUERY_GALEN_KG:
+        from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
+        gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
+        gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        return action, build_action_params(action, genes=[gene], protocol_layer="root_cause_suppression")
+
+    elif action == ActionType.SEARCH_PREPRINTS:
+        try:
+            from config.loader import ConfigLoader
+            cfg = ConfigLoader()
+        except Exception:
+            cfg = None
+        if cfg and not cfg.get("biorxiv_enabled", True):
+            return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
+        layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
+        layer = ALL_LAYERS[layer_idx]
+        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        return action, build_action_params(action, query=query, protocol_layer=layer)
+
+    return _fallback_acquisition(state, step, skip=action)
+
+
+def _fallback_acquisition(
+    state: ResearchState,
+    step: int,
+    skip: ActionType,
+) -> tuple[ActionType, dict[str, Any]]:
+    """When the preferred acquisition action can't execute, try the next one in rotation."""
+    for offset in range(1, len(_ACQUISITION_ROTATION)):
+        next_idx = (step + offset) % len(_ACQUISITION_ROTATION)
+        candidate = _ACQUISITION_ROTATION[next_idx]
+        if candidate != skip and candidate == ActionType.SEARCH_PUBMED:
+            layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
+            layer = ALL_LAYERS[layer_idx]
+            query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+            return candidate, build_action_params(candidate, query=query, protocol_layer=layer)
+    # Ultimate fallback
     return ActionType.SEARCH_PUBMED, build_action_params(
-        ActionType.SEARCH_PUBMED, query="ALS treatment",
+        ActionType.SEARCH_PUBMED, query="ALS treatment 2025 2026",
     )
 
 

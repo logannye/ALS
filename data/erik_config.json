@@ -50,5 +50,8 @@
   "proact_enabled": true,
   "proact_cohort_age_window": 5,
   "proact_top_k_matches": 50,
-  "trajectory_refresh_interval_steps": 100
+  "trajectory_refresh_interval_steps": 100,
+  "biorxiv_enabled": true,
+  "biorxiv_lookback_days": 90,
+  "biorxiv_max_per_query": 15
 }

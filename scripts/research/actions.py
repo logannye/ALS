@@ -23,6 +23,7 @@ class ActionType(str, Enum):
     CHECK_PHARMACOGENOMICS = "check_pharmacogenomics"
     QUERY_GALEN_KG = "query_galen_kg"
     UPDATE_TRAJECTORY = "update_trajectory"
+    SEARCH_PREPRINTS = "search_preprints"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,
@@ -33,6 +34,7 @@ NETWORK_ACTIONS = {
     ActionType.INTERPRET_VARIANT,
     ActionType.CHECK_PHARMACOGENOMICS,
     ActionType.QUERY_GALEN_KG,
+    ActionType.SEARCH_PREPRINTS,
 }
 
 LLM_ACTIONS = {
