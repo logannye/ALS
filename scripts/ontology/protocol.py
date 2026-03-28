@@ -58,6 +58,7 @@ class CureProtocolCandidate(BaseEnvelope):
     evidence_bundle_refs: list[str] = Field(default_factory=list)
     uncertainty_ref: Optional[str] = None
     contested_layers: list[str] = Field(default_factory=list)
+    combination_analysis: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------

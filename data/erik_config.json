@@ -57,5 +57,8 @@
   "adversarial_verification_enabled": true,
   "adversarial_max_challenges_per_intervention": 3,
   "adversarial_contested_threshold": 3,
-  "adversarial_reward_multiplier": 1.5
+  "adversarial_reward_multiplier": 1.5,
+  "combination_analysis_enabled": true,
+  "combination_antagonism_threshold": 0.7,
+  "combination_overlap_threshold": 0.6
 }
