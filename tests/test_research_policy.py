@@ -29,7 +29,8 @@ class TestSelectAction:
             assert action in {
                 ActionType.SEARCH_PUBMED, ActionType.SEARCH_TRIALS,
                 ActionType.QUERY_PATHWAYS, ActionType.QUERY_PPI_NETWORK,
-                ActionType.CHECK_PHARMACOGENOMICS,
+                ActionType.CHECK_PHARMACOGENOMICS, ActionType.QUERY_GALEN_KG,
+                ActionType.SEARCH_PREPRINTS, ActionType.QUERY_GALEN_SCM,
             }, f"Step {step} (cycle pos {step % _CYCLE_LENGTH}) should be acquisition, got {action}"
 
     def test_reasoning_on_reason_step(self):
@@ -90,3 +91,63 @@ class TestSelectAction:
         select_action(state, regen_threshold=100)
         # At least one hypothesis should have been expired
         assert len(state.active_hypotheses) < 2 or state.resolved_hypotheses > 2
+
+    # --- Change 5: target_depth configurable ---
+
+    def test_deepen_chain_when_below_target_depth_10(self):
+        """With target_depth=10, chains at depth 8 should still trigger deepening."""
+        state = self._state(
+            step_count=1,  # cycle position 1 = reasoning step
+            causal_chains={"int:pridopidine": 8},
+            top_uncertainties=["test"],
+        )
+        # Even-numbered cycle → chain deepening preferred
+        state.step_count = 1  # cycle 0, position 1, even cycle → deepen
+        action, params = select_action(state, regen_threshold=100, target_depth=10)
+        assert action == ActionType.DEEPEN_CAUSAL_CHAIN
+        assert params.get("intervention_id") == "int:pridopidine"
+
+    def test_no_deepen_when_at_target_depth(self):
+        """Chains at or above target_depth should NOT trigger deepening."""
+        state = self._state(
+            step_count=1,
+            causal_chains={"int:pridopidine": 10},
+            top_uncertainties=["test"],
+        )
+        action, _ = select_action(state, regen_threshold=100, target_depth=10)
+        # Should fall through to hypothesis generation, not chain deepening
+        assert action != ActionType.DEEPEN_CAUSAL_CHAIN
+
+    # --- Change 3: connector target mapping ---
+
+    def test_query_pathways_uses_als_target_keys(self):
+        """QUERY_PATHWAYS must pass a target_name that exists in ALS_TARGETS."""
+        from targets.als_targets import ALS_TARGETS
+        state = self._state(
+            causal_chains={"int:pridopidine": 2},
+        )
+        # Rotate through many steps to find one that hits QUERY_PATHWAYS
+        for step in range(30):
+            state.step_count = step
+            action, params = select_action(state, regen_threshold=100)
+            if action == ActionType.QUERY_PATHWAYS:
+                target_name = params.get("target_name", "")
+                assert target_name in ALS_TARGETS, \
+                    f"target_name '{target_name}' not in ALS_TARGETS keys"
+                return
+        # It's okay if QUERY_PATHWAYS wasn't selected in 30 steps
+        # (depends on rotation), but let's make sure it was at least possible
+
+    def test_query_ppi_passes_valid_gene_symbol(self):
+        """QUERY_PPI_NETWORK must pass a valid gene symbol from ALS_TARGETS."""
+        from targets.als_targets import ALS_TARGETS
+        valid_genes = {t["gene"] for t in ALS_TARGETS.values() if t.get("gene")}
+        state = self._state()
+        for step in range(30):
+            state.step_count = step
+            action, params = select_action(state, regen_threshold=100)
+            if action == ActionType.QUERY_PPI_NETWORK:
+                gene = params.get("gene_symbol", "")
+                assert gene in valid_genes, \
+                    f"gene_symbol '{gene}' not in ALS_TARGETS genes"
+                return

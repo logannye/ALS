@@ -39,7 +39,7 @@ _ACQUISITION_ROTATION = [
     ActionType.CHECK_PHARMACOGENOMICS,
     ActionType.QUERY_GALEN_KG,
     ActionType.SEARCH_PREPRINTS,
-    ActionType.SEARCH_PUBMED,
+    ActionType.QUERY_GALEN_SCM,
 ]
 
 # The balanced 5-step cycle
@@ -244,6 +244,19 @@ def _select_acquisition_action_for_type(
         query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
+    elif action == ActionType.QUERY_GALEN_SCM:
+        try:
+            from config.loader import ConfigLoader
+            cfg = ConfigLoader()
+        except Exception:
+            cfg = None
+        if cfg and not cfg.get("galen_scm_enabled", True):
+            return _fallback_acquisition(state, step, skip=ActionType.QUERY_GALEN_SCM)
+        from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
+        gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
+        gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        return action, build_action_params(action, target_gene=gene, protocol_layer="root_cause_suppression")
+
     # Unhandled type — fall back to PubMed
     return _fallback_acquisition(state, step, skip=action)
 
@@ -399,6 +412,19 @@ def _select_acquisition_action(
         layer = ALL_LAYERS[layer_idx]
         query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
         return action, build_action_params(action, query=query, protocol_layer=layer)
+
+    elif action == ActionType.QUERY_GALEN_SCM:
+        try:
+            from config.loader import ConfigLoader
+            cfg = ConfigLoader()
+        except Exception:
+            cfg = None
+        if cfg and not cfg.get("galen_scm_enabled", True):
+            return _fallback_acquisition(state, step, skip=ActionType.QUERY_GALEN_SCM)
+        from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
+        gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
+        gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        return action, build_action_params(action, target_gene=gene, protocol_layer="root_cause_suppression")
 
     return _fallback_acquisition(state, step, skip=action)
 

@@ -64,5 +64,9 @@
   "thompson_policy_enabled": false,
   "thompson_decay_interval": 50,
   "thompson_decay_rate": 0.95,
-  "thompson_diversity_floor": 30
+  "thompson_diversity_floor": 30,
+  "galen_scm_enabled": true,
+  "galen_scm_min_pch_layer": 2,
+  "galen_scm_max_chain_depth": 3,
+  "galen_scm_database": "galen_kg"
 }
