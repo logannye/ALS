@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from ontology.base import BaseEnvelope
 
@@ -191,6 +191,22 @@ class UncertaintyState(BaseEnvelope):
 
 
 # ---------------------------------------------------------------------------
+# TrajectoryMatchResult
+# ---------------------------------------------------------------------------
+
+class TrajectoryMatchResult(BaseModel):
+    """Result of matching Erik against PRO-ACT historical trajectories.
+    Not a BaseEnvelope — transient computation result."""
+    cohort_size: int
+    matched_k: int
+    median_months_remaining: float
+    p25_months: float
+    p75_months: float
+    window_estimates: dict[str, float] = Field(default_factory=dict)
+    decline_rate_percentile: float = 0.0
+
+
+# ---------------------------------------------------------------------------
 # DiseaseStateSnapshot
 # ---------------------------------------------------------------------------
 
@@ -212,3 +228,4 @@ class DiseaseStateSnapshot(BaseEnvelope):
     functional_state_ref: Optional[str] = None
     reversibility_window_ref: Optional[str] = None
     uncertainty_ref: Optional[str] = None
+    trajectory_match: Optional[dict] = None
