@@ -50,8 +50,8 @@ Erik runs as a single Python process on a MacBook Pro M4 Max (128GB), sharing ha
                            v                 v
                ┌───────────────┐   ┌────────────────────┐
                │  World Model  │   │   Research Loop     │
-               │  (6 stages)   │   │  (15 actions,       │
-               │               │◄──│   12 data sources,  │
+               │  (7 stages)   │   │  (20 actions,       │
+               │               │◄──│   15 data sources,  │
                │  State → Sub- │   │   hypothesis-driven │
                │  type → Score │   │   convergence)      │
                │  → Assemble → │   │                     │
@@ -112,9 +112,9 @@ The system infrastructure is fully operational:
 
 - **Canonical Substrate** — 25 Pydantic models, 16 enums, 38 typed relations, PostgreSQL schema, Erik's 51 observations
 - **Evidence Fabric** — 93 curated evidence items, 25 interventions, 16 drug targets, 10 computational design targets
-- **12 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB
-- **World Model Pipeline** — 6-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → protocol assembly → counterfactual verification → output
-- **Research Loop** — 15 action types, uncertainty-directed policy, hypothesis system, causal chain construction, protocol convergence detection, episode logging
+- **15 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB, Galen KG (cross-disease), bioRxiv/medRxiv (preprints), Galen SCM (causal graph)
+- **World Model Pipeline** — 7-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → **combination synergy analysis** → protocol assembly → **adversarial counterfactual verification** → output
+- **Research Loop** — 20 action types, Thompson sampling policy (with fixed-cycle fallback), hypothesis system, causal chain construction (depth 10), protocol convergence detection, episode logging, gap resolvability classification, clinical subtype posterior, **clinical trial eligibility matching**, **adversarial protocol verification**, **PRO-ACT trajectory matching**
 
 ### Stage 2: Research (Running 24/7)
 
@@ -122,19 +122,20 @@ The autonomous research loop operates in two modes:
 
 **Active research mode** (pre-convergence): A 15-action cycle driven by protocol gap analysis:
 
-1. **Analyze gaps** — The intelligence module examines the current protocol to identify the weakest evidence link, shallowest causal chain, most uncertain layer, and missing measurements. Each gap is ranked by priority.
+1. **Analyze gaps with resolvability classification** — The intelligence module examines the current protocol to identify the weakest evidence link, shallowest causal chain, most uncertain layer, and missing measurements. Each gap is classified as `computational` (resolvable by searching literature/databases) or `clinical_required` (requires a clinical test on the patient). Only computational gaps drive research actions; clinical gaps generate recommendations to the physician.
 2. **Generate targeted hypotheses** — Instead of generic "generate a hypothesis" prompts, the LLM receives Erik's full clinical context, the specific gap being addressed, relevant evidence items, and a structured prompt asking for a testable claim with search terms and target genes.
-3. **Search with purpose** — Hypothesis validation uses the hypothesis's own search terms (extracted by the LLM) to query PubMed, not generic queries. Target genes drive STRING and Reactome lookups.
-4. **Deepen causal chains** — For each protocol intervention, build the full mechanism chain (drug → target → pathway → cellular effect → motor neuron survival) grounded in pathway databases.
-5. **Regenerate protocol** — When 15+ new evidence items accumulate, re-run the full 6-stage pipeline with the expanded evidence fabric.
-6. **Converge** — When top interventions stabilize across 3 consecutive regenerations.
+3. **Search with purpose** — Hypothesis validation uses the hypothesis's own search terms (extracted by the LLM) to query PubMed, not generic queries. Target genes drive STRING and Reactome lookups. Cross-disease knowledge from the Galen cancer KG provides drug repurposing candidates via shared pathways (autophagy/mTOR, HDAC, oxidative stress).
+4. **Deepen causal chains** — For each protocol intervention, build the full mechanism chain (drug → target → pathway → cellular effect → motor neuron survival) to depth 10, grounded in pathway databases.
+5. **Regenerate protocol** — When uncertainty score drops meaningfully, re-run the full 6-stage pipeline with the expanded evidence fabric.
+6. **Converge** — When top interventions stabilize across 3 consecutive regenerations and uncertainty score is stable.
 
 **Deep research mode** (post-convergence): The system does NOT stop. It continuously expands the evidence fabric:
 
-- Every 30 seconds: executes a research query (PubMed, ClinicalTrials, STRING PPI, Reactome pathways, PharmGKB safety)
-- Every 3rd step: uses protocol gap analysis to pick the most impactful query instead of rotating through hardcoded searches
-- When 15+ new evidence items accumulate: triggers re-convergence with an improved protocol
+- Every 30 seconds: executes a research query (PubMed, ClinicalTrials, STRING PPI, Reactome pathways, PharmGKB safety, Galen KG cross-reference)
+- Every 3rd step: uses protocol gap analysis to pick the most impactful *actionable* query — clinical-required gaps (e.g., genetic testing) are filtered out and logged as recommendations
+- When uncertainty score drops meaningfully (>5% over a 5-step window): triggers re-convergence with an improved protocol
 - Checks for genetic results and config changes on every cycle
+- Periodically logs clinical recommendations for gaps that require physical tests (genetic testing, CSF biomarkers, etc.)
 
 ### Stage 3: Converge and Refine
 
@@ -160,7 +161,8 @@ The system declares **protocol convergence** when:
 |--------|-----------|---------|
 | **Intervention stability** | Top intervention per layer unchanged across 3 consecutive regenerations | The system has explored thoroughly and keeps arriving at the same answer |
 | **Evidence saturation** | New searches return <2 novel evidence items per cycle | The available literature has been exhausted for these targets |
-| **Causal chain depth** | All top-3 interventions have chains of depth >= 5 | The mechanism from drug to patient outcome is well-grounded |
+| **Causal chain depth** | All top-3 interventions have chains of depth >= 10 | The mechanism from drug to patient outcome is deeply grounded |
+| **Uncertainty score** | Score stable below 0.3 across 5+ monitoring cycles | Evidence is well-distributed across all protocol layers |
 | **Hypothesis resolution** | >80% of generated hypotheses resolved (supported or refuted) | The system's questions about Erik's disease have been answered |
 
 ### Action Readiness Criteria (human-assessed)
@@ -171,7 +173,7 @@ Even after convergence, the protocol requires human judgment on:
 |-----------|----------|-------------|
 | **Clinical accessibility** | Can Erik actually access the top interventions? (approved drugs vs. trial enrollment vs. compassionate use) | Physician + patient |
 | **Safety clearance** | Are drug interactions acceptable? Does Erik's comorbidity profile allow the combination? | Physician |
-| **Genetic integration** | Have Invitae results arrived? Has the subtype posterior been updated? | System (auto-triggers `INTERPRET_VARIANT` when `genetics_received=true`) |
+| **Genetic integration** | Have Invitae results arrived? Has the subtype posterior been updated? The system computes a clinical subtype posterior from Erik's features (P(sporadic_tdp43) ≈ 0.65), reducing but not eliminating the value of genetic confirmation. | System (auto-triggers `INTERPRET_VARIANT` when `genetics_received=true`) |
 | **Timing urgency** | Is Erik's decline rate accelerating? Has ALSFRS-R dropped below a critical threshold? | Physician + PRO-ACT trajectory comparison |
 | **Regulatory pathway** | Which interventions need IND applications, IRB approval, or compassionate use requests? | Physician + regulatory |
 
@@ -199,6 +201,33 @@ The converged protocol is not a final answer — it is the **best answer given c
 - **New research publishes** — the loop discovers new evidence and regenerates
 
 The system re-enters active research mode automatically when new data changes the protocol's top-3 interventions.
+
+---
+
+## Phase 4C: Research Enhancements (March 27, 2026)
+
+Seven new capabilities added to strengthen Erik's research and clinical translation:
+
+### Clinical Trial Eligibility Matching
+Every time the system searches ClinicalTrials.gov, it now computes Erik's precise eligibility for each trial — checking age, sex, ALSFRS-R, FVC, disease duration, riluzole status, and genetic requirements against structured and free-text criteria. Eligible trials are logged prominently and tracked in a persistent watchlist (`erik_ops.trial_watchlist`). The system errs toward "likely" over "no" — missing an eligible trial is worse than flagging one for physician review.
+
+### PRO-ACT Trajectory Matching
+Matches Erik's ALSFRS-R trajectory against ~13,000 historical ALS patients using dynamic time warping (DTW) alignment. Estimates median survival, 25th/75th percentile bounds, and intervention window closure times for each protocol layer. This transforms the protocol from "best interventions given current state" to "best interventions given where Erik is heading and how fast."
+
+### bioRxiv/medRxiv Preprint Connector
+Searches preprint servers for ALS research that hasn't yet been indexed by PubMed, eliminating a 6-12 month recency gap. All preprint evidence is clamped to `EvidenceStrength.emerging` and tagged `peer_reviewed: false` — preprints inform but never inflate intervention scores. When a preprint is later published and appears via PubMed, the preprint version is automatically superseded.
+
+### Adversarial Protocol Verification
+Actively searches for evidence that *contradicts* the protocol's top interventions — failed trials, harm signals, disputed mechanisms. Corrects the research loop's structural confirmation bias. If an intervention accumulates 3+ contradicting papers with no countervailing support, it's flagged as "contested" and the protocol discloses this with an alternative.
+
+### Drug Combination Synergy Analysis
+A new Stage 3B in the pipeline that analyzes pairwise interactions between protocol interventions. Detects pathway redundancy (>60% overlap in causal chains), pharmacodynamic antagonism (opposing effects on shared pathway nodes), and potential synergy. Antagonistic pairs trigger automatic substitution with the next-best intervention for that layer.
+
+### Thompson Sampling Policy
+Replaces the fixed 5-step action cycle with information-theoretic action selection. Each action type maintains a Beta posterior tracking its probability of producing nonzero evidence. Actions with high expected yield are selected more often; exhausted sources are naturally deprioritized. Includes decay (old observations matter less as evidence landscape changes) and a diversity floor (every action exercised at least once per 30 steps). Activatable via `thompson_policy_enabled` config flag; falls back to the fixed cycle when disabled.
+
+### Galen SCM Integration
+Queries Galen's structural causal model for cross-disease causal reasoning. Instead of just looking up entity relationships, Erik can now walk the L2/L3 causal graph downstream from drug targets (recursive CTE, depth 3) and assess pathway strength (how many causal edges Galen has accumulated for a pathway). A pathway with 347 L3 edges in Galen's cancer KG provides much stronger cross-disease evidence than one with 5.
 
 ---
 
@@ -237,9 +266,11 @@ The system has converged on `proto:erik_draper_v1` and is now in monitoring mode
 | 3 | Autonomous Research Loop | **Complete** | 15-action hypothesis-driven loop with causal chains, convergence detection, episode logging |
 | 3B | Evidence Expansion | **Complete** | 7 new data sources (Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB) |
 | 4 | Live Execution | **Complete** | First convergence achieved — 24/7 LaunchAgent running |
+| 4B | Research Optimization | **Complete** | Evidence tracking fix, gap resolvability classification, connector repair, uncertainty-based convergence, Galen KG cross-reference, clinical subtype posterior, entity tagging |
+| 4C | Research Enhancements | **Complete** | 7 new capabilities: clinical trial eligibility, PRO-ACT trajectory matching, bioRxiv preprints, adversarial verification, combination synergy, Thompson sampling, Galen SCM |
 | 5 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-**811 tests passing.** System is fully operational with intelligent, gap-driven research and balanced action diversity.
+System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, and Thompson sampling action selection.
 
 ---
 
@@ -251,23 +282,30 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
-  connectors/       # 11 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
-                    #   Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB)
+  connectors/       # 15 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
+                    #   Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB, GalenKG, GalenSCM,
+                    #   bioRxiv/medRxiv, PRO-ACT)
   targets/          # Canonical ALS drug target definitions (16 targets)
   llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
-  world_model/      # 6-stage cure protocol pipeline (state, subtype, scoring, assembly, CF, orchestrator)
+  world_model/      # 7-stage cure protocol pipeline (state, subtype, scoring, combination
+                    #   analysis, assembly, adversarial counterfactual, orchestrator)
     prompts/        # Evidence-grounded LLM prompt templates
-  research/         # Autonomous research loop (15 actions, policy, rewards, hypotheses,
-                    #   causal chains, convergence, trajectory, intelligence)
+    trajectory_matcher.py  # PRO-ACT DTW matching + Kaplan-Meier survival estimation
+    combination_analyzer.py  # Drug synergy/antagonism/redundancy detection
+  research/         # Autonomous research loop (20 actions, Thompson sampling policy,
+                    #   rewards, hypotheses, causal chains, convergence, trajectory,
+                    #   intelligence, gap resolvability, adversarial verification, eligibility)
+    eligibility.py  # Clinical trial eligibility matching for Erik
+    adversarial.py  # Adversarial protocol verification (contradiction search)
   run_loop.py       # 24/7 continuous entry point (LaunchAgent target)
   monitor.py        # Real-time terminal dashboard for loop progress
   audit/            # Append-only event logger
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
-  erik_config.json  # Hot-reloadable runtime config (~45 keys)
+  erik_config.json  # Hot-reloadable runtime config (~70 keys)
 logs/               # LaunchAgent log output (erik_research.log, erik_research.err)
-tests/              # 811 pytest tests mirroring scripts/ structure
+tests/              # 1000+ pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans

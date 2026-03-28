@@ -26,6 +26,13 @@ from typing import Any, Optional
 from research.state import ResearchState
 
 
+# Measurements that require clinical tests — cannot be resolved computationally
+_CLINICAL_REQUIRED_MEASUREMENTS = frozenset({
+    "genetic_testing", "csf_biomarkers",
+    "tdp43_in_vivo_measurement", "cortical_excitability_tms",
+})
+
+
 # ---------------------------------------------------------------------------
 # Protocol gap analysis
 # ---------------------------------------------------------------------------
@@ -65,6 +72,7 @@ def analyze_protocol_gaps(
                 "priority": 0.9,
                 "suggested_action": "search_pubmed",
                 "search_queries": _generate_layer_queries(min_layer),
+                "resolvability": "computational",
             })
 
     # 2. Shallow causal chains — which interventions lack deep mechanism understanding?
@@ -81,11 +89,17 @@ def analyze_protocol_gaps(
                     f"ALS {int_name} mechanism of action motor neuron",
                     f"{int_name} neuroprotection pathway signaling",
                 ],
+                "resolvability": "computational",
             })
 
     # 3. Missing critical measurements for Erik
+    # Use clinical subtype posterior to reduce genetic_testing urgency
+    clinical_posterior = compute_clinical_subtype_posterior()
+    dominant_p = max(clinical_posterior.values()) if clinical_posterior else 0.5
+    genetic_priority_adj = max(0.3, 1.0 - dominant_p + 0.3)
+
     missing_priority = {
-        "genetic_testing": 0.95,  # Highest — changes entire Layer A
+        "genetic_testing": min(0.95, 0.95 * genetic_priority_adj),
         "csf_biomarkers": 0.6,
         "cryptic_exon_splicing_assay": 0.5,
         "tdp43_in_vivo_measurement": 0.4,
@@ -93,12 +107,17 @@ def analyze_protocol_gaps(
     }
     for measurement in state.missing_measurements:
         priority = missing_priority.get(measurement, 0.3)
+        resolvability = (
+            "clinical_required" if measurement in _CLINICAL_REQUIRED_MEASUREMENTS
+            else "computational"
+        )
         gaps.append({
             "gap_type": "missing_data",
             "description": f"Missing measurement: {measurement}",
             "priority": priority,
             "suggested_action": "generate_hypothesis",
             "search_queries": [f"ALS {measurement.replace('_', ' ')} clinical utility prognosis"],
+            "resolvability": resolvability,
         })
 
     # 4. Drug interaction safety — check if protocol combinations have been validated
@@ -110,6 +129,7 @@ def analyze_protocol_gaps(
             "priority": 0.7,
             "suggested_action": "check_pharmacogenomics",
             "search_queries": [f"ALS drug combination interaction {interventions[0].replace('int:', '')} {interventions[1].replace('int:', '')}"],
+            "resolvability": "computational",
         })
 
     # Sort by priority descending
@@ -350,3 +370,66 @@ def _generate_layer_queries(layer: str) -> list[str]:
         ],
     }
     return layer_queries.get(layer, [f"ALS {layer.replace('_', ' ')} treatment 2025"])
+
+
+# ---------------------------------------------------------------------------
+# Gap filtering
+# ---------------------------------------------------------------------------
+
+def filter_actionable_gaps(gaps: list[dict]) -> list[dict]:
+    """Return only gaps resolvable by computation (not requiring clinical tests)."""
+    return [g for g in gaps if g.get("resolvability") != "clinical_required"]
+
+
+# ---------------------------------------------------------------------------
+# Clinical subtype posterior
+# ---------------------------------------------------------------------------
+
+def compute_clinical_subtype_posterior() -> dict[str, float]:
+    """Bayesian posterior over ALS subtypes from Erik's clinical features.
+
+    Features: age 67, male, limb onset, no family ALS history,
+    mother with Alzheimer's, widespread EMG denervation.
+
+    Returns dict mapping subtype name to probability (sums to 1.0).
+    """
+    prior = {
+        "sporadic_tdp43": 0.50, "c9orf72": 0.08, "sod1": 0.02,
+        "fus": 0.01, "tardbp": 0.01, "glia_amplified": 0.15,
+        "mixed": 0.13, "unresolved": 0.10,
+    }
+
+    # Likelihood ratios per feature set
+    age_limb = {  # Age 67 + limb onset
+        "sporadic_tdp43": 2.0, "c9orf72": 0.8, "sod1": 0.3,
+        "fus": 0.1, "tardbp": 0.5, "glia_amplified": 1.2,
+        "mixed": 1.0, "unresolved": 1.0,
+    }
+    family_alz = {  # Mother with Alzheimer's — slight C9orf72 boost
+        "sporadic_tdp43": 1.0, "c9orf72": 1.8, "sod1": 1.0,
+        "fus": 1.0, "tardbp": 1.0, "glia_amplified": 1.0,
+        "mixed": 1.1, "unresolved": 1.0,
+    }
+    no_family_als = {  # No family ALS history
+        "sporadic_tdp43": 1.3, "c9orf72": 0.7, "sod1": 0.2,
+        "fus": 0.3, "tardbp": 0.4, "glia_amplified": 1.2,
+        "mixed": 1.0, "unresolved": 1.0,
+    }
+    emg = {  # Widespread denervation, moderate reinnervation
+        "sporadic_tdp43": 1.5, "c9orf72": 1.2, "sod1": 0.8,
+        "fus": 0.6, "tardbp": 1.0, "glia_amplified": 1.3,
+        "mixed": 1.0, "unresolved": 1.0,
+    }
+
+    posterior = {}
+    for s in prior:
+        posterior[s] = (
+            prior[s]
+            * age_limb.get(s, 1.0)
+            * family_alz.get(s, 1.0)
+            * no_family_als.get(s, 1.0)
+            * emg.get(s, 1.0)
+        )
+
+    total = sum(posterior.values())
+    return {k: v / total for k, v in posterior.items()} if total > 0 else prior

@@ -68,11 +68,23 @@ def research_step(
     uncertainty_before = empty_before / total_layers
 
     new_evidence_by_layer = dict(state.evidence_by_layer)
+    new_evidence_by_strength = dict(state.evidence_by_strength)
     # For protocol-regeneration, evidence added is zero but protocol may improve
     # For other actions, distribute evidence across the relevant layer
     total_evidence = state.total_evidence_items + result.evidence_items_added
 
-    empty_after = empty_before  # conservative: unchanged unless we know the layer
+    # Update layer counter if the action reported a protocol_layer
+    if result.protocol_layer and result.evidence_items_added > 0:
+        layer_key = result.protocol_layer
+        if layer_key in new_evidence_by_layer:
+            new_evidence_by_layer[layer_key] += result.evidence_items_added
+    # Update strength counter
+    if result.evidence_strength and result.evidence_items_added > 0:
+        strength_key = result.evidence_strength
+        if strength_key in new_evidence_by_strength:
+            new_evidence_by_strength[strength_key] += result.evidence_items_added
+
+    empty_after = sum(1 for v in new_evidence_by_layer.values() if v == 0)
     uncertainty_after = empty_after / total_layers
 
     reward = compute_reward(
@@ -128,6 +140,8 @@ def research_step(
         state,
         step_count=new_step,
         total_evidence_items=total_evidence,
+        evidence_by_layer=new_evidence_by_layer,
+        evidence_by_strength=new_evidence_by_strength,
         action_values=action_values,
         action_counts=action_counts,
         last_action=action_key,
@@ -373,6 +387,7 @@ def _execute_action(
             ActionType.MATCH_COHORT: _exec_match_cohort,
             ActionType.INTERPRET_VARIANT: _exec_interpret_variant,
             ActionType.CHECK_PHARMACOGENOMICS: _exec_check_pharmacogenomics,
+            ActionType.QUERY_GALEN_KG: _exec_query_galen_kg,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -951,5 +966,24 @@ def _exec_check_pharmacogenomics(
         evidence_items_added=cr.evidence_items_added,
         interaction_safe=not cr.errors,
         success=not cr.errors,
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_query_galen_kg(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Execute a Galen KG cross-reference query."""
+    from connectors.galen_kg import GalenKGConnector
+
+    genes = params.get("genes", ["SOD1"])
+    connector = GalenKGConnector(store=store)
+    cr = connector.fetch(genes=genes)
+    return ActionResult(
+        action=ActionType.QUERY_GALEN_KG,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        protocol_layer=params.get("protocol_layer", "root_cause_suppression"),
+        evidence_strength="preclinical",
         error="; ".join(cr.errors) if cr.errors else None,
     )

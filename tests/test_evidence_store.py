@@ -146,3 +146,84 @@ class TestEvidenceStore:
         """Querying a non-existent Intervention ID returns None."""
         result = evidence_store.get_intervention("intervention:does_not_exist_xyz")
         assert result is None
+
+    # ------------------------------------------------------------------
+    # Change 7 — Entity tagging and entity-based queries
+    # ------------------------------------------------------------------
+
+    def test_tag_evidence_entities_method_exists(self, evidence_store):
+        """tag_evidence_entities is callable on EvidenceStore."""
+        assert callable(getattr(evidence_store, "tag_evidence_entities", None))
+
+    def test_query_by_entity_method_exists(self, evidence_store):
+        """query_by_entity is callable on EvidenceStore."""
+        assert callable(getattr(evidence_store, "query_by_entity", None))
+
+    def test_tag_evidence_entities_adds_to_body(self, db_available, evidence_store):
+        """After tagging, body['entities'] contains the tagged values."""
+        item = _make_evidence_item(suffix="_tag1")
+        evidence_store.upsert_evidence_item(item)
+
+        evidence_store.tag_evidence_entities(item.id, ["SOD1", "FUS"])
+
+        result = evidence_store.get_evidence_item(item.id)
+        assert result is not None
+        entities = result["body"].get("entities", [])
+        assert "SOD1" in entities
+        assert "FUS" in entities
+
+        evidence_store.delete(item.id)
+
+    def test_tag_is_idempotent(self, db_available, evidence_store):
+        """Tagging the same entity twice does not duplicate it."""
+        item = _make_evidence_item(suffix="_idem")
+        evidence_store.upsert_evidence_item(item)
+
+        evidence_store.tag_evidence_entities(item.id, ["TDP-43"])
+        evidence_store.tag_evidence_entities(item.id, ["TDP-43"])
+
+        result = evidence_store.get_evidence_item(item.id)
+        assert result is not None
+        entities = result["body"].get("entities", [])
+        assert entities.count("TDP-43") == 1
+
+        evidence_store.delete(item.id)
+
+    def test_tag_merges_with_existing(self, db_available, evidence_store):
+        """Tagging new entities merges with previously tagged ones."""
+        item = _make_evidence_item(suffix="_merge")
+        evidence_store.upsert_evidence_item(item)
+
+        evidence_store.tag_evidence_entities(item.id, ["SOD1"])
+        evidence_store.tag_evidence_entities(item.id, ["FUS", "C9orf72"])
+
+        result = evidence_store.get_evidence_item(item.id)
+        assert result is not None
+        entities = result["body"].get("entities", [])
+        assert set(entities) == {"SOD1", "FUS", "C9orf72"}
+
+        evidence_store.delete(item.id)
+
+    def test_query_by_entity_finds_tagged(self, db_available, evidence_store):
+        """query_by_entity returns items that were tagged with that entity."""
+        item = _make_evidence_item(suffix="_qbe")
+        evidence_store.upsert_evidence_item(item)
+        evidence_store.tag_evidence_entities(item.id, ["TARDBP"])
+
+        results = evidence_store.query_by_entity("TARDBP")
+        found_ids = [r["id"] for r in results]
+        assert item.id in found_ids
+
+        evidence_store.delete(item.id)
+
+    def test_query_by_entity_excludes_untagged(self, db_available, evidence_store):
+        """query_by_entity does not return items without the entity tag."""
+        item = _make_evidence_item(suffix="_excl")
+        evidence_store.upsert_evidence_item(item)
+        evidence_store.tag_evidence_entities(item.id, ["SOD1"])
+
+        results = evidence_store.query_by_entity("NONEXISTENT_GENE_XYZ")
+        found_ids = [r["id"] for r in results]
+        assert item.id not in found_ids
+
+        evidence_store.delete(item.id)

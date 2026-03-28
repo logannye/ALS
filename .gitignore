@@ -7,3 +7,5 @@ dist/
 build/
 .env
 .env.local
+logs/*.log
+logs/*.err

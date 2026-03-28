@@ -141,3 +141,109 @@ class TestPlanSearchFromHypothesis:
     def test_handles_empty_hypothesis(self):
         actions = plan_search_from_hypothesis({})
         assert actions == []
+
+
+# --- Change 2: Gap resolvability classification ---
+
+class TestGapResolvability:
+
+    def test_genetic_testing_is_clinical_required(self):
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        gaps = analyze_protocol_gaps(state, store)
+        genetic_gaps = [g for g in gaps if "genetic_testing" in g.get("description", "")]
+        assert len(genetic_gaps) >= 1
+        assert genetic_gaps[0].get("resolvability") == "clinical_required"
+
+    def test_csf_biomarkers_is_clinical_required(self):
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        gaps = analyze_protocol_gaps(state, store)
+        csf_gaps = [g for g in gaps if "csf_biomarkers" in g.get("description", "")]
+        assert len(csf_gaps) >= 1
+        assert csf_gaps[0].get("resolvability") == "clinical_required"
+
+    def test_sparse_layer_is_computational(self):
+        store = _MockStore({"regeneration_reinnervation": 2})
+        state = initial_state(subject_ref="traj:draper_001")
+        gaps = analyze_protocol_gaps(state, store)
+        sparse = [g for g in gaps if g["gap_type"] == "sparse_layer"]
+        assert all(g.get("resolvability") == "computational" for g in sparse)
+
+    def test_shallow_chain_is_computational(self):
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        state.causal_chains = {"int:pridopidine": 1}
+        gaps = analyze_protocol_gaps(state, store)
+        chain_gaps = [g for g in gaps if g["gap_type"] == "shallow_chain"]
+        assert all(g.get("resolvability") == "computational" for g in chain_gaps)
+
+
+class TestFilterActionableGaps:
+
+    def test_filters_out_clinical_required(self):
+        from research.intelligence import filter_actionable_gaps
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        all_gaps = analyze_protocol_gaps(state, store)
+        actionable = filter_actionable_gaps(all_gaps)
+        assert all(g.get("resolvability") != "clinical_required" for g in actionable)
+
+    def test_preserves_computational_gaps(self):
+        from research.intelligence import filter_actionable_gaps
+        store = _MockStore({"regeneration_reinnervation": 2})
+        state = initial_state(subject_ref="traj:draper_001")
+        state.causal_chains = {"int:pridopidine": 1}
+        all_gaps = analyze_protocol_gaps(state, store)
+        actionable = filter_actionable_gaps(all_gaps)
+        assert len(actionable) >= 1
+
+    def test_top_actionable_gap_is_not_genetic_testing(self):
+        from research.intelligence import filter_actionable_gaps
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        all_gaps = analyze_protocol_gaps(state, store)
+        actionable = filter_actionable_gaps(all_gaps)
+        if actionable:
+            assert "genetic_testing" not in actionable[0].get("description", "")
+
+
+# --- Change 8: Clinical subtype posterior ---
+
+class TestClinicalSubtypePosterior:
+
+    def test_returns_dict_of_subtypes(self):
+        from research.intelligence import compute_clinical_subtype_posterior
+        posterior = compute_clinical_subtype_posterior()
+        assert isinstance(posterior, dict)
+        assert "sporadic_tdp43" in posterior
+        assert "c9orf72" in posterior
+        assert "sod1" in posterior
+
+    def test_sporadic_tdp43_is_highest(self):
+        from research.intelligence import compute_clinical_subtype_posterior
+        posterior = compute_clinical_subtype_posterior()
+        assert posterior["sporadic_tdp43"] > posterior["sod1"]
+        assert posterior["sporadic_tdp43"] > posterior["fus"]
+        assert posterior["sporadic_tdp43"] > posterior["c9orf72"]
+
+    def test_c9orf72_gets_boost_from_family_history(self):
+        from research.intelligence import compute_clinical_subtype_posterior
+        posterior = compute_clinical_subtype_posterior()
+        # C9orf72 should be non-trivial due to mother's Alzheimer's
+        assert posterior["c9orf72"] > 0.03
+
+    def test_probabilities_sum_to_one(self):
+        from research.intelligence import compute_clinical_subtype_posterior
+        posterior = compute_clinical_subtype_posterior()
+        total = sum(posterior.values())
+        assert abs(total - 1.0) < 0.01
+
+    def test_genetic_testing_priority_reduced_by_posterior(self):
+        """After clinical posterior, genetic_testing gap priority should be < 0.95."""
+        store = _MockStore()
+        state = initial_state(subject_ref="traj:draper_001")
+        gaps = analyze_protocol_gaps(state, store)
+        genetic_gaps = [g for g in gaps if "genetic_testing" in g.get("description", "")]
+        assert len(genetic_gaps) >= 1
+        assert genetic_gaps[0]["priority"] < 0.95

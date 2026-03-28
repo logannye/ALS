@@ -128,10 +128,16 @@ def _deep_research_step(
 
     if use_gap_analysis:
         try:
-            from research.intelligence import analyze_protocol_gaps
+            from research.intelligence import analyze_protocol_gaps, filter_actionable_gaps
             gaps = analyze_protocol_gaps(state, evidence_store)
-            if gaps:
-                gap = gaps[0]
+            # Log clinical recommendations periodically
+            clinical_gaps = [g for g in gaps if g.get("resolvability") == "clinical_required"]
+            if clinical_gaps and state.step_count % 50 == 0:
+                for cg in clinical_gaps[:3]:
+                    print(f"[ERIK-CLINICAL] Recommendation: {cg['description']} (requires clinical action)")
+            actionable_gaps = filter_actionable_gaps(gaps)
+            if actionable_gaps:
+                gap = actionable_gaps[0]
                 queries = gap.get("search_queries", [])
                 if queries:
                     # Use the top gap's first search query
@@ -234,14 +240,26 @@ def _monitoring_cycle(
     # Run a deep research step (evidence expansion continues post-convergence)
     state = _deep_research_step(state, evidence_store, llm_manager)
 
-    # If enough new evidence since last protocol, trigger re-convergence
-    if state.new_evidence_since_regen >= regen_threshold:
-        print(f"[ERIK-MONITOR] {state.new_evidence_since_regen} new evidence items since last protocol. Re-entering active research for re-convergence.")
-        state = replace(
-            state,
-            converged=False,
-            protocol_stable_cycles=0,
-        )
+    # Uncertainty-aware re-convergence trigger
+    from research.convergence import compute_uncertainty_score
+    current_score = compute_uncertainty_score(state)
+    history = list(getattr(state, 'uncertainty_history', []))
+    history.append(current_score)
+    if len(history) > 50:
+        history = history[-50:]
+    state = replace(state, uncertainty_score=current_score, uncertainty_history=history)
+
+    # Re-enter active research only if uncertainty dropped meaningfully (>5%)
+    if len(history) >= 5:
+        recent = sum(history[-5:]) / 5
+        older = sum(history[-10:-5]) / 5 if len(history) >= 10 else history[0]
+        drop = older - recent
+        if drop > 0.05:
+            print(f"[ERIK-MONITOR] Uncertainty dropped {drop:.3f}. Re-entering active research.")
+            state = replace(state, converged=False, protocol_stable_cycles=0)
+        elif state.new_evidence_since_regen >= regen_threshold * 2:
+            print(f"[ERIK-MONITOR] {state.new_evidence_since_regen} evidence items but uncertainty flat. Regenerating protocol.")
+            state = replace(state, converged=False, protocol_stable_cycles=0)
 
     return state
 
@@ -312,6 +330,7 @@ def main():
             # Active research mode — hot-reload config
             cfg.reload_if_changed()
             regen_threshold = cfg.get("research_protocol_regen_threshold", regen_threshold)
+            target_depth = cfg.get("research_causal_chain_target_depth", 5)
 
             state = research_step(
                 state=state,
@@ -319,6 +338,7 @@ def main():
                 llm_manager=llm_manager,
                 dry_run=False,
                 regen_threshold=regen_threshold,
+                target_depth=target_depth,
             )
             _persist_state(state, evidence_store)
 

@@ -52,3 +52,40 @@ class TestIsConverged:
     def test_converged_ignores_abstained_layers(self):
         history = [_protocol({"root_cause_suppression": ["int:vtx002"]}, f"proto:v{i}") for i in range(3)]
         assert is_converged(history, window=3) is True
+
+
+class TestUncertaintyScore:
+    def test_returns_float_between_0_and_1(self):
+        from research.convergence import compute_uncertainty_score
+        from research.state import initial_state
+        state = initial_state(subject_ref="traj:draper_001")
+        score = compute_uncertainty_score(state)
+        assert isinstance(score, float)
+        assert 0.0 <= score <= 1.0
+
+    def test_initial_state_high_uncertainty(self):
+        from research.convergence import compute_uncertainty_score
+        from research.state import initial_state
+        state = initial_state(subject_ref="traj:draper_001")
+        score = compute_uncertainty_score(state)
+        assert score > 0.8
+
+    def test_decreases_with_evidence(self):
+        from research.convergence import compute_uncertainty_score
+        from research.state import initial_state
+        state = initial_state(subject_ref="traj:draper_001")
+        score_before = compute_uncertainty_score(state)
+        state.evidence_by_layer["root_cause_suppression"] = 15
+        state.evidence_by_layer["pathology_reversal"] = 12
+        score_after = compute_uncertainty_score(state)
+        assert score_after < score_before
+
+    def test_full_evidence_low_uncertainty(self):
+        from research.convergence import compute_uncertainty_score
+        from research.state import initial_state
+        state = initial_state(subject_ref="traj:draper_001")
+        for layer in state.evidence_by_layer:
+            state.evidence_by_layer[layer] = 30
+        state.causal_chains = {"int:a": 5, "int:b": 5}
+        score = compute_uncertainty_score(state)
+        assert score < 0.3

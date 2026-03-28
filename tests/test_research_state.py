@@ -41,3 +41,22 @@ class TestResearchState:
         restored = ResearchState.from_dict(d)
         assert restored.step_count == 42
         assert restored.total_evidence_items == 100
+
+
+class TestUncertaintyFields:
+    def test_state_has_uncertainty_fields(self):
+        state = initial_state(subject_ref="traj:draper_001")
+        assert hasattr(state, 'uncertainty_score')
+        assert hasattr(state, 'uncertainty_history')
+        assert state.uncertainty_score == 1.0
+        assert state.uncertainty_history == []
+
+    def test_uncertainty_serializes(self):
+        state = initial_state(subject_ref="traj:draper_001")
+        state.uncertainty_score = 0.75
+        state.uncertainty_history = [1.0, 0.9, 0.75]
+        d = state.to_dict()
+        assert d["uncertainty_score"] == 0.75
+        restored = ResearchState.from_dict(d)
+        assert restored.uncertainty_score == 0.75
+        assert restored.uncertainty_history == [1.0, 0.9, 0.75]

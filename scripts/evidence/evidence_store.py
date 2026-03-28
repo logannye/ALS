@@ -228,6 +228,47 @@ class EvidenceStore:
         return results
 
     # ------------------------------------------------------------------
+    # Entity tagging
+    # ------------------------------------------------------------------
+
+    def tag_evidence_entities(self, item_id: str, entities: list[str]) -> None:
+        """Idempotently merge *entities* into the ``body.entities`` JSONB array.
+
+        Uses a PostgreSQL JSONB merge so that duplicate entity names are
+        never stored, and existing entities are preserved.
+        """
+        sql = """
+            UPDATE erik_core.objects
+            SET body = jsonb_set(
+                COALESCE(body, '{}'::jsonb),
+                '{entities}',
+                (
+                    SELECT COALESCE(jsonb_agg(DISTINCT val), '[]'::jsonb)
+                    FROM jsonb_array_elements_text(
+                        COALESCE(body->'entities', '[]'::jsonb) || %s::jsonb
+                    ) AS val
+                )
+            ),
+            updated_at = NOW()
+            WHERE id = %s
+        """
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (json.dumps(entities), item_id))
+            conn.commit()
+
+    def query_by_entity(self, entity: str) -> list[dict]:
+        """Return active EvidenceItems whose ``body.entities`` contains *entity*."""
+        sql = """
+            SELECT id, type, status, body
+            FROM erik_core.objects
+            WHERE type = 'EvidenceItem'
+              AND status = 'active'
+              AND body->'entities' ? %s
+        """
+        return self._run_query(sql, (entity,))
+
+    # ------------------------------------------------------------------
     # Aggregates
     # ------------------------------------------------------------------
 

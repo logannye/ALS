@@ -4,8 +4,8 @@ import pytest
 from research.actions import ActionType, ActionResult, build_action_params
 
 class TestActionType:
-    def test_all_15_actions_exist(self):
-        assert len(ActionType) == 15
+    def test_all_16_actions_exist(self):
+        assert len(ActionType) == 16
 
     def test_evidence_actions(self):
         assert ActionType.SEARCH_PUBMED.value == "search_pubmed"
@@ -31,6 +31,29 @@ class TestActionResult:
     def test_failed_result(self):
         result = ActionResult(action=ActionType.SEARCH_PUBMED, success=False, error="timeout")
         assert result.success is False
+
+    def test_protocol_layer_field(self):
+        """ActionResult should accept protocol_layer to track which layer evidence belongs to."""
+        result = ActionResult(
+            action=ActionType.SEARCH_PUBMED,
+            protocol_layer="root_cause_suppression",
+            evidence_items_added=5,
+        )
+        assert result.protocol_layer == "root_cause_suppression"
+
+    def test_evidence_strength_field(self):
+        """ActionResult should accept evidence_strength to classify evidence quality."""
+        result = ActionResult(
+            action=ActionType.SEARCH_PUBMED,
+            evidence_strength="moderate",
+            evidence_items_added=3,
+        )
+        assert result.evidence_strength == "moderate"
+
+    def test_new_fields_default_none(self):
+        result = ActionResult(action=ActionType.SEARCH_PUBMED)
+        assert result.protocol_layer is None
+        assert result.evidence_strength is None
 
 class TestBuildActionParams:
     def test_pubmed_params(self):
