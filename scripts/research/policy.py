@@ -23,12 +23,54 @@ from research.actions import ActionType, build_action_params
 from research.state import ResearchState, ALL_LAYERS
 
 
+import datetime as _dt
+
+# Base query bank per layer — rotated by step count for diversity
+_BASE_LAYER_QUERIES: dict[str, list[str]] = {
+    "root_cause_suppression": [
+        "ALS TDP-43 loss-of-function therapy",
+        "ALS gene therapy ASO intrabody clinical trial",
+        "ALS C9orf72 repeat expansion treatment",
+        "ALS SOD1 silencing tofersen long-term outcome",
+    ],
+    "pathology_reversal": [
+        "ALS sigma-1R proteostasis aggregation reversal therapy",
+        "ALS TDP-43 aggregation clearance autophagy therapeutic",
+        "ALS cryptic exon splicing UNC13A STMN2 rescue",
+        "ALS protein misfolding chaperone therapy",
+    ],
+    "circuit_stabilization": [
+        "ALS neuroprotection glutamate excitotoxicity riluzole combination",
+        "ALS GABA interneuron inhibitory circuit therapy",
+        "ALS cortical hyperexcitability membrane stabilizer",
+        "ALS ion channel modulator motor neuron survival",
+    ],
+    "regeneration_reinnervation": [
+        "ALS motor neuron regeneration NMJ reinnervation neurotrophic",
+        "ALS BDNF GDNF CNTF neurotrophic factor delivery",
+        "ALS Schwann cell transplant remyelination motor nerve",
+        "ALS Nogo receptor antagonist axonal growth sprouting",
+    ],
+    "adaptive_maintenance": [
+        "ALS biomarker neurofilament monitoring disease progression",
+        "ALS ALSFRS-R prediction model treatment response",
+        "ALS digital biomarker wearable monitoring",
+        "ALS blood biomarker p75 NTR TDP-43 CSF",
+    ],
+}
+
+
+def get_layer_query(layer: str, step: int) -> str:
+    """Return a rotating query string with year suffix for freshness."""
+    queries = _BASE_LAYER_QUERIES.get(layer, [f"ALS {layer.replace('_', ' ')} treatment"])
+    year = _dt.datetime.now().year
+    base = queries[step % len(queries)]
+    return f"{base} {year}"
+
+
+# Legacy constant — kept for backward compat with any external readers
 LAYER_SEARCH_QUERIES: dict[str, str] = {
-    "root_cause_suppression": "ALS TDP-43 loss-of-function therapy 2024 2025 2026",
-    "pathology_reversal": "ALS sigma-1R proteostasis aggregation reversal therapy",
-    "circuit_stabilization": "ALS neuroprotection glutamate excitotoxicity riluzole combination",
-    "regeneration_reinnervation": "ALS motor neuron regeneration NMJ reinnervation neurotrophic",
-    "adaptive_maintenance": "ALS biomarker neurofilament monitoring disease progression",
+    layer: queries[0] for layer, queries in _BASE_LAYER_QUERIES.items()
 }
 
 _ACQUISITION_ROTATION = [
@@ -165,20 +207,24 @@ def _build_thompson_params(
         return action, build_action_params(action)
     else:
         # Acquisition action — delegate to per-type helper
-        return _select_acquisition_action_for_type(action, state)
+        return _build_acquisition_params(action, state, state.step_count)
 
 
 def _select_acquisition_action_for_type(
     action: ActionType,
     state: ResearchState,
 ) -> tuple[ActionType, dict[str, Any]]:
-    """Build params for a specific acquisition action type."""
+    """Build params for a specific acquisition action type.
+
+    DEPRECATED — use _build_acquisition_params() instead.
+    Kept for backward compatibility with any external callers.
+    """
     step = state.step_count
 
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        query = get_layer_query(layer, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
@@ -241,7 +287,7 @@ def _select_acquisition_action_for_type(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        query = get_layer_query(layer, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:
@@ -340,15 +386,51 @@ def _select_reasoning_action(
 def _select_acquisition_action(
     state: ResearchState,
 ) -> tuple[ActionType, dict[str, Any]]:
-    """Select an evidence acquisition action using rotation."""
+    """Select an evidence acquisition action using rotation with yield-aware skip.
+
+    Actions that have been tried ``yield_skip_min_count`` times with an EMA
+    action value below ``yield_skip_threshold`` are skipped in favour of the
+    next candidate in rotation.  This prevents the loop from wasting cycles
+    on consistently-zero-yield actions.
+    """
+    # Read config thresholds (hot-reloadable)
+    try:
+        from config.loader import ConfigLoader
+        _cfg = ConfigLoader()
+    except Exception:
+        _cfg = None
+    min_count = _cfg.get("yield_skip_min_count", 5) if _cfg else 5
+    threshold = _cfg.get("yield_skip_threshold", 0.1) if _cfg else 0.1
+
     step = state.step_count
     rotation_idx = step % len(_ACQUISITION_ROTATION)
-    action = _ACQUISITION_ROTATION[rotation_idx]
 
+    # Try each candidate in rotation order, skipping exhausted actions
+    for offset in range(len(_ACQUISITION_ROTATION)):
+        idx = (rotation_idx + offset) % len(_ACQUISITION_ROTATION)
+        action = _ACQUISITION_ROTATION[idx]
+
+        count = state.action_counts.get(action.value, 0)
+        value = state.action_values.get(action.value, 1.0)  # Optimistic default
+        if count >= min_count and value < threshold:
+            continue  # Skip: this action consistently yields nothing
+
+        return _build_acquisition_params(action, state, step)
+
+    # All exhausted — ultimate fallback to SEARCH_PUBMED
+    return _fallback_acquisition(state, step, skip=None)
+
+
+def _build_acquisition_params(
+    action: ActionType,
+    state: ResearchState,
+    step: int,
+) -> tuple[ActionType, dict[str, Any]]:
+    """Build params for a specific acquisition action."""
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        query = get_layer_query(layer, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
@@ -410,7 +492,7 @@ def _select_acquisition_action(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        query = get_layer_query(layer, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:
@@ -432,7 +514,7 @@ def _select_acquisition_action(
 def _fallback_acquisition(
     state: ResearchState,
     step: int,
-    skip: ActionType,
+    skip: ActionType | None,
 ) -> tuple[ActionType, dict[str, Any]]:
     """When the preferred acquisition action can't execute, try the next one in rotation."""
     for offset in range(1, len(_ACQUISITION_ROTATION)):
@@ -441,7 +523,7 @@ def _fallback_acquisition(
         if candidate != skip and candidate == ActionType.SEARCH_PUBMED:
             layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
             layer = ALL_LAYERS[layer_idx]
-            query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+            query = get_layer_query(layer, step)
             return candidate, build_action_params(candidate, query=query, protocol_layer=layer)
     # Ultimate fallback
     return ActionType.SEARCH_PUBMED, build_action_params(

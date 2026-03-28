@@ -122,10 +122,18 @@ def research_step(
         else:
             protocol_stable_cycles = 0
 
-    # Track active hypotheses
+    # Track active hypotheses (enforce max_active)
+    try:
+        from config.loader import ConfigLoader
+        _hyp_cfg = ConfigLoader()
+        max_active = _hyp_cfg.get("research_hypothesis_max_active", 10)
+    except Exception:
+        max_active = 10
+
     active_hyps = list(state.active_hypotheses)
     if result.hypothesis_generated:
-        active_hyps.append(result.hypothesis_generated)
+        if len(active_hyps) < max_active:
+            active_hyps.append(result.hypothesis_generated)
     if result.hypothesis_resolved and active_hyps:
         # Remove first hypothesis (the one that was being validated)
         active_hyps.pop(0)
@@ -388,12 +396,16 @@ def _execute_action(
             ActionType.INTERPRET_VARIANT: _exec_interpret_variant,
             ActionType.CHECK_PHARMACOGENOMICS: _exec_check_pharmacogenomics,
             ActionType.QUERY_GALEN_KG: _exec_query_galen_kg,
+            ActionType.SEARCH_PREPRINTS: _exec_search_preprints,
+            ActionType.QUERY_GALEN_SCM: _exec_query_galen_scm,
         }
         fn = dispatch.get(action)
         if fn is None:
+            print(f"[RESEARCH] WARNING: No executor for action {action.value}")
             return ActionResult(action=action, success=False, error=f"Unknown action: {action}")
         return fn(params, state, evidence_store, llm_manager)
     except Exception as e:
+        print(f"[RESEARCH] Action {action.value} failed: {e}")
         return ActionResult(action=action, success=False, error=str(e))
 
 
@@ -986,4 +998,79 @@ def _exec_query_galen_kg(
         protocol_layer=params.get("protocol_layer", "root_cause_suppression"),
         evidence_strength="preclinical",
         error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_search_preprints(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Search bioRxiv/medRxiv for ALS preprints."""
+    from connectors.biorxiv import BiorxivConnector
+
+    connector = BiorxivConnector(store=store)
+    query = params.get("query", "ALS motor neuron treatment")
+    cr = connector.fetch(query=query)
+    return ActionResult(
+        action=ActionType.SEARCH_PREPRINTS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        protocol_layer=params.get("protocol_layer"),
+        evidence_strength="emerging",
+        error="; ".join(cr.errors) if cr.errors else None,
+    )
+
+
+def _exec_query_galen_scm(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query Galen's causal knowledge graph for downstream causal chains."""
+    from connectors.galen_scm import GalenSCMConnector
+
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
+
+    database = cfg.get("galen_scm_database", "galen_kg") if cfg else "galen_kg"
+    min_pch = cfg.get("galen_scm_min_pch_layer", 2) if cfg else 2
+    max_depth = cfg.get("galen_scm_max_chain_depth", 3) if cfg else 3
+
+    connector = GalenSCMConnector(
+        database=database, min_pch_layer=min_pch, max_depth=max_depth,
+    )
+    gene = params.get("target_gene", "TARDBP")
+    edges = connector.query_causal_downstream(gene)
+
+    # Convert causal edges to evidence and store them
+    added = 0
+    for edge in edges:
+        evi_id = f"evi:galen_scm_{edge.source}_{edge.target}".lower().replace(" ", "_")[:80]
+        try:
+            from ontology.base import BaseEnvelope
+            obj = BaseEnvelope(
+                id=evi_id,
+                type="EvidenceItem",
+                status="active",
+                body={
+                    "claim": f"{edge.source} → {edge.target} ({edge.relationship_type})",
+                    "source": "galen_scm",
+                    "pch_layer": edge.pch_layer,
+                    "confidence": edge.confidence,
+                    "protocol_layer": params.get("protocol_layer", "root_cause_suppression"),
+                    "evidence_strength": "preclinical",
+                },
+            )
+            store.upsert_object(obj)
+            added += 1
+        except Exception:
+            continue
+
+    return ActionResult(
+        action=ActionType.QUERY_GALEN_SCM,
+        success=True,
+        evidence_items_added=added,
+        causal_depth_added=1 if edges else 0,
+        protocol_layer=params.get("protocol_layer", "root_cause_suppression"),
+        evidence_strength="preclinical",
     )

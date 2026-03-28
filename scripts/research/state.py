@@ -34,6 +34,7 @@ class ResearchState:
     challenge_counts: dict[str, int] = field(default_factory=dict)
     action_posteriors: dict[str, tuple[float, float]] = field(default_factory=dict)
     last_action_per_type: dict[str, int] = field(default_factory=dict)
+    last_gap_layers: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -61,6 +62,7 @@ class ResearchState:
             "challenge_counts": dict(self.challenge_counts),
             "action_posteriors": {k: list(v) for k, v in self.action_posteriors.items()},
             "last_action_per_type": dict(self.last_action_per_type),
+            "last_gap_layers": list(self.last_gap_layers),
         }
 
     @classmethod

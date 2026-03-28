@@ -9,7 +9,7 @@ Public API
 select_layer_interventions(scores, layer, max_per_layer)
     -> list[InterventionScore]
 
-assemble_protocol(scores, subject_ref)
+assemble_protocol(scores, subject_ref, version)
     -> CureProtocolCandidate
 """
 from __future__ import annotations
@@ -47,7 +47,7 @@ DEFAULT_TIMING: dict[str, int] = {
 def select_layer_interventions(
     scores: list[InterventionScore],
     layer: str,
-    max_per_layer: int = 2,
+    max_per_layer: int | None = None,
 ) -> list[InterventionScore]:
     """Return the top eligible interventions for *layer*.
 
@@ -62,13 +62,21 @@ def select_layer_interventions(
     layer:
         The ``ProtocolLayer.value`` string to filter on.
     max_per_layer:
-        Maximum interventions to select per layer.
+        Maximum interventions to select per layer.  Reads from config
+        ``protocol_max_per_layer`` if not provided (default 3).
 
     Returns
     -------
     list[InterventionScore]
         Sorted descending by ``relevance_score``, capped at *max_per_layer*.
     """
+    if max_per_layer is None:
+        try:
+            from config.loader import ConfigLoader
+            max_per_layer = ConfigLoader().get("protocol_max_per_layer", 3)
+        except Exception:
+            max_per_layer = 3
+
     layer_scores = [
         s for s in scores
         if s.protocol_layer == layer and s.erik_eligible is not False
@@ -84,6 +92,7 @@ def select_layer_interventions(
 def assemble_protocol(
     scores: list[InterventionScore],
     subject_ref: str,
+    version: int = 1,
 ) -> CureProtocolCandidate:
     """Assemble a :class:`CureProtocolCandidate` from scored interventions.
 
@@ -98,6 +107,8 @@ def assemble_protocol(
         All scored interventions (output of ``score_all_interventions``).
     subject_ref:
         Patient trajectory identifier (e.g. ``"traj:draper_001"``).
+    version:
+        Protocol version number (increments each regeneration).
 
     Returns
     -------
@@ -108,6 +119,7 @@ def assemble_protocol(
     all_cited: list[str] = []
     all_uncertainties: list[str] = []
     all_failure_modes: list[str] = []
+    selected_ids: set[str] = set()
 
     for protocol_layer in ALL_LAYERS:
         layer_name = protocol_layer.value
@@ -123,6 +135,7 @@ def assemble_protocol(
             all_failure_modes.append(f"no_intervention_{layer_name}")
         else:
             int_refs = [s.intervention_id for s in selected]
+            selected_ids.update(int_refs)
             notes_parts = [
                 f"{s.intervention_name} (score={s.relevance_score:.2f})"
                 for s in selected
@@ -139,17 +152,28 @@ def assemble_protocol(
                 if s.contested_claims:
                     all_failure_modes.extend(s.contested_claims)
 
+    # Collect supporting evidence from non-selected but scored interventions
+    supporting_refs: list[str] = []
+    for s in scores:
+        if s.intervention_id not in selected_ids:
+            supporting_refs.extend(s.cited_evidence)
+
+    unique_cited = list(set(all_cited))
+    unique_supporting = list(set(supporting_refs))
+
     return CureProtocolCandidate(
-        id=f"proto:{subject_ref.split(':')[-1]}_v1",
+        id=f"proto:{subject_ref.split(':')[-1]}_v{version}",
         subject_ref=subject_ref,
         objective="maximize_durable_disease_arrest_and_functional_recovery",
         layers=layers,
         dominant_failure_modes=list(set(all_failure_modes))[:10],
         approval_state=ApprovalState.pending,
-        evidence_bundle_refs=list(set(all_cited)),
+        evidence_bundle_refs=unique_cited,
         body={
             "all_intervention_scores": [s.model_dump() for s in scores],
-            "total_evidence_items_cited": len(set(all_cited)),
+            "total_evidence_items_cited": len(unique_cited),
             "key_uncertainties": list(set(all_uncertainties))[:20],
+            "supporting_evidence_refs": unique_supporting,
+            "total_evidence_considered": len(set(all_cited + supporting_refs)),
         },
     )

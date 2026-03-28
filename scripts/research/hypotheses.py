@@ -34,6 +34,30 @@ def create_hypothesis(
               "evidence_for": cited_evidence or [], "evidence_against": []},
     )
 
+def is_duplicate_hypothesis(
+    statement: str,
+    existing: list[str],
+    threshold: float = 0.6,
+) -> bool:
+    """Check if *statement* is a near-duplicate of any hypothesis in *existing*.
+
+    Uses Jaccard similarity on keyword sets (words longer than 3 chars).
+    Returns True if similarity exceeds *threshold*.
+    """
+    new_words = {w.lower() for w in statement.split() if len(w) > 3}
+    if not new_words:
+        return False
+    for existing_stmt in existing:
+        existing_words = {w.lower() for w in existing_stmt.split() if len(w) > 3}
+        if not existing_words:
+            continue
+        intersection = len(new_words & existing_words)
+        union = len(new_words | existing_words)
+        if union > 0 and intersection / union > threshold:
+            return True
+    return False
+
+
 def plan_validation_actions(statement: str, topic: str) -> list[dict]:
     actions: list[dict] = []
     keywords = _TOPIC_KEYWORDS.get(topic, ["ALS"])

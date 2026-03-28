@@ -62,18 +62,22 @@ def analyze_protocol_gaps(
         layer_counts[layer] = len(items)
 
     if layer_counts:
-        min_layer = min(layer_counts, key=layer_counts.get)
-        min_count = layer_counts[min_layer]
-        if min_count < 30:
-            gaps.append({
-                "gap_type": "sparse_layer",
-                "description": f"Layer '{min_layer}' has only {min_count} evidence items — weakest evidence base",
-                "layer": min_layer,
-                "priority": 0.9,
-                "suggested_action": "search_pubmed",
-                "search_queries": _generate_layer_queries(min_layer),
-                "resolvability": "computational",
-            })
+        for layer_name, count in layer_counts.items():
+            if count < 30:
+                # Priority inversely proportional to evidence count
+                base_priority = 0.9 * (1.0 - count / 30.0)
+                # Recency penalty: halve priority for each recent targeting
+                recency_hits = state.last_gap_layers.count(layer_name) if hasattr(state, "last_gap_layers") else 0
+                priority = base_priority * (0.5 ** recency_hits)
+                gaps.append({
+                    "gap_type": "sparse_layer",
+                    "description": f"Layer '{layer_name}' has only {count} evidence items — needs more evidence",
+                    "layer": layer_name,
+                    "priority": max(0.1, priority),
+                    "suggested_action": "search_pubmed",
+                    "search_queries": _generate_layer_queries(layer_name),
+                    "resolvability": "computational",
+                })
 
     # 2. Shallow causal chains — which interventions lack deep mechanism understanding?
     for int_id, depth in state.causal_chains.items():
@@ -172,7 +176,7 @@ def build_hypothesis_prompt(
     )
 
     if gap_type == "shallow_chain":
-        return (
+        prompt = (
             f"TASK: Generate a specific, testable mechanistic hypothesis about how "
             f"the intervention '{int_name}' produces neuroprotective effects in ALS.\n\n"
             f"{erik_context}\n"
@@ -193,10 +197,11 @@ def build_hypothesis_prompt(
             f' "if_confirmed_impact": "<how this changes Erik\'s protocol>",\n'
             f' "cited_evidence": ["<evidence IDs supporting this hypothesis>"]}}'
         )
+        return _inject_prior_hypotheses(prompt, state)
 
     elif gap_type == "sparse_layer":
         layer = gap.get("layer", "root_cause_suppression")
-        return (
+        prompt = (
             f"TASK: Generate a hypothesis about a potentially overlooked therapeutic "
             f"mechanism for the '{layer}' protocol layer in ALS.\n\n"
             f"{erik_context}\n"
@@ -215,9 +220,10 @@ def build_hypothesis_prompt(
             f' "if_confirmed_impact": "<how this changes the protocol>",\n'
             f' "cited_evidence": ["<evidence IDs>"]}}'
         )
+        return _inject_prior_hypotheses(prompt, state)
 
     elif gap_type == "missing_data":
-        return (
+        prompt = (
             f"TASK: Generate a hypothesis about what Erik's missing measurement "
             f"would reveal and how it would change his treatment protocol.\n\n"
             f"{erik_context}\n"
@@ -235,9 +241,10 @@ def build_hypothesis_prompt(
             f' "if_confirmed_impact": "<how this result changes the protocol>",\n'
             f' "cited_evidence": ["<evidence IDs>"]}}'
         )
+        return _inject_prior_hypotheses(prompt, state)
 
     # Default generic
-    return (
+    prompt = (
         f"TASK: Generate a testable hypothesis about ALS biology relevant to "
         f"Erik Draper's treatment.\n\n"
         f"{erik_context}\n"
@@ -250,6 +257,24 @@ def build_hypothesis_prompt(
         f' "if_confirmed_impact": "<how this changes the protocol>",\n'
         f' "cited_evidence": ["<evidence IDs>"]}}'
     )
+    return _inject_prior_hypotheses(prompt, state)
+
+
+def _inject_prior_hypotheses(prompt: str, state: ResearchState) -> str:
+    """Append prior hypothesis context to any hypothesis-generation prompt.
+
+    Prevents the LLM from regenerating the same hypothesis by listing
+    active hypotheses and instructing it to explore a different mechanism.
+    """
+    prior_hyps = state.active_hypotheses[:5] if state.active_hypotheses else []
+    if not prior_hyps:
+        return prompt
+    prior_section = (
+        "\n\nPRIOR HYPOTHESES (DO NOT DUPLICATE — generate something DIFFERENT):\n"
+        + "\n".join(f"- {h}" for h in prior_hyps)
+        + "\n\nYour hypothesis MUST explore a DIFFERENT mechanism, pathway, or target.\n"
+    )
+    return prompt + prior_section
 
 
 # ---------------------------------------------------------------------------

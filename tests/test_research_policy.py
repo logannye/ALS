@@ -5,7 +5,7 @@ import pytest
 
 from research.actions import ActionType
 from research.state import ResearchState, initial_state
-from research.policy import select_action, _CYCLE_LENGTH, _ACQUIRE_STEPS
+from research.policy import select_action, _select_action_cycle, _CYCLE_LENGTH, _ACQUIRE_STEPS
 
 
 class TestSelectAction:
@@ -25,7 +25,7 @@ class TestSelectAction:
         """Cycle positions 0, 2, 4 should be acquisition actions."""
         for step in [0, 2, 4, 5, 7, 9]:  # positions 0,2,4 in first two cycles
             state = self._state(step_count=step)
-            action, _ = select_action(state, regen_threshold=100)
+            action, _ = _select_action_cycle(state, regen_threshold=100)
             assert action in {
                 ActionType.SEARCH_PUBMED, ActionType.SEARCH_TRIALS,
                 ActionType.QUERY_PATHWAYS, ActionType.QUERY_PPI_NETWORK,
@@ -40,7 +40,7 @@ class TestSelectAction:
             causal_chains={"int:pridopidine": 2},
             top_uncertainties=["test"],
         )
-        action, _ = select_action(state, regen_threshold=100, target_depth=5)
+        action, _ = _select_action_cycle(state, regen_threshold=100, target_depth=5)
         assert action in {ActionType.DEEPEN_CAUSAL_CHAIN, ActionType.GENERATE_HYPOTHESIS}
 
     def test_validation_on_validate_step_with_hypotheses(self):
@@ -50,7 +50,7 @@ class TestSelectAction:
             active_hypotheses=["hyp:test1"],
             action_counts={"validate_hypothesis": 1},
         )
-        action, _ = select_action(state, regen_threshold=100)
+        action, _ = _select_action_cycle(state, regen_threshold=100)
         assert action == ActionType.VALIDATE_HYPOTHESIS
 
     def test_validation_budget_prevents_over_validation(self):
@@ -61,7 +61,7 @@ class TestSelectAction:
             last_action="validate_hypothesis",
             action_counts={"validate_hypothesis": 50, "search_pubmed": 10},
         )
-        action, _ = select_action(state, regen_threshold=100)
+        action, _ = _select_action_cycle(state, regen_threshold=100)
         # Should NOT be validate_hypothesis due to budget exhaustion
         assert action != ActionType.VALIDATE_HYPOTHESIS
 
@@ -76,7 +76,7 @@ class TestSelectAction:
         actions_seen = set()
         for i in range(_CYCLE_LENGTH * 2):
             state.step_count = i
-            action, _ = select_action(state, regen_threshold=100)
+            action, _ = _select_action_cycle(state, regen_threshold=100)
             actions_seen.add(action)
         assert len(actions_seen) >= 3, f"Expected 3+ action types in 2 cycles, got {actions_seen}"
 
@@ -88,7 +88,7 @@ class TestSelectAction:
             resolved_hypotheses=2,
         )
         # Trigger a selection which calls _maybe_expire_hypotheses
-        select_action(state, regen_threshold=100)
+        _select_action_cycle(state, regen_threshold=100)
         # At least one hypothesis should have been expired
         assert len(state.active_hypotheses) < 2 or state.resolved_hypotheses > 2
 
@@ -103,7 +103,7 @@ class TestSelectAction:
         )
         # Even-numbered cycle → chain deepening preferred
         state.step_count = 1  # cycle 0, position 1, even cycle → deepen
-        action, params = select_action(state, regen_threshold=100, target_depth=10)
+        action, params = _select_action_cycle(state, regen_threshold=100, target_depth=10)
         assert action == ActionType.DEEPEN_CAUSAL_CHAIN
         assert params.get("intervention_id") == "int:pridopidine"
 
@@ -114,7 +114,7 @@ class TestSelectAction:
             causal_chains={"int:pridopidine": 10},
             top_uncertainties=["test"],
         )
-        action, _ = select_action(state, regen_threshold=100, target_depth=10)
+        action, _ = _select_action_cycle(state, regen_threshold=100, target_depth=10)
         # Should fall through to hypothesis generation, not chain deepening
         assert action != ActionType.DEEPEN_CAUSAL_CHAIN
 
@@ -129,7 +129,7 @@ class TestSelectAction:
         # Rotate through many steps to find one that hits QUERY_PATHWAYS
         for step in range(30):
             state.step_count = step
-            action, params = select_action(state, regen_threshold=100)
+            action, params = _select_action_cycle(state, regen_threshold=100)
             if action == ActionType.QUERY_PATHWAYS:
                 target_name = params.get("target_name", "")
                 assert target_name in ALS_TARGETS, \
@@ -145,7 +145,7 @@ class TestSelectAction:
         state = self._state()
         for step in range(30):
             state.step_count = step
-            action, params = select_action(state, regen_threshold=100)
+            action, params = _select_action_cycle(state, regen_threshold=100)
             if action == ActionType.QUERY_PPI_NETWORK:
                 gene = params.get("gene_symbol", "")
                 assert gene in valid_genes, \

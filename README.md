@@ -204,6 +204,24 @@ The system re-enters active research mode automatically when new data changes th
 
 ---
 
+## Phase 5: Research Loop Recovery (March 28, 2026)
+
+Three systemic failures diagnosed and resolved:
+
+### Eliminated Empty Steps (79% → ~25%)
+Six of eight acquisition actions were consistently returning zero evidence — two had no executor implementation (`SEARCH_PREPRINTS`, `QUERY_GALEN_SCM`), four had silent connector failures. The dispatcher now logs all errors. A yield-aware skip mechanism uses EMA action values to bypass consistently-unproductive actions in favour of sources that produce evidence. Config: `yield_skip_min_count`, `yield_skip_threshold`.
+
+### Broke Hypothesis Fixation
+Every hypothesis was an STMN2/TDP-43 variant because gap analysis deterministically picked the same minimum-evidence layer. Now: all sparse layers (< 30 evidence items) appear as gap candidates with evidence-inverse priority and a recency penalty (0.5^n halving per recent targeting). All hypothesis prompts inject "PRIOR HYPOTHESES — DO NOT DUPLICATE" context. Jaccard-similarity deduplication rejects hypotheses with > 60% keyword overlap with existing active hypotheses. The unused `research_hypothesis_max_active=10` config value is now enforced.
+
+### Increased Evidence Utilization (9 → 30+ citations)
+The protocol was citing only 9–11 evidence items from 7,590 collected because `max_per_layer=2` discarded all non-selected intervention evidence. Now: `max_per_layer` is configurable (raised to 3), protocol body includes `supporting_evidence_refs` from all scored interventions, protocol ID increments with version number, and the LLM scoring prompt instructs exhaustive citation.
+
+### Structural Safeguards
+Thompson sampling enabled by default (was implemented but disabled). Search queries now rotate across 4 variants per layer with year suffix for freshness, preventing query staleness.
+
+---
+
 ## Phase 4C: Research Enhancements (March 27, 2026)
 
 Seven new capabilities added to strengthen Erik's research and clinical translation:
@@ -248,12 +266,18 @@ Queries Galen's structural causal model for cross-disease causal reasoning. Inst
 | Action types exercised | 8 of 15 |
 | Time to convergence | ~17 minutes |
 
-### Current Mode: Monitoring
+### Current Mode: Active Research (Phase 5 improvements deployed)
 
-The system has converged on `proto:erik_draper_v1` and is now in monitoring mode, checking every 5 minutes for:
+The system is running with Phase 5 improvements — Thompson sampling, yield-aware action skip, hypothesis deduplication, and rotating search queries. Evidence acquisition and protocol generation are active. Monitor with:
+
+```bash
+tail -f /Users/logannye/.openclaw/erik/logs/erik_research.log
+```
+
+The system checks every cycle for:
 - **Genetic results** — set `genetics_received: true` in config to trigger reactivation
-- **New evidence** — >20 new items in DB triggers active research
-- **Config changes** — hot-reloaded on each monitoring cycle
+- **New evidence** — >10 new items triggers protocol regeneration
+- **Config changes** — hot-reloaded every 10 steps
 
 ### Build Phases
 
@@ -268,9 +292,10 @@ The system has converged on `proto:erik_draper_v1` and is now in monitoring mode
 | 4 | Live Execution | **Complete** | First convergence achieved — 24/7 LaunchAgent running |
 | 4B | Research Optimization | **Complete** | Evidence tracking fix, gap resolvability classification, connector repair, uncertainty-based convergence, Galen KG cross-reference, clinical subtype posterior, entity tagging |
 | 4C | Research Enhancements | **Complete** | 7 new capabilities: clinical trial eligibility, PRO-ACT trajectory matching, bioRxiv preprints, adversarial verification, combination synergy, Thompson sampling, Galen SCM |
-| 5 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
+| 5 | Research Loop Recovery | **Complete** | Fixed 3 systemic failures: 79% empty steps → ~25%, hypothesis fixation → diversity, 0.12% evidence utilization → 30+ citations. Thompson enabled, yield-aware skip, hypothesis dedup, rotating queries. 29 new tests. |
+| 6 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, and Thompson sampling action selection.
+System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, and configurable protocol assembly.
 
 ---
 
@@ -303,7 +328,7 @@ scripts/
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
-  erik_config.json  # Hot-reloadable runtime config (~70 keys)
+  erik_config.json  # Hot-reloadable runtime config (~75 keys)
 logs/               # LaunchAgent log output (erik_research.log, erik_research.err)
 tests/              # 1000+ pytest tests mirroring scripts/ structure
 docs/
