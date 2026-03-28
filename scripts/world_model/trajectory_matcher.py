@@ -355,9 +355,13 @@ class TrajectoryMatcher:
         sex: str,
         onset_region: str,
     ) -> list[dict]:
-        """Query proact_trajectories for age-matched patients.
+        """Query proact_trajectories for cohort-matched patients.
 
-        Filters by age ± cohort_age_window.  Returns list of row dicts.
+        Filters by onset_region, age ± cohort_age_window, and sex.
+        Rows with NULL sex or NULL onset_region are excluded because they
+        cannot be matched against Erik's known values.
+
+        Returns list of row dicts.
         """
         if self._pool is None:
             return []
@@ -369,6 +373,8 @@ class TrajectoryMatcher:
                 vital_status, survival_months
             FROM erik_ops.proact_trajectories
             WHERE age_onset BETWEEN %s AND %s
+              AND LOWER(sex) = LOWER(%s)
+              AND LOWER(onset_region) = LOWER(%s)
             ORDER BY patient_id, time_months
         """
         age_lo = age - self.cohort_age_window
@@ -378,7 +384,7 @@ class TrajectoryMatcher:
         try:
             with self._pool.connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(sql, (age_lo, age_hi))
+                    cur.execute(sql, (age_lo, age_hi, sex, onset_region))
                     cols = [d[0] for d in cur.description]
                     for row in cur.fetchall():
                         rows.append(dict(zip(cols, row)))
