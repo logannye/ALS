@@ -27,7 +27,7 @@
   "research_protocol_llm_model": "primary",
   "research_step_timeout_s": 120,
   "research_hypothesis_max_active": 10,
-  "research_causal_chain_target_depth": 5,
+  "research_causal_chain_target_depth": 10,
   "research_exploration_fraction": 0.15,
   "research_inter_step_pause_s": 1.0,
   "research_pubmed_max_per_query": 20,
@@ -40,5 +40,11 @@
   "omim_api_key": null,
   "pharmgkb_base_url": "https://api.pharmgkb.org/v1",
   "proact_data_dir": null,
-  "genetics_received": false
+  "genetics_received": false,
+  "galen_kg_enabled": true,
+  "galen_kg_database": "galen_kg",
+  "trial_eligibility_enabled": true,
+  "trial_geographic_region": "Ohio",
+  "trial_alsfrs_r_current": 43,
+  "trial_fvc_current": 100
 }
