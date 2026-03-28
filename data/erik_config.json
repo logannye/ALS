@@ -60,5 +60,9 @@
   "adversarial_reward_multiplier": 1.5,
   "combination_analysis_enabled": true,
   "combination_antagonism_threshold": 0.7,
-  "combination_overlap_threshold": 0.6
+  "combination_overlap_threshold": 0.6,
+  "thompson_policy_enabled": false,
+  "thompson_decay_interval": 50,
+  "thompson_decay_rate": 0.95,
+  "thompson_diversity_floor": 30
 }

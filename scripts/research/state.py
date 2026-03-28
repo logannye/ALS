@@ -32,6 +32,8 @@ class ResearchState:
     uncertainty_score: float = 1.0
     uncertainty_history: list[float] = field(default_factory=list)
     challenge_counts: dict[str, int] = field(default_factory=dict)
+    action_posteriors: dict[str, tuple[float, float]] = field(default_factory=dict)
+    last_action_per_type: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,11 +59,21 @@ class ResearchState:
             "uncertainty_score": self.uncertainty_score,
             "uncertainty_history": list(self.uncertainty_history),
             "challenge_counts": dict(self.challenge_counts),
+            "action_posteriors": {k: list(v) for k, v in self.action_posteriors.items()},
+            "last_action_per_type": dict(self.last_action_per_type),
         }
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ResearchState:
-        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+        clean = {}
+        for k, v in d.items():
+            if k not in cls.__dataclass_fields__:
+                continue
+            if k == "action_posteriors" and isinstance(v, dict):
+                clean[k] = {key: tuple(val) for key, val in v.items()}
+            else:
+                clean[k] = v
+        return cls(**clean)
 
 
 def initial_state(subject_ref: str) -> ResearchState:

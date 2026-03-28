@@ -10,9 +10,13 @@ Enforces a repeating 5-step cycle to ensure action diversity:
 
 Protocol regeneration preempts the cycle when the evidence threshold
 is reached. Hypotheses that fail validation 3 times are expired.
+
+Thompson sampling policy (thompson_policy_enabled=true in config) uses
+Beta posteriors over action types to adapt selection based on outcomes.
 """
 from __future__ import annotations
 
+import random
 from typing import Any
 
 from research.actions import ActionType, build_action_params
@@ -51,7 +55,204 @@ _MAX_CONSECUTIVE_VALIDATIONS = 2
 _MAX_VALIDATION_ATTEMPTS_PER_HYP = 3
 
 
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
 def select_action(
+    state: ResearchState,
+    regen_threshold: int = 10,
+    target_depth: int = 5,
+    exploration_fraction: float = 0.15,
+) -> tuple[ActionType, dict[str, Any]]:
+    """Select next research action. Dispatches to Thompson or cycle."""
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
+    if cfg and cfg.get("thompson_policy_enabled", False):
+        return select_action_thompson(state, regen_threshold, target_depth)
+    return _select_action_cycle(state, regen_threshold, target_depth, exploration_fraction)
+
+
+# ---------------------------------------------------------------------------
+# Thompson sampling policy
+# ---------------------------------------------------------------------------
+
+def _update_posteriors(
+    posteriors: dict[str, tuple[float, float]],
+    key: str,
+    success: bool,
+) -> dict[str, tuple[float, float]]:
+    """Update Beta posterior for an action-context key."""
+    result = dict(posteriors)
+    alpha, beta = result.get(key, (1.0, 1.0))
+    if success:
+        alpha += 1.0
+    else:
+        beta += 1.0
+    result[key] = (alpha, beta)
+    return result
+
+
+def _apply_decay(
+    posteriors: dict[str, tuple[float, float]],
+    rate: float = 0.95,
+) -> dict[str, tuple[float, float]]:
+    """Apply multiplicative decay with floor at (1.0, 1.0)."""
+    return {
+        k: (max(1.0, a * rate), max(1.0, b * rate))
+        for k, (a, b) in posteriors.items()
+    }
+
+
+def select_action_thompson(
+    state: ResearchState,
+    regen_threshold: int = 10,
+    target_depth: int = 5,
+) -> tuple[ActionType, dict[str, Any]]:
+    """Select action via Thompson sampling over Beta posteriors."""
+    # Preempt: protocol regeneration
+    if state.new_evidence_since_regen >= regen_threshold and state.protocol_version >= 1:
+        return ActionType.REGENERATE_PROTOCOL, build_action_params(ActionType.REGENERATE_PROTOCOL)
+
+    # Build the full candidate action type list
+    all_types: list[ActionType] = list(set(_ACQUISITION_ROTATION))
+    all_types.extend([ActionType.GENERATE_HYPOTHESIS, ActionType.DEEPEN_CAUSAL_CHAIN])
+    if hasattr(ActionType, "CHALLENGE_INTERVENTION"):
+        all_types.append(ActionType.CHALLENGE_INTERVENTION)
+
+    # Diversity floor: force any action type not used in 30 steps
+    for at in all_types:
+        last_used = state.last_action_per_type.get(at.value, 0)
+        if state.step_count - last_used >= 30:
+            return _build_thompson_params(at, state, target_depth)
+
+    # Thompson sampling: draw from each Beta and pick the argmax
+    posteriors = state.action_posteriors or {}
+    best_action: ActionType | None = None
+    best_sample = -1.0
+    for at in all_types:
+        alpha, beta = posteriors.get(at.value, (1.0, 1.0))
+        sample = random.betavariate(max(alpha, 0.01), max(beta, 0.01))
+        if sample > best_sample:
+            best_sample = sample
+            best_action = at
+
+    return _build_thompson_params(
+        best_action or ActionType.SEARCH_PUBMED, state, target_depth
+    )
+
+
+def _build_thompson_params(
+    action: ActionType,
+    state: ResearchState,
+    target_depth: int,
+) -> tuple[ActionType, dict[str, Any]]:
+    """Build params for Thompson-selected action using existing helpers."""
+    if action == ActionType.GENERATE_HYPOTHESIS:
+        return ActionType.GENERATE_HYPOTHESIS, build_action_params(ActionType.GENERATE_HYPOTHESIS)
+    elif action == ActionType.DEEPEN_CAUSAL_CHAIN:
+        shallow = [(k, v) for k, v in state.causal_chains.items() if v < target_depth]
+        if shallow:
+            int_id = shallow[state.step_count % len(shallow)][0]
+            return action, build_action_params(action, intervention_id=int_id)
+        return ActionType.GENERATE_HYPOTHESIS, build_action_params(ActionType.GENERATE_HYPOTHESIS)
+    elif action == ActionType.CHALLENGE_INTERVENTION:
+        return action, build_action_params(action)
+    elif action == ActionType.REGENERATE_PROTOCOL:
+        return action, build_action_params(action)
+    else:
+        # Acquisition action — delegate to per-type helper
+        return _select_acquisition_action_for_type(action, state)
+
+
+def _select_acquisition_action_for_type(
+    action: ActionType,
+    state: ResearchState,
+) -> tuple[ActionType, dict[str, Any]]:
+    """Build params for a specific acquisition action type."""
+    step = state.step_count
+
+    if action == ActionType.SEARCH_PUBMED:
+        layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
+        layer = ALL_LAYERS[layer_idx]
+        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        return action, build_action_params(action, query=query, protocol_layer=layer)
+
+    elif action == ActionType.SEARCH_TRIALS:
+        return action, build_action_params(action, protocol_layer="circuit_stabilization")
+
+    elif action == ActionType.QUERY_PATHWAYS:
+        from targets.als_targets import ALS_TARGETS
+        target_keys = list(ALS_TARGETS.keys())
+        if target_keys:
+            target_idx = step % len(target_keys)
+            target_key = target_keys[target_idx]
+            target = ALS_TARGETS[target_key]
+            layers = target.get("protocol_layers", ["root_cause_suppression"])
+            return action, build_action_params(
+                action,
+                target_name=target_key,
+                uniprot_id=target.get("uniprot_id", ""),
+                gene_symbol=target.get("gene", ""),
+                protocol_layer=layers[0] if layers else "root_cause_suppression",
+            )
+        return _fallback_acquisition(state, step, skip=ActionType.QUERY_PATHWAYS)
+
+    elif action == ActionType.QUERY_PPI_NETWORK:
+        from targets.als_targets import ALS_TARGETS
+        target_genes = [(k, t["gene"]) for k, t in ALS_TARGETS.items() if t.get("gene")]
+        if target_genes:
+            gene_idx = step % len(target_genes)
+            target_key, gene = target_genes[gene_idx]
+            target = ALS_TARGETS[target_key]
+            layers = target.get("protocol_layers", ["root_cause_suppression"])
+            return action, build_action_params(
+                action,
+                gene_symbol=gene,
+                protocol_layer=layers[0] if layers else "root_cause_suppression",
+            )
+        return _fallback_acquisition(state, step, skip=ActionType.QUERY_PPI_NETWORK)
+
+    elif action == ActionType.CHECK_PHARMACOGENOMICS:
+        drugs = ["riluzole", "edaravone", "rapamycin", "pridopidine", "masitinib"]
+        drug_idx = step % len(drugs)
+        return action, build_action_params(
+            action, drug_name=drugs[drug_idx], protocol_layer="adaptive_maintenance"
+        )
+
+    elif action == ActionType.QUERY_GALEN_KG:
+        from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
+        gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
+        gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        return action, build_action_params(
+            action, genes=[gene], protocol_layer="root_cause_suppression"
+        )
+
+    elif action == ActionType.SEARCH_PREPRINTS:
+        try:
+            from config.loader import ConfigLoader
+            cfg = ConfigLoader()
+        except Exception:
+            cfg = None
+        if cfg and not cfg.get("biorxiv_enabled", True):
+            return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
+        layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
+        layer = ALL_LAYERS[layer_idx]
+        query = LAYER_SEARCH_QUERIES.get(layer, f"ALS {layer.replace('_', ' ')} treatment")
+        return action, build_action_params(action, query=query, protocol_layer=layer)
+
+    # Unhandled type — fall back to PubMed
+    return _fallback_acquisition(state, step, skip=action)
+
+
+# ---------------------------------------------------------------------------
+# Cycle-based policy (original logic, now private)
+# ---------------------------------------------------------------------------
+
+def _select_action_cycle(
     state: ResearchState,
     regen_threshold: int = 10,
     target_depth: int = 5,
