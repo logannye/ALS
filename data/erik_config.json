@@ -71,6 +71,9 @@
   "galen_scm_database": "galen_kg",
   "yield_skip_min_count": 5,
   "yield_skip_threshold": 0.1,
-  "hypothesis_dedup_threshold": 0.6,
+  "hypothesis_dedup_threshold": 0.45,
+  "gap_same_type_max": 3,
+  "gap_recency_window": 10,
+  "dynamic_query_enabled": true,
   "protocol_max_per_layer": 3
 }

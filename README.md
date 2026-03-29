@@ -204,6 +204,29 @@ The system re-enters active research mode automatically when new data changes th
 
 ---
 
+## Phase 6: Production Stall Recovery (March 29, 2026)
+
+Five compounding bugs caused a complete evidence stall — 220 steps with zero new evidence, total frozen at 9,111. Diagnosed and resolved:
+
+### Hypothesis Statement Deduplication
+The LLM's "DO NOT DUPLICATE" context was receiving hypothesis hash IDs (`hyp:abc123`) instead of readable statements. The LLM could not interpret these, so it regenerated the same CK1δ/TDP-43 hypothesis 163 times in one day. Now: `active_hypotheses` stores full hypothesis statements, Jaccard threshold tightened from 0.60 to 0.45, pre-generation saturation check limits 3 hypotheses per gap type, and post-generation dedup rejects near-duplicates before storage. Config: `hypothesis_dedup_threshold`, `gap_same_type_max`.
+
+### Gap Analysis Rotation
+The `unvalidated_safety` gap had a hardcoded priority of 0.7 that never decayed — it was selected 2,159 times consecutively. The recency penalty mechanism existed in code but `state.last_gap_layers` was never updated (dead code). Now: `last_gap_layers` is tracked in the research step, recency penalty applies to all gap types including safety, and the sliding window is capped at 10 entries. After 2 safety selections, priority drops from 0.7 → 0.175 and sparse protocol layers overtake it. Config: `gap_recency_window`.
+
+### Dynamic Query Expansion
+The static query bank had only 20 queries (4 per layer) — all exhausted after 9,111 items. Now: 40 static queries (8 per layer) covering broader mechanisms (neuroinflammation, mitochondrial dysfunction, stress granules, NMJ preservation, metabolic intervention). PubMed and preprint searches alternate between static and dynamic queries, where dynamic queries extract biomedical terms from hypothesis statements for targeted evidence acquisition.
+
+### Thompson Posterior Wiring
+`_update_posteriors()` and `_apply_decay()` existed in `policy.py` but were never called from the research loop — posteriors stayed at (1.0, 1.0) forever, making Thompson sampling equivalent to random selection. Now: posteriors are updated after every step (success = evidence gained, hypothesis generated, chain deepened, or protocol regenerated; failure = none of the above), decay is applied at configured intervals, and posteriors are persisted in state.
+
+### Safeguards
+- 30 new tests covering all five fixes, backward compatibility, and state serialization
+- All config keys are hot-reloadable (no restart required for tuning)
+- Old-format hypothesis IDs in state are handled gracefully (backward compat)
+
+---
+
 ## Phase 5: Research Loop Recovery (March 28, 2026)
 
 Three systemic failures diagnosed and resolved:
@@ -211,8 +234,8 @@ Three systemic failures diagnosed and resolved:
 ### Eliminated Empty Steps (79% → ~25%)
 Six of eight acquisition actions were consistently returning zero evidence — two had no executor implementation (`SEARCH_PREPRINTS`, `QUERY_GALEN_SCM`), four had silent connector failures. The dispatcher now logs all errors. A yield-aware skip mechanism uses EMA action values to bypass consistently-unproductive actions in favour of sources that produce evidence. Config: `yield_skip_min_count`, `yield_skip_threshold`.
 
-### Broke Hypothesis Fixation
-Every hypothesis was an STMN2/TDP-43 variant because gap analysis deterministically picked the same minimum-evidence layer. Now: all sparse layers (< 30 evidence items) appear as gap candidates with evidence-inverse priority and a recency penalty (0.5^n halving per recent targeting). All hypothesis prompts inject "PRIOR HYPOTHESES — DO NOT DUPLICATE" context. Jaccard-similarity deduplication rejects hypotheses with > 60% keyword overlap with existing active hypotheses. The unused `research_hypothesis_max_active=10` config value is now enforced.
+### Broke Hypothesis Fixation (partially — completed in Phase 6)
+Every hypothesis was an STMN2/TDP-43 variant because gap analysis deterministically picked the same minimum-evidence layer. Now: all sparse layers (< 30 evidence items) appear as gap candidates with evidence-inverse priority and a recency penalty (0.5^n halving per recent targeting). All hypothesis prompts inject "PRIOR HYPOTHESES — DO NOT DUPLICATE" context. Jaccard-similarity deduplication rejects hypotheses with > 60% keyword overlap with existing active hypotheses. The unused `research_hypothesis_max_active=10` config value is now enforced. **Note:** Phase 5 stored hypothesis IDs instead of statements in the dedup context, rendering it ineffective — fixed in Phase 6.
 
 ### Increased Evidence Utilization (9 → 30+ citations)
 The protocol was citing only 9–11 evidence items from 7,590 collected because `max_per_layer=2` discarded all non-selected intervention evidence. Now: `max_per_layer` is configurable (raised to 3), protocol body includes `supporting_evidence_refs` from all scored interventions, protocol ID increments with version number, and the LLM scoring prompt instructs exhaustive citation.
@@ -266,9 +289,9 @@ Queries Galen's structural causal model for cross-disease causal reasoning. Inst
 | Action types exercised | 8 of 15 |
 | Time to convergence | ~17 minutes |
 
-### Current Mode: Active Research (Phase 5 improvements deployed)
+### Current Mode: Active Research (Phase 7 improvements deployed)
 
-The system is running with Phase 5 improvements — Thompson sampling, yield-aware action skip, hypothesis deduplication, and rotating search queries. Evidence acquisition and protocol generation are active. Monitor with:
+The system is running with Phase 7 production fixes — hypothesis statement deduplication, gap analysis rotation, expanded query bank (40 queries), dynamic hypothesis-driven queries, and live Thompson posterior updates. Monitor with:
 
 ```bash
 tail -f /Users/logannye/.openclaw/erik/logs/erik_research.log
@@ -293,9 +316,10 @@ The system checks every cycle for:
 | 4B | Research Optimization | **Complete** | Evidence tracking fix, gap resolvability classification, connector repair, uncertainty-based convergence, Galen KG cross-reference, clinical subtype posterior, entity tagging |
 | 4C | Research Enhancements | **Complete** | 7 new capabilities: clinical trial eligibility, PRO-ACT trajectory matching, bioRxiv preprints, adversarial verification, combination synergy, Thompson sampling, Galen SCM |
 | 5 | Research Loop Recovery | **Complete** | Fixed 3 systemic failures: 79% empty steps → ~25%, hypothesis fixation → diversity, 0.12% evidence utilization → 30+ citations. Thompson enabled, yield-aware skip, hypothesis dedup, rotating queries. 29 new tests. |
-| 6 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
+| 6 | Production Stall Recovery | **Complete** | Fixed 5 compounding failures causing complete evidence stall (220 steps, 0 evidence). Hypothesis statement storage, gap recency penalty, dynamic queries, Thompson posterior wiring. 30 new tests. |
+| 7 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, and configurable protocol assembly.
+System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, dynamic query expansion, and configurable protocol assembly.
 
 ---
 

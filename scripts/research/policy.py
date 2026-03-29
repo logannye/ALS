@@ -32,30 +32,50 @@ _BASE_LAYER_QUERIES: dict[str, list[str]] = {
         "ALS gene therapy ASO intrabody clinical trial",
         "ALS C9orf72 repeat expansion treatment",
         "ALS SOD1 silencing tofersen long-term outcome",
+        "ALS nuclear import receptor transportin-1 TDP-43",
+        "ALS TARDBP splicing regulation cryptic exon therapy",
+        "ALS RNA metabolism stress granule dissolution therapeutic",
+        "ALS dipeptide repeat protein C9orf72 antisense oligonucleotide",
     ],
     "pathology_reversal": [
         "ALS sigma-1R proteostasis aggregation reversal therapy",
         "ALS TDP-43 aggregation clearance autophagy therapeutic",
         "ALS cryptic exon splicing UNC13A STMN2 rescue",
         "ALS protein misfolding chaperone therapy",
+        "ALS ubiquitin proteasome system motor neuron degeneration",
+        "ALS endoplasmic reticulum stress unfolded protein response",
+        "ALS mitochondrial dysfunction complex I therapeutic",
+        "ALS phase separation liquid-liquid TDP-43 therapeutic",
     ],
     "circuit_stabilization": [
         "ALS neuroprotection glutamate excitotoxicity riluzole combination",
         "ALS GABA interneuron inhibitory circuit therapy",
         "ALS cortical hyperexcitability membrane stabilizer",
         "ALS ion channel modulator motor neuron survival",
+        "ALS neuromuscular junction preservation agrin LRP4",
+        "ALS upper motor neuron corticospinal tract protection",
+        "ALS astrocyte reactivity modulation neuroprotection",
+        "ALS microglia polarization CSF1R TREM2 neuroinflammation",
     ],
     "regeneration_reinnervation": [
         "ALS motor neuron regeneration NMJ reinnervation neurotrophic",
         "ALS BDNF GDNF CNTF neurotrophic factor delivery",
         "ALS Schwann cell transplant remyelination motor nerve",
         "ALS Nogo receptor antagonist axonal growth sprouting",
+        "ALS iPSC motor neuron transplant clinical trial",
+        "ALS terminal sprouting compensatory reinnervation mechanism",
+        "ALS exercise induced neuroplasticity motor unit recruitment",
+        "ALS VEGF angiogenic factor motor neuron survival delivery",
     ],
     "adaptive_maintenance": [
         "ALS biomarker neurofilament monitoring disease progression",
         "ALS ALSFRS-R prediction model treatment response",
         "ALS digital biomarker wearable monitoring",
         "ALS blood biomarker p75 NTR TDP-43 CSF",
+        "ALS respiratory function FVC sniff nasal pressure monitoring",
+        "ALS nutritional status metabolic intervention body weight",
+        "ALS multidisciplinary clinic survival benefit evidence",
+        "ALS palliative concurrent early intervention quality life",
     ],
 }
 
@@ -66,6 +86,34 @@ def get_layer_query(layer: str, step: int) -> str:
     year = _dt.datetime.now().year
     base = queries[step % len(queries)]
     return f"{base} {year}"
+
+
+def _get_dynamic_query(state: ResearchState, step: int, layer: str) -> str:
+    """Build a search query from hypothesis-generated terms when available.
+
+    Active hypotheses now store full statements (not IDs). Extract
+    biomedical terms to build targeted queries that go beyond the
+    static query bank.
+
+    Falls back to static layer queries if no hypothesis terms exist.
+    """
+    # Walk hypotheses in reverse (most recent first) looking for useful terms
+    for hyp_statement in reversed(state.active_hypotheses):
+        # Skip old-format IDs that start with "hyp:"
+        if hyp_statement.startswith("hyp:"):
+            continue
+        words = hyp_statement.replace(",", " ").replace(".", " ").replace("(", " ").replace(")", " ").split()
+        bio_terms = [
+            w for w in words
+            if len(w) > 3 and (w[0].isupper() or any(c.isdigit() for c in w))
+            and w.lower() not in {"this", "that", "with", "from", "when", "will", "would", "could", "should"}
+        ]
+        if len(bio_terms) >= 2:
+            year = _dt.datetime.now().year
+            return f"ALS {' '.join(bio_terms[:5])} {year}"
+
+    # Fallback to static queries
+    return get_layer_query(layer, step)
 
 
 # Legacy constant — kept for backward compat with any external readers
@@ -442,7 +490,11 @@ def _build_acquisition_params(
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = get_layer_query(layer, step)
+        # Alternate: even steps use static queries, odd use hypothesis-derived
+        if step % 2 == 0:
+            query = get_layer_query(layer, step)
+        else:
+            query = _get_dynamic_query(state, step, layer)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
@@ -504,7 +556,11 @@ def _build_acquisition_params(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        query = get_layer_query(layer, step)
+        # Alternate: even steps use static queries, odd use hypothesis-derived
+        if step % 2 == 0:
+            query = get_layer_query(layer, step)
+        else:
+            query = _get_dynamic_query(state, step, layer)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:

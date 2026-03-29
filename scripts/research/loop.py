@@ -124,6 +124,29 @@ def research_step(
     action_values[action_key] = old_value + _EMA_ALPHA * (reward_total - old_value)
     action_counts[action_key] = action_counts.get(action_key, 0) + 1
 
+    # 4b. Update Thompson posteriors (Fix 4: was never called before)
+    from research.policy import _update_posteriors, _apply_decay
+    _posteriors = dict(state.action_posteriors)
+    _thompson_success = (
+        result.evidence_items_added > 0
+        or result.hypothesis_generated is not None
+        or result.hypothesis_resolved
+        or result.causal_depth_added > 0
+        or result.protocol_regenerated
+    )
+    _posteriors = _update_posteriors(_posteriors, action_key, _thompson_success)
+    # Periodic decay
+    _next_step = state.step_count + 1
+    try:
+        from config.loader import ConfigLoader
+        _ts_cfg = ConfigLoader()
+        _decay_interval = _ts_cfg.get("thompson_decay_interval", 50)
+        _decay_rate = _ts_cfg.get("thompson_decay_rate", 0.95)
+    except Exception:
+        _decay_interval, _decay_rate = 50, 0.95
+    if _next_step % _decay_interval == 0:
+        _posteriors = _apply_decay(_posteriors, rate=_decay_rate)
+
     # 5. Update state
     new_step = state.step_count + 1
     new_evidence_since_regen = state.new_evidence_since_regen + result.evidence_items_added
@@ -170,6 +193,17 @@ def research_step(
     _last_action_per_type = dict(state.last_action_per_type)
     _last_action_per_type[action_key] = new_step
 
+    # Track gap layers for recency penalty (Fix 2: was never updated before)
+    _last_gap_layers = list(state.last_gap_layers)
+    if action == ActionType.GENERATE_HYPOTHESIS and result.detail:
+        _gap_layer = result.detail.get("gap_layer", "")
+        if _gap_layer:
+            _last_gap_layers.append(_gap_layer)
+    elif action == ActionType.CHECK_PHARMACOGENOMICS:
+        _last_gap_layers.append("unvalidated_safety")
+    # Sliding window: keep only last 10 entries
+    _last_gap_layers = _last_gap_layers[-10:]
+
     new_state = replace(
         state,
         step_count=new_step,
@@ -188,6 +222,8 @@ def research_step(
         resolved_hypotheses=state.resolved_hypotheses + (1 if result.hypothesis_resolved else 0),
         consecutive_same_action=_consecutive,
         last_action_per_type=_last_action_per_type,
+        last_gap_layers=_last_gap_layers,
+        action_posteriors=_posteriors,
     )
 
     # 5b. Update uncertainty score (used by convergence quality gate)
@@ -562,7 +598,7 @@ def _exec_generate_hypothesis(
     3. Generates a hypothesis with specific search terms and target genes
     4. Stores the search plan in the hypothesis body for validation
     """
-    from research.hypotheses import create_hypothesis
+    from research.hypotheses import create_hypothesis, is_duplicate_hypothesis
     from research.intelligence import analyze_protocol_gaps, build_hypothesis_prompt
 
     engine = llm_manager.get_research_engine()
@@ -572,6 +608,17 @@ def _exec_generate_hypothesis(
             success=False,
             error="No research engine available",
         )
+
+    # Read dedup config (hot-reloadable)
+    _dedup_threshold = 0.45
+    _gap_same_type_max = 3
+    try:
+        from config.loader import ConfigLoader
+        _cfg = ConfigLoader()
+        _dedup_threshold = _cfg.get("hypothesis_dedup_threshold", 0.45)
+        _gap_same_type_max = _cfg.get("gap_same_type_max", 3)
+    except Exception:
+        pass
 
     # Find the most important gap in the protocol
     gaps = analyze_protocol_gaps(state, store)
@@ -584,6 +631,22 @@ def _exec_generate_hypothesis(
 
     gap = gaps[0]  # Highest priority gap
     topic = gap.get("layer", params.get("topic", "root_cause_suppression"))
+
+    # Pre-generation check: skip if too many active hypotheses target the same gap type
+    _gap_type = gap.get("gap_type", "")
+    _same_gap_count = 0
+    for h in state.active_hypotheses:
+        if _gap_type and _gap_type.replace("_", " ") in h.lower():
+            _same_gap_count += 1
+        elif gap.get("layer", "") and gap["layer"].replace("_", " ") in h.lower():
+            _same_gap_count += 1
+    if _same_gap_count >= _gap_same_type_max:
+        return ActionResult(
+            action=ActionType.GENERATE_HYPOTHESIS,
+            success=False,
+            error=f"Already {_same_gap_count} hypotheses targeting {_gap_type} — skipping",
+            detail={"gap_layer": gap.get("layer", ""), "gap_type": _gap_type},
+        )
 
     # Gather evidence for context
     evidence_items = store.query_by_protocol_layer(topic)
@@ -607,6 +670,15 @@ def _exec_generate_hypothesis(
 
     if result and result.get("statement"):
         statement = result["statement"]
+
+        # Post-generation dedup: reject if too similar to existing hypotheses
+        if is_duplicate_hypothesis(statement, state.active_hypotheses, threshold=_dedup_threshold):
+            return ActionResult(
+                action=ActionType.GENERATE_HYPOTHESIS,
+                success=False,
+                error="Duplicate hypothesis rejected by Jaccard filter",
+                detail={"gap_layer": gap.get("layer", ""), "gap_type": _gap_type},
+            )
         cited = result.get("cited_evidence", [])
         hyp = create_hypothesis(
             statement=statement,
@@ -634,7 +706,8 @@ def _exec_generate_hypothesis(
         return ActionResult(
             action=ActionType.GENERATE_HYPOTHESIS,
             success=True,
-            hypothesis_generated=hyp.id,
+            hypothesis_generated=statement,
+            detail={"hypothesis_id": hyp.id, "gap_layer": gap.get("layer", ""), "gap_type": gap.get("gap_type", "")},
         )
 
     return ActionResult(

@@ -127,10 +127,16 @@ def analyze_protocol_gaps(
     # 4. Drug interaction safety — check if protocol combinations have been validated
     interventions = list(state.causal_chains.keys())
     if len(interventions) >= 2:
+        base_priority = 0.7
+        # Apply recency penalty (same mechanism as sparse_layer)
+        safety_recency = state.last_gap_layers.count("unvalidated_safety") if hasattr(state, "last_gap_layers") else 0
+        priority = base_priority * (0.5 ** safety_recency)
+        priority = max(0.1, priority)
         gaps.append({
             "gap_type": "unvalidated_safety",
             "description": f"Drug combination safety for {len(interventions)} protocol interventions needs PharmGKB validation",
-            "priority": 0.7,
+            "layer": "unvalidated_safety",
+            "priority": priority,
             "suggested_action": "check_pharmacogenomics",
             "search_queries": [f"ALS drug combination interaction {interventions[0].replace('int:', '')} {interventions[1].replace('int:', '')}"],
             "resolvability": "computational",
