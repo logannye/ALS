@@ -17,6 +17,7 @@ from dataclasses import replace
 from typing import Any, Optional
 
 from research.actions import ActionResult, ActionType, build_action_params
+from research.convergence import compute_uncertainty_score
 from research.episode_logger import build_episode
 from research.policy import select_action
 from research.rewards import RewardComponents, compute_reward
@@ -55,11 +56,26 @@ def research_step(
         state, regen_threshold=regen_threshold, target_depth=target_depth,
     )
 
-    # 2. Execute
+    # 2. Execute (with evidence deduplication)
     if dry_run:
         result = ActionResult(action=action, success=True)
     else:
+        # Snapshot DB evidence count BEFORE the action
+        try:
+            _db_count_before = evidence_store.count_by_type("EvidenceItem")
+        except Exception:
+            _db_count_before = None
+
         result = _execute_action(action, params, state, evidence_store, llm_manager)
+
+        # Use DB delta as the TRUE evidence count (deduplicates upserts)
+        if _db_count_before is not None and result.evidence_items_added > 0:
+            try:
+                _db_count_after = evidence_store.count_by_type("EvidenceItem")
+                _true_new = max(0, _db_count_after - _db_count_before)
+                result.evidence_items_added = _true_new
+            except Exception:
+                pass  # Fall back to connector-reported count
 
     # 3. Compute reward
     # Estimate uncertainty before/after (proportion of layers with zero evidence)
@@ -144,6 +160,16 @@ def research_step(
         int_id = params["intervention_id"]
         causal_chains[int_id] = causal_chains.get(int_id, 0) + result.causal_depth_added
 
+    # Track consecutive same-action count for diversity cap
+    if action_key == state.last_action:
+        _consecutive = state.consecutive_same_action + 1
+    else:
+        _consecutive = 1
+
+    # Track last step each action type was used (for diversity floor)
+    _last_action_per_type = dict(state.last_action_per_type)
+    _last_action_per_type[action_key] = new_step
+
     new_state = replace(
         state,
         step_count=new_step,
@@ -160,7 +186,12 @@ def research_step(
         active_hypotheses=active_hyps,
         causal_chains=causal_chains,
         resolved_hypotheses=state.resolved_hypotheses + (1 if result.hypothesis_resolved else 0),
+        consecutive_same_action=_consecutive,
+        last_action_per_type=_last_action_per_type,
     )
+
+    # 5b. Update uncertainty score (used by convergence quality gate)
+    new_state = replace(new_state, uncertainty_score=compute_uncertainty_score(new_state))
 
     # 6. Log episode (best-effort, do not fail the step)
     try:
@@ -250,8 +281,12 @@ def run_research_loop(
         if not dry_run:
             _persist_state(state, evidence_store)
 
-        # Check convergence (protocol stable for 3+ cycles)
-        if state.converged or state.protocol_stable_cycles >= 3:
+        # Check convergence: protocol must be stable AND uncertainty low
+        # (prevents trivial convergence from recycled evidence)
+        _unc = state.uncertainty_score
+        _stable = state.protocol_stable_cycles >= 5
+        _quality = _unc < 0.3
+        if state.converged or (_stable and _quality):
             state = replace(state, converged=True)
             _persist_state(state, evidence_store)
             print(f"[RESEARCH] Converged at step {state.step_count}.")

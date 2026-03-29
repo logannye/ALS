@@ -35,6 +35,7 @@ class ResearchState:
     action_posteriors: dict[str, tuple[float, float]] = field(default_factory=dict)
     last_action_per_type: dict[str, int] = field(default_factory=dict)
     last_gap_layers: list[str] = field(default_factory=list)
+    consecutive_same_action: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +64,7 @@ class ResearchState:
             "action_posteriors": {k: list(v) for k, v in self.action_posteriors.items()},
             "last_action_per_type": dict(self.last_action_per_type),
             "last_gap_layers": list(self.last_gap_layers),
+            "consecutive_same_action": self.consecutive_same_action,
         }
 
     @classmethod

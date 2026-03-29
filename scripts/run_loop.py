@@ -167,8 +167,22 @@ def _deep_research_step(
     action = action_map.get(action_name, ActionType.SEARCH_PUBMED)
     params["action"] = action
 
-    # Execute
+    # Execute (with evidence deduplication)
+    try:
+        _db_count_before = evidence_store.count_by_type("EvidenceItem")
+    except Exception:
+        _db_count_before = None
+
     result = _execute_action(action, params, state, evidence_store, llm_manager)
+
+    # Use DB delta as the TRUE evidence count (deduplicates upserts)
+    if _db_count_before is not None and result.evidence_items_added > 0:
+        try:
+            _db_count_after = evidence_store.count_by_type("EvidenceItem")
+            _true_new = max(0, _db_count_after - _db_count_before)
+            result.evidence_items_added = _true_new
+        except Exception:
+            pass
 
     # Compute simple reward
     reward = compute_reward(
@@ -342,8 +356,12 @@ def main():
             )
             _persist_state(state, evidence_store)
 
-            # Check convergence
-            if state.protocol_stable_cycles >= 3 and not state.converged:
+            # Check convergence: protocol must be stable AND uncertainty low
+            # (prevents trivial convergence from recycled evidence)
+            _unc = state.uncertainty_score
+            _stable = state.protocol_stable_cycles >= 5
+            _quality = _unc < 0.3
+            if (_stable and _quality) and not state.converged:
                 state = replace(state, converged=True)
                 _persist_state(state, evidence_store)
                 print(f"[ERIK] ★ CONVERGED at step {state.step_count}. "

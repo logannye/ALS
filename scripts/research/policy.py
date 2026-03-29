@@ -149,13 +149,16 @@ def _apply_decay(
     }
 
 
+_MAX_CONSECUTIVE_SAME_ACTION = 3
+
+
 def select_action_thompson(
     state: ResearchState,
     regen_threshold: int = 10,
     target_depth: int = 5,
 ) -> tuple[ActionType, dict[str, Any]]:
     """Select action via Thompson sampling over Beta posteriors."""
-    # Preempt: protocol regeneration
+    # Preempt: protocol regeneration (only if evidence is genuinely new)
     if state.new_evidence_since_regen >= regen_threshold and state.protocol_version >= 1:
         return ActionType.REGENERATE_PROTOCOL, build_action_params(ActionType.REGENERATE_PROTOCOL)
 
@@ -165,8 +168,17 @@ def select_action_thompson(
     if hasattr(ActionType, "CHALLENGE_INTERVENTION"):
         all_types.append(ActionType.CHALLENGE_INTERVENTION)
 
+    # --- Consecutive-action cap: exclude the last action if repeated too many times ---
+    excluded_action: str | None = None
+    if state.consecutive_same_action >= _MAX_CONSECUTIVE_SAME_ACTION and state.last_action:
+        excluded_action = state.last_action
+
+    candidates = [at for at in all_types if at.value != excluded_action]
+    if not candidates:
+        candidates = all_types  # safety fallback
+
     # Diversity floor: force any action type not used in 30 steps
-    for at in all_types:
+    for at in candidates:
         last_used = state.last_action_per_type.get(at.value, 0)
         if state.step_count - last_used >= 30:
             return _build_thompson_params(at, state, target_depth)
@@ -175,7 +187,7 @@ def select_action_thompson(
     posteriors = state.action_posteriors or {}
     best_action: ActionType | None = None
     best_sample = -1.0
-    for at in all_types:
+    for at in candidates:
         alpha, beta = posteriors.get(at.value, (1.0, 1.0))
         sample = random.betavariate(max(alpha, 0.01), max(beta, 0.01))
         if sample > best_sample:
