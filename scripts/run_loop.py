@@ -66,6 +66,46 @@ def _load_state_from_db(subject_ref: str) -> ResearchState | None:
     return None
 
 
+def _sanitize_resumed_state(state: ResearchState) -> ResearchState:
+    """Clean up stale state on restart.
+
+    Fixes accumulated issues that can't self-heal during normal execution:
+    1. Flush old-format hypothesis IDs (hyp:...) — replaced by statements in P6
+    2. Reset all-zero EMA action values — gives every action a fair chance
+    3. Reset stale Thompson posteriors — prevents inherited bias from stall period
+    """
+    changes: dict[str, object] = {}
+    repairs: list[str] = []
+
+    # 1. Flush old-format hypothesis IDs (hyp:...) from active_hypotheses
+    old_hyps = state.active_hypotheses
+    clean_hyps = [h for h in old_hyps if not h.startswith("hyp:")]
+    if len(clean_hyps) < len(old_hyps):
+        changes["active_hypotheses"] = clean_hyps
+        repairs.append(f"flushed {len(old_hyps) - len(clean_hyps)} old-format hypothesis IDs")
+
+    # 2. Reset all-zero EMA action values — give actions a fair optimistic start
+    if state.action_values:
+        meaningful = sum(1 for v in state.action_values.values() if v > 0.01)
+        if meaningful <= 3:  # Most actions are effectively dead (stall state)
+            changes["action_values"] = {}  # Empty = optimistic default (1.0) in policy
+            repairs.append(f"reset {len(state.action_values)} stale action EMA values")
+
+    # 3. Reset stale Thompson posteriors to uniform (1, 1) for fresh learning
+    if state.action_posteriors:
+        changes["action_posteriors"] = {}
+        repairs.append(f"reset {len(state.action_posteriors)} Thompson posteriors to uniform")
+
+    if repairs:
+        state = replace(state, **changes)
+        for r in repairs:
+            print(f"[ERIK] Sanitize: {r}")
+    else:
+        print("[ERIK] Sanitize: state is clean, no repairs needed")
+
+    return state
+
+
 # ---------------------------------------------------------------------------
 # Deep research mode (post-convergence continuous evidence expansion)
 # ---------------------------------------------------------------------------
@@ -305,13 +345,16 @@ def main():
     evidence_store = EvidenceStore()
     llm_manager = DualLLMManager()
 
-    # Initialize evidence count from DB
+    # Initialize evidence count from DB (DB is the source of truth)
     try:
         db_count = evidence_store.count_by_type("EvidenceItem")
-        state = replace(state, total_evidence_items=max(state.total_evidence_items, db_count))
+        state = replace(state, total_evidence_items=db_count)
         print(f"[ERIK] Evidence in DB: {db_count}")
     except Exception:
         pass
+
+    # Sanitize resumed state: flush stale values that accumulate during stalls
+    state = _sanitize_resumed_state(state)
 
     # Bootstrap if no protocol exists yet
     if state.protocol_version == 0:
