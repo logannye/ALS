@@ -204,6 +204,53 @@ The system re-enters active research mode automatically when new data changes th
 
 ---
 
+## Phase 7: Deep Causal Understanding (March 29, 2026)
+
+Structural overhaul to move Erik from evidence accumulation to mechanistic reasoning grounded in real ALS biology. Evidence rate increased 78x (from ~2 items/hour to ~156 items/hour).
+
+### Knowledge Graph Entity Extraction
+`erik_core.entities` and `erik_core.relationships` were empty (0 rows) despite 1,700+ evidence items. New `entity_extractor.py` scans evidence body fields and claim text to extract genes, proteins, drugs, and mechanisms into a proper graph structure. Backfill produced 1,600+ entities and 145+ relationships. Runs incrementally after each evidence-producing step. Respects Pearl Causal Hierarchy constraints (observational relations never L3).
+
+### 9 New Database Connectors (24 total)
+| Database | Size | What It Provides |
+|----------|------|------------------|
+| **GTEx** (on disk) | 153MB | Gene expression across 45 tissues — validates ALS targets in spinal cord motor neurons |
+| **ClinVar** (on disk) | 3.8GB | Variant pathogenicity classifications — critical for interpreting Erik's pending Invitae results |
+| **GWAS Catalog** (downloaded) | 626MB | ALS-associated risk loci from genome-wide studies |
+| **BindingDB** (downloaded) | 7.9GB | 3.2M experimental binding affinity measurements (Ki/IC50/Kd) for drug design |
+| **Human Protein Atlas** (downloaded) | 37MB | Protein-level expression, subcellular localization, disease involvement |
+| **DrugBank** (CC0 open data) | 1.1MB | Drug vocabulary + target-UniProt links for drug repurposing |
+| **AlphaFold** (on disk) | 24K structures | 3D protein structures with pLDDT confidence for computational drug design |
+| **Reactome** (on disk) | 23K pathways | Complete human pathway hierarchy for multi-step mechanism cascades |
+| **ALSoD** (web API) | 160+ genes | ALS-specific gene variant data with evidence tiers |
+
+### Computational Experiment Engine
+New `als_computation_executor.py` runs in-silico experiments using ChEMBL (30.7GB), DepMap (409MB), and GDSC2 databases. Four experiment types: gene essentiality (CRISPR Chronos scores), drug sensitivity (LN_IC50), binding affinity (Tanimoto similarity), and drug interaction profiling. Produces quantitative, falsifiable evidence without clinical data.
+
+### Targeted PubMed Query Strategy
+3-strategy cycling: static query bank (40 queries) → dynamic hypothesis-derived terms → targeted queries from 16 ALS target gene definitions. Trials now rotate through all 7 protocol interventions instead of always searching one layer.
+
+### Thompson SCM Exploitation Fix
+`query_galen_scm` was consuming 70% of steps (reward=1.39 for causal depth even with 0 new evidence). Fix: `causal_depth_added` now requires actual new evidence, and depth-without-evidence gets 90% reward discount. SCM dropped from 70% to 2.3%.
+
+### Hypothesis Validation Lifecycle
+`resolve_hypothesis()` existed but was never called — all 1,408 hypotheses stuck at "generated". Now: `_exec_validate_hypothesis` updates hypothesis status in DB to "searching" or "supported" based on PubMed evidence found.
+
+### Action Dominance Prevention
+`DEEPEN_CAUSAL_CHAIN` silently fell back to `GENERATE_HYPOTHESIS` when all chains were at depth 10, bypassing the consecutive cap. New `_action_is_feasible()` pre-filters Thompson candidates to remove infeasible actions before sampling.
+
+### Startup State Sanitization
+New `_sanitize_resumed_state()` runs on every restart: flushes old-format hypothesis IDs, resets stale EMA values, resets Thompson posteriors, and uses DB count as evidence truth (was inflated from 9,111 to match the real 1,604).
+
+### Results
+- Evidence: 1,604 → 1,865+ (and growing at ~156 items/hour)
+- KG: 0 → 1,600+ entities, 145+ relationships
+- Action diversity: 20 different action types exercised per cycle
+- Protocol regenerated 4+ times with new multi-source evidence
+- 94 tests, 0 regressions
+
+---
+
 ## Phase 6: Production Stall Recovery (March 29, 2026)
 
 Five compounding bugs caused a complete evidence stall — 220 steps with zero new evidence, total frozen at 9,111. Diagnosed and resolved:
@@ -289,9 +336,9 @@ Queries Galen's structural causal model for cross-disease causal reasoning. Inst
 | Action types exercised | 8 of 15 |
 | Time to convergence | ~17 minutes |
 
-### Current Mode: Active Research (Phase 7 improvements deployed)
+### Current Mode: Active Research (Phase 7 — Deep Causal Understanding)
 
-The system is running with Phase 7 production fixes — hypothesis statement deduplication, gap analysis rotation, expanded query bank (40 queries), dynamic hypothesis-driven queries, and live Thompson posterior updates. Monitor with:
+The system is running with 24 data connectors across 9 databases, a knowledge graph with 1,600+ entities, computational experiments (DepMap/GDSC/ChEMBL), and targeted gene-specific PubMed queries. Evidence is flowing at ~156 items/hour across 20 action types. Monitor with:
 
 ```bash
 tail -f /Users/logannye/.openclaw/erik/logs/erik_research.log
@@ -317,9 +364,10 @@ The system checks every cycle for:
 | 4C | Research Enhancements | **Complete** | 7 new capabilities: clinical trial eligibility, PRO-ACT trajectory matching, bioRxiv preprints, adversarial verification, combination synergy, Thompson sampling, Galen SCM |
 | 5 | Research Loop Recovery | **Complete** | Fixed 3 systemic failures: 79% empty steps → ~25%, hypothesis fixation → diversity, 0.12% evidence utilization → 30+ citations. Thompson enabled, yield-aware skip, hypothesis dedup, rotating queries. 29 new tests. |
 | 6 | Production Stall Recovery | **Complete** | Fixed 5 compounding failures causing complete evidence stall (220 steps, 0 evidence). Hypothesis statement storage, gap recency penalty, dynamic queries, Thompson posterior wiring. 30 new tests. |
-| 7 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
+| 7 | Deep Causal Understanding | **Complete** | 9 new databases (GTEx, ClinVar, GWAS, BindingDB, HPA, DrugBank, AlphaFold, Reactome, ALSoD), KG entity extraction, computational experiments (DepMap/GDSC/ChEMBL), targeted queries, SCM fix, hypothesis validation. 78x evidence rate. 94 tests. |
+| 8 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-System is fully operational with intelligent, gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, dynamic query expansion, and configurable protocol assembly.
+System is fully operational with 24 data connectors, knowledge graph (1,600+ entities, 145+ relationships), computational experiments (gene essentiality, drug sensitivity, binding affinity), 9 local databases, targeted gene-specific queries, intelligent gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, dynamic query expansion, and configurable protocol assembly.
 
 ---
 
@@ -331,9 +379,10 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
-  connectors/       # 15 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
+  connectors/       # 24 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
                     #   Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB, GalenKG, GalenSCM,
-                    #   bioRxiv/medRxiv, PRO-ACT)
+                    #   bioRxiv/medRxiv, PRO-ACT, ALSoD, GTEx, ClinVar-local, GWAS Catalog,
+                    #   BindingDB, HPA, DrugBank-local, AlphaFold, Reactome-local)
   targets/          # Canonical ALS drug target definitions (16 targets)
   llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
   world_model/      # 7-stage cure protocol pipeline (state, subtype, scoring, combination
@@ -341,7 +390,9 @@ scripts/
     prompts/        # Evidence-grounded LLM prompt templates
     trajectory_matcher.py  # PRO-ACT DTW matching + Kaplan-Meier survival estimation
     combination_analyzer.py  # Drug synergy/antagonism/redundancy detection
-  research/         # Autonomous research loop (20 actions, Thompson sampling policy,
+  knowledge_quality/ # KG entity extraction from evidence items
+  executors/        # ALS computational experiments (DepMap, GDSC, ChEMBL binding)
+  research/         # Autonomous research loop (28 actions, Thompson sampling policy,
                     #   rewards, hypotheses, causal chains, convergence, trajectory,
                     #   intelligence, gap resolvability, adversarial verification, eligibility)
     eligibility.py  # Clinical trial eligibility matching for Erik
