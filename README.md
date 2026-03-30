@@ -114,7 +114,7 @@ The system infrastructure is fully operational:
 - **Evidence Fabric** — 93 curated evidence items, 25 interventions, 16 drug targets, 10 computational design targets
 - **15 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB, Galen KG (cross-disease), bioRxiv/medRxiv (preprints), Galen SCM (causal graph)
 - **World Model Pipeline** — 7-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → **combination synergy analysis** → protocol assembly → **adversarial counterfactual verification** → output
-- **Research Loop** — 20 action types, Thompson sampling policy (with fixed-cycle fallback), hypothesis system, causal chain construction (depth 10), protocol convergence detection, episode logging, gap resolvability classification, clinical subtype posterior, **clinical trial eligibility matching**, **adversarial protocol verification**, **PRO-ACT trajectory matching**
+- **Research Loop** — 30 action types, Thompson sampling policy (with fixed-cycle fallback), hypothesis system, causal chain construction (depth 10), protocol convergence detection, episode logging, gap resolvability classification, clinical subtype posterior, **clinical trial eligibility matching**, **adversarial protocol verification**, **PRO-ACT trajectory matching**, **stagnation detection and recovery**
 
 ### Stage 2: Research (Running 24/7)
 
@@ -201,6 +201,35 @@ The converged protocol is not a final answer — it is the **best answer given c
 - **New research publishes** — the loop discovers new evidence and regenerates
 
 The system re-enters active research mode automatically when new data changes the protocol's top-3 interventions.
+
+---
+
+## Phase 8: Production Deadlock Fix (March 30, 2026)
+
+Five fixes to break Erik's hypothesis deadlock and restore evidence flow after production observation showed the loop stuck generating hypotheses without validating or expiring them.
+
+### Thompson Path: VALIDATE_HYPOTHESIS Integration
+The Thompson sampling path never included `VALIDATE_HYPOTHESIS` as a candidate action — only the fixed-cycle path could validate. This meant Thompson mode accumulated hypotheses to `max_active` (10) and then deadlocked: `GENERATE_HYPOTHESIS` was infeasible (at cap), but no path existed to resolve them. Fix: `VALIDATE_HYPOTHESIS` added to Thompson candidate list with feasibility guard (only when `active_hypotheses` is non-empty), plus `_build_thompson_params` handles parameter construction.
+
+### Hypothesis Expiry at Max Active
+`_maybe_expire_hypotheses` only expired based on validation-ratio (avg validations per hypothesis > threshold). But if no validations ever ran (Thompson deadlock above), the ratio was 0/N and expiry never triggered. Fix: force-expire the oldest hypothesis when `len(active_hypotheses) >= max_active`, breaking the deadlock. Thompson path now also calls `_maybe_expire_hypotheses` before action selection.
+
+### Galen SCM Causal Depth Inflation
+`query_galen_scm` reported `causal_depth_added=1` even when all evidence was duplicate (DB delta = 0). This inflated Thompson success signal and causal chain scores despite producing no new knowledge. Fix: when `_true_new == 0`, zero out `causal_depth_added` — no new evidence means no real causal depth gained.
+
+### DrugBank Encoding Fix
+DrugBank CSV files contain non-UTF-8 bytes (e.g., `0xb0` degree symbol in drug names). Both `_VOCAB_PATH` and `_TARGET_LINKS_PATH` reads crashed with `UnicodeDecodeError`. Fix: `errors="replace"` on both `open()` calls.
+
+### CHALLENGE_INTERVENTION Executor
+`ActionType.CHALLENGE_INTERVENTION` existed (from Phase 4C adversarial verification) but was missing from the dispatch table in `_execute_action()`. Any Thompson selection of this action returned "Unknown action". Fix: wired `_exec_challenge_intervention` into dispatch with full PubMed adversarial query pipeline and challenge count tracking in state.
+
+### Evidence Stagnation Detection
+New stagnation recovery mechanism: checkpoints total evidence count every 50 steps, and when growth falls below `stagnation_min_growth` (default 5) over a `stagnation_detection_window` (default 200 steps), the system expires half of active hypotheses and resets all Thompson posteriors to (1.0, 1.0). This breaks out of local minima where the loop is cycling through unproductive actions.
+
+### Results
+- 19 new tests covering all 5 fixes
+- 1,212 total tests, 0 regressions
+- 3 pre-existing external API test failures (ClinicalTrials.gov 404, OpenTargets schema change, stale action count assertion)
 
 ---
 

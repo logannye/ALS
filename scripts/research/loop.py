@@ -74,6 +74,10 @@ def research_step(
                 _db_count_after = evidence_store.count_by_type("EvidenceItem")
                 _true_new = max(0, _db_count_after - _db_count_before)
                 result.evidence_items_added = _true_new
+                # No new evidence = no real causal depth gained (prevents
+                # phantom rewards from duplicate upserts, e.g. Galen SCM)
+                if _true_new == 0 and result.causal_depth_added > 0:
+                    result.causal_depth_added = 0
             except Exception:
                 pass  # Fall back to connector-reported count
 
@@ -183,6 +187,13 @@ def research_step(
         int_id = params["intervention_id"]
         causal_chains[int_id] = causal_chains.get(int_id, 0) + result.causal_depth_added
 
+    # Update challenge counts
+    challenge_counts = dict(state.challenge_counts)
+    if action == ActionType.CHALLENGE_INTERVENTION and result.detail:
+        challenged = result.detail.get("challenged_intervention", "")
+        if challenged:
+            challenge_counts[challenged] = challenge_counts.get(challenged, 0) + 1
+
     # Track consecutive same-action count for diversity cap
     if action_key == state.last_action:
         _consecutive = state.consecutive_same_action + 1
@@ -219,6 +230,7 @@ def research_step(
         protocol_stable_cycles=protocol_stable_cycles,
         active_hypotheses=active_hyps,
         causal_chains=causal_chains,
+        challenge_counts=challenge_counts,
         resolved_hypotheses=state.resolved_hypotheses + (1 if result.hypothesis_resolved else 0),
         consecutive_same_action=_consecutive,
         last_action_per_type=_last_action_per_type,
@@ -229,7 +241,49 @@ def research_step(
     # 5b. Update uncertainty score (used by convergence quality gate)
     new_state = replace(new_state, uncertainty_score=compute_uncertainty_score(new_state))
 
-    # 5c. Extract entities/relationships into KG when new evidence was added
+    # 5c. Stagnation detection: check if evidence has grown over last N steps
+    try:
+        from config.loader import ConfigLoader
+        _stag_cfg = ConfigLoader()
+        _stag_window = _stag_cfg.get("stagnation_detection_window", 200)
+        _stag_min_growth = _stag_cfg.get("stagnation_min_growth", 5)
+    except Exception:
+        _stag_window, _stag_min_growth = 200, 5
+
+    _evidence_at_step = dict(new_state.evidence_at_step)
+    _checkpoint_interval = 50
+    if new_step % _checkpoint_interval == 0:
+        _evidence_at_step[new_step] = total_evidence
+
+    _stag_detected = False
+    if new_step > _stag_window and _evidence_at_step:
+        _ref_candidates = [k for k in _evidence_at_step if k <= new_step - _stag_window]
+        if _ref_candidates:
+            _ref_step = max(_ref_candidates)
+            _growth = total_evidence - _evidence_at_step[_ref_step]
+            if _growth < _stag_min_growth:
+                _stag_detected = True
+
+    if _stag_detected:
+        _active = list(new_state.active_hypotheses)
+        _n_expire = max(1, len(_active) // 2)
+        for _ in range(_n_expire):
+            if _active:
+                _active.pop(0)
+        _reset_posteriors = {k: (1.0, 1.0) for k in new_state.action_posteriors}
+        _resets = new_state.stagnation_resets + 1
+        new_state = replace(
+            new_state,
+            active_hypotheses=_active,
+            action_posteriors=_reset_posteriors,
+            stagnation_resets=_resets,
+            evidence_at_step=_evidence_at_step,
+        )
+        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors")
+    else:
+        new_state = replace(new_state, evidence_at_step=_evidence_at_step)
+
+    # 5d. Extract entities/relationships into KG when new evidence was added
     if result.evidence_items_added > 0:
         try:
             from config.loader import ConfigLoader
@@ -497,6 +551,7 @@ def _execute_action(
             ActionType.QUERY_DRUGBANK: _exec_query_drugbank,
             ActionType.QUERY_ALPHAFOLD: _exec_query_alphafold,
             ActionType.QUERY_REACTOME_LOCAL: _exec_query_reactome_local,
+            ActionType.CHALLENGE_INTERVENTION: _exec_challenge_intervention,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -1424,4 +1479,79 @@ def _exec_query_bindingdb(
         error="; ".join(cr.errors) if cr.errors else None,
         protocol_layer="root_cause_suppression",
         evidence_strength="strong" if cr.evidence_items_added > 0 else None,
+    )
+
+
+def _exec_challenge_intervention(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Adversarially challenge the highest-priority intervention."""
+    from research.adversarial import (
+        generate_adversarial_queries,
+        select_challenge_target,
+    )
+    from connectors.pubmed import PubMedConnector
+
+    try:
+        from config.loader import ConfigLoader
+        max_challenges = ConfigLoader().get("adversarial_max_challenges_per_intervention", 3)
+    except Exception:
+        max_challenges = 3
+
+    intervention_scores = {k: float(v) for k, v in state.causal_chains.items()}
+    if not intervention_scores:
+        return ActionResult(
+            action=ActionType.CHALLENGE_INTERVENTION,
+            success=False,
+            error="No interventions to challenge",
+        )
+
+    target = select_challenge_target(
+        intervention_scores, state.challenge_counts, max_challenges,
+    )
+    if target is None:
+        return ActionResult(
+            action=ActionType.CHALLENGE_INTERVENTION,
+            success=False,
+            error="All interventions fully challenged",
+        )
+
+    drug_name = target.replace("int:", "").replace("_", " ").title()
+
+    # Get mechanism from evidence if available
+    mechanism = ""
+    try:
+        from evidence.evidence_store import EvidenceStore
+        evi_items = store.query_objects(type_filter="EvidenceItem", limit=5)
+        for item in evi_items:
+            body = item.get("body", {}) if isinstance(item, dict) else getattr(item, "body", {})
+            mech = body.get("mechanism_of_action", body.get("claim", ""))
+            if mech and drug_name.lower() in mech.lower():
+                mechanism = str(mech)[:200]
+                break
+    except Exception:
+        pass
+
+    queries = generate_adversarial_queries(drug_name, mechanism)
+
+    connector = PubMedConnector(store=store)
+    total_added = 0
+    for query in queries:
+        cr = connector.fetch(query=query, max_results=5)
+        total_added += cr.evidence_items_added
+
+    if total_added > 0:
+        print(f"[RESEARCH] challenge_intervention: +{total_added} items challenging {drug_name}")
+
+    return ActionResult(
+        action=ActionType.CHALLENGE_INTERVENTION,
+        success=True,
+        evidence_items_added=total_added,
+        protocol_layer="adaptive_maintenance",
+        evidence_strength="moderate" if total_added > 0 else None,
+        detail={
+            "challenged_intervention": target,
+            "drug_name": drug_name,
+            "queries_used": len(queries),
+        },
     )

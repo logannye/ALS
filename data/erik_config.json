@@ -82,5 +82,8 @@
   "computation_depmap_path": "/Volumes/Databank/databases/depmap/CRISPRGeneEffect.parquet",
   "computation_gdsc_path": "/Volumes/Databank/databases/gdsc/GDSC2_fitted_dose_response.parquet",
   "alsod_enabled": true,
-  "protocol_max_per_layer": 3
+  "protocol_max_per_layer": 3,
+  "stagnation_detection_window": 200,
+  "stagnation_min_growth": 5,
+  "adversarial_max_challenges_per_intervention": 3
 }

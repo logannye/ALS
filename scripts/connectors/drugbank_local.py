@@ -44,7 +44,7 @@ class DrugBankLocalConnector(BaseConnector):
 
         # Load vocabulary
         if Path(_VOCAB_PATH).exists():
-            with open(_VOCAB_PATH, "r", encoding="utf-8") as f:
+            with open(_VOCAB_PATH, "r", encoding="utf-8", errors="replace") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     dbid = row.get("DrugBank ID", "")
@@ -58,7 +58,7 @@ class DrugBankLocalConnector(BaseConnector):
 
         # Load target links (UniProt -> DrugBank IDs)
         if Path(_TARGET_LINKS_PATH).exists():
-            with open(_TARGET_LINKS_PATH, "r", encoding="utf-8") as f:
+            with open(_TARGET_LINKS_PATH, "r", encoding="utf-8", errors="replace") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     uniprot = row.get("UniProt ID", "")

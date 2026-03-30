@@ -36,6 +36,8 @@ class ResearchState:
     last_action_per_type: dict[str, int] = field(default_factory=dict)
     last_gap_layers: list[str] = field(default_factory=list)
     consecutive_same_action: int = 0
+    evidence_at_step: dict[int, int] = field(default_factory=dict)
+    stagnation_resets: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -65,6 +67,8 @@ class ResearchState:
             "last_action_per_type": dict(self.last_action_per_type),
             "last_gap_layers": list(self.last_gap_layers),
             "consecutive_same_action": self.consecutive_same_action,
+            "evidence_at_step": {str(k): v for k, v in self.evidence_at_step.items()},
+            "stagnation_resets": self.stagnation_resets,
         }
 
     @classmethod
@@ -75,6 +79,8 @@ class ResearchState:
                 continue
             if k == "action_posteriors" and isinstance(v, dict):
                 clean[k] = {key: tuple(val) for key, val in v.items()}
+            elif k == "evidence_at_step" and isinstance(v, dict):
+                clean[k] = {int(key): val for key, val in v.items()}
             else:
                 clean[k] = v
         return cls(**clean)

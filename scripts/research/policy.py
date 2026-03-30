@@ -254,6 +254,8 @@ def _action_is_feasible(action: ActionType, state: ResearchState, target_depth: 
         except Exception:
             max_active = 10
         return len(state.active_hypotheses) < max_active
+    if action == ActionType.VALIDATE_HYPOTHESIS:
+        return len(state.active_hypotheses) > 0
     return True  # Acquisition actions are always feasible
 
 
@@ -267,9 +269,14 @@ def select_action_thompson(
     if state.new_evidence_since_regen >= regen_threshold and state.protocol_version >= 1:
         return ActionType.REGENERATE_PROTOCOL, build_action_params(ActionType.REGENERATE_PROTOCOL)
 
+    # Expire stale hypotheses (same as cycle path — prevents deadlock)
+    _maybe_expire_hypotheses(state)
+
     # Build the full candidate action type list, filtering infeasible actions
     all_types: list[ActionType] = list(set(_ACQUISITION_ROTATION))
     all_types.extend([ActionType.GENERATE_HYPOTHESIS, ActionType.DEEPEN_CAUSAL_CHAIN])
+    if state.active_hypotheses:
+        all_types.append(ActionType.VALIDATE_HYPOTHESIS)
     if hasattr(ActionType, "CHALLENGE_INTERVENTION"):
         all_types.append(ActionType.CHALLENGE_INTERVENTION)
 
@@ -320,6 +327,15 @@ def _build_thompson_params(
     """
     if action == ActionType.GENERATE_HYPOTHESIS:
         return ActionType.GENERATE_HYPOTHESIS, build_action_params(ActionType.GENERATE_HYPOTHESIS)
+    elif action == ActionType.VALIDATE_HYPOTHESIS:
+        if state.active_hypotheses:
+            hyp_id = state.active_hypotheses[0]
+            return action, build_action_params(action, hypothesis_id=hyp_id)
+        # No hypotheses to validate — fall back to acquisition
+        return _build_acquisition_params(
+            _ACQUISITION_ROTATION[state.step_count % len(_ACQUISITION_ROTATION)],
+            state, state.step_count,
+        )
     elif action == ActionType.DEEPEN_CAUSAL_CHAIN:
         shallow = [(k, v) for k, v in state.causal_chains.items() if v < target_depth]
         if shallow:
@@ -725,18 +741,31 @@ def _count_consecutive_validations(state: ResearchState) -> int:
 
 
 def _maybe_expire_hypotheses(state: ResearchState) -> None:
-    """Remove hypotheses that have been validated too many times without resolution.
+    """Remove stale hypotheses. Two mechanisms:
+
+    1. At max_active: force-expire oldest to prevent deadlock
+    2. Validation-ratio: original logic for over-validated hypotheses
 
     Modifies state.active_hypotheses in place (mutable list).
     """
+    if not state.active_hypotheses:
+        return
+    try:
+        from config.loader import ConfigLoader
+        max_active = ConfigLoader().get("research_hypothesis_max_active", 10)
+    except Exception:
+        max_active = 10
+    # Force-expire when at capacity (breaks deadlock)
+    if len(state.active_hypotheses) >= max_active:
+        state.active_hypotheses.pop(0)
+        state.resolved_hypotheses += 1
+        return
+    # Original validation-ratio expiry
     val_count = state.action_counts.get("validate_hypothesis", 0)
     hyp_count = len(state.active_hypotheses)
-
     if hyp_count > 0 and val_count > 0:
-        # Average validations per hypothesis
         avg_validations = val_count / max(hyp_count + state.resolved_hypotheses, 1)
         if avg_validations > _MAX_VALIDATION_ATTEMPTS_PER_HYP:
-            # Expire the oldest hypothesis
             if state.active_hypotheses:
-                expired = state.active_hypotheses.pop(0)
-                state.resolved_hypotheses += 1  # Count as resolved (inconclusive)
+                state.active_hypotheses.pop(0)
+                state.resolved_hypotheses += 1
