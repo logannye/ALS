@@ -159,6 +159,14 @@ _ACQUISITION_ROTATION = [
     ActionType.QUERY_GALEN_SCM,
     ActionType.RUN_COMPUTATION,
     ActionType.QUERY_ALSOD,
+    ActionType.QUERY_GTEX,
+    ActionType.QUERY_CLINVAR,
+    ActionType.QUERY_GWAS,
+    ActionType.QUERY_BINDINGDB,
+    ActionType.QUERY_HPA,
+    ActionType.QUERY_DRUGBANK,
+    ActionType.QUERY_ALPHAFOLD,
+    ActionType.QUERY_REACTOME_LOCAL,
 ]
 
 # The balanced 5-step cycle
@@ -656,6 +664,27 @@ def _build_acquisition_params(
         from connectors.alsod import ERIK_PRIORITY_GENES
         gene = ERIK_PRIORITY_GENES[step % len(ERIK_PRIORITY_GENES)]
         return action, build_action_params(action, gene=gene, protocol_layer="root_cause_suppression")
+
+    elif action in (ActionType.QUERY_GTEX, ActionType.QUERY_CLINVAR, ActionType.QUERY_GWAS,
+                    ActionType.QUERY_HPA, ActionType.QUERY_DRUGBANK, ActionType.QUERY_ALPHAFOLD,
+                    ActionType.QUERY_REACTOME_LOCAL):
+        # All gene-rotating connectors: pick ALS target by step
+        from targets.als_targets import ALS_TARGETS
+        target_keys = list(ALS_TARGETS.keys())
+        if target_keys:
+            target = ALS_TARGETS[target_keys[step % len(target_keys)]]
+            gene = target.get("gene", "TARDBP")
+            return action, build_action_params(action, gene=gene, protocol_layer="root_cause_suppression")
+        return action, build_action_params(action, gene="TARDBP", protocol_layer="root_cause_suppression")
+
+    elif action == ActionType.QUERY_BINDINGDB:
+        # BindingDB needs drug + gene pair
+        interventions = list(state.causal_chains.keys())
+        from targets.als_targets import ALS_TARGETS
+        target_keys = list(ALS_TARGETS.keys())
+        drug = interventions[step % len(interventions)].replace("int:", "") if interventions else "riluzole"
+        gene = ALS_TARGETS[target_keys[step % len(target_keys)]].get("gene", "TARDBP") if target_keys else "TARDBP"
+        return action, build_action_params(action, drug=drug, gene=gene, protocol_layer="root_cause_suppression")
 
     return _fallback_acquisition(state, step, skip=action)
 

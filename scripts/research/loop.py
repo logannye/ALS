@@ -489,6 +489,14 @@ def _execute_action(
             ActionType.QUERY_GALEN_SCM: _exec_query_galen_scm,
             ActionType.RUN_COMPUTATION: _exec_run_computation,
             ActionType.QUERY_ALSOD: _exec_query_alsod,
+            ActionType.QUERY_GTEX: _exec_query_gtex,
+            ActionType.QUERY_CLINVAR: _exec_query_clinvar,
+            ActionType.QUERY_GWAS: _exec_query_gwas,
+            ActionType.QUERY_BINDINGDB: _exec_query_bindingdb,
+            ActionType.QUERY_HPA: _exec_query_hpa,
+            ActionType.QUERY_DRUGBANK: _exec_query_drugbank,
+            ActionType.QUERY_ALPHAFOLD: _exec_query_alphafold,
+            ActionType.QUERY_REACTOME_LOCAL: _exec_query_reactome_local,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -1334,4 +1342,86 @@ def _exec_query_alsod(
         error="; ".join(cr.errors) if cr.errors else None,
         protocol_layer="root_cause_suppression",
         evidence_strength="strong",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 database connectors — all follow the same pattern:
+# 1. Select gene from ALS targets (rotated by step)
+# 2. Call connector.fetch(gene=gene)
+# 3. Return ActionResult with evidence count
+# ---------------------------------------------------------------------------
+
+def _make_als_gene_executor(connector_class_path: str, action_type: ActionType, **extra_kwargs):
+    """Factory for ALS-target-rotating executor functions."""
+    def executor(params: dict, state: ResearchState, store: Any, llm_manager: Any) -> ActionResult:
+        from targets.als_targets import ALS_TARGETS
+        target_keys = list(ALS_TARGETS.keys())
+        target = ALS_TARGETS[target_keys[state.step_count % len(target_keys)]]
+        gene = params.get("gene", target.get("gene", "TARDBP"))
+        uniprot = target.get("uniprot_id", "")
+
+        # Dynamically import the connector
+        module_name, class_name = connector_class_path.rsplit(".", 1)
+        import importlib
+        mod = importlib.import_module(module_name)
+        cls = getattr(mod, class_name)
+        connector = cls(store=store, **extra_kwargs)
+
+        cr = connector.fetch(gene=gene, uniprot=uniprot)
+        if cr.evidence_items_added > 0:
+            print(f"[RESEARCH] {action_type.value}: +{cr.evidence_items_added} items for {gene}")
+
+        return ActionResult(
+            action=action_type,
+            success=not cr.errors,
+            evidence_items_added=cr.evidence_items_added,
+            error="; ".join(cr.errors) if cr.errors else None,
+            protocol_layer="root_cause_suppression",
+            evidence_strength="strong" if cr.evidence_items_added > 0 else None,
+        )
+    return executor
+
+
+_exec_query_gtex = _make_als_gene_executor("connectors.gtex.GTExConnector", ActionType.QUERY_GTEX)
+_exec_query_clinvar = _make_als_gene_executor("connectors.clinvar_local.ClinVarLocalConnector", ActionType.QUERY_CLINVAR)
+_exec_query_gwas = _make_als_gene_executor("connectors.gwas_catalog.GWASCatalogConnector", ActionType.QUERY_GWAS)
+_exec_query_hpa = _make_als_gene_executor("connectors.hpa.HPAConnector", ActionType.QUERY_HPA)
+_exec_query_drugbank = _make_als_gene_executor("connectors.drugbank_local.DrugBankLocalConnector", ActionType.QUERY_DRUGBANK)
+_exec_query_alphafold = _make_als_gene_executor("connectors.alphafold_local.AlphaFoldLocalConnector", ActionType.QUERY_ALPHAFOLD)
+_exec_query_reactome_local = _make_als_gene_executor("connectors.reactome_local.ReactomeLocalConnector", ActionType.QUERY_REACTOME_LOCAL)
+
+
+def _exec_query_bindingdb(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query BindingDB for drug-target binding affinities."""
+    from connectors.bindingdb import BindingDBConnector
+    from targets.als_targets import ALS_TARGETS
+
+    # Rotate through drug-target pairs
+    interventions = list(state.causal_chains.keys())
+    target_keys = list(ALS_TARGETS.keys())
+
+    drug = ""
+    gene = ""
+    if interventions:
+        drug = interventions[state.step_count % len(interventions)].replace("int:", "")
+    if target_keys:
+        target = ALS_TARGETS[target_keys[(state.step_count // max(len(interventions), 1)) % len(target_keys)]]
+        gene = target.get("gene", "")
+
+    connector = BindingDBConnector(store=store)
+    cr = connector.fetch(gene=gene, drug=drug)
+
+    if cr.evidence_items_added > 0:
+        print(f"[RESEARCH] BindingDB: +{cr.evidence_items_added} items for {drug}/{gene}")
+
+    return ActionResult(
+        action=ActionType.QUERY_BINDINGDB,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+        protocol_layer="root_cause_suppression",
+        evidence_strength="strong" if cr.evidence_items_added > 0 else None,
     )

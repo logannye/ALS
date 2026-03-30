@@ -26,12 +26,10 @@ class TestSelectAction:
         for step in [0, 2, 4, 5, 7, 9]:  # positions 0,2,4 in first two cycles
             state = self._state(step_count=step)
             action, _ = _select_action_cycle(state, regen_threshold=100)
-            assert action in {
-                ActionType.SEARCH_PUBMED, ActionType.SEARCH_TRIALS,
-                ActionType.QUERY_PATHWAYS, ActionType.QUERY_PPI_NETWORK,
-                ActionType.CHECK_PHARMACOGENOMICS, ActionType.QUERY_GALEN_KG,
-                ActionType.SEARCH_PREPRINTS, ActionType.QUERY_GALEN_SCM,
-            }, f"Step {step} (cycle pos {step % _CYCLE_LENGTH}) should be acquisition, got {action}"
+            from research.policy import _ACQUISITION_ROTATION
+            assert action in set(_ACQUISITION_ROTATION), (
+                f"Step {step} (cycle pos {step % _CYCLE_LENGTH}) should be acquisition, got {action}"
+            )
 
     def test_reasoning_on_reason_step(self):
         """Cycle position 1 should be reasoning (chain or hypothesis)."""

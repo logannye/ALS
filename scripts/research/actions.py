@@ -28,6 +28,14 @@ class ActionType(str, Enum):
     QUERY_GALEN_SCM = "query_galen_scm"
     RUN_COMPUTATION = "run_computation"
     QUERY_ALSOD = "query_alsod"
+    QUERY_GTEX = "query_gtex"
+    QUERY_CLINVAR = "query_clinvar"
+    QUERY_GWAS = "query_gwas"
+    QUERY_BINDINGDB = "query_bindingdb"
+    QUERY_HPA = "query_hpa"
+    QUERY_DRUGBANK = "query_drugbank"
+    QUERY_ALPHAFOLD = "query_alphafold"
+    QUERY_REACTOME_LOCAL = "query_reactome_local"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,
