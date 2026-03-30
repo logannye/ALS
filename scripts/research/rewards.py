@@ -70,6 +70,9 @@ def compute_reward(
     eligibility_val = 1.0 if eligibility_confirmed else 0.0
     convergence_val = 1.0 if protocol_stable else 0.0
     causal_depth_val = math.log1p(causal_depth_added) if causal_depth_added > 0 else 0.0
+    # Diminishing returns: depth without evidence is 90% discounted
+    if causal_depth_added > 0 and evidence_items_added == 0:
+        causal_depth_val *= 0.1
 
     return RewardComponents(
         evidence_gain=evidence_gain,

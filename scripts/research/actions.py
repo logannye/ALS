@@ -26,6 +26,7 @@ class ActionType(str, Enum):
     SEARCH_PREPRINTS = "search_preprints"
     CHALLENGE_INTERVENTION = "challenge_intervention"
     QUERY_GALEN_SCM = "query_galen_scm"
+    RUN_COMPUTATION = "run_computation"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,

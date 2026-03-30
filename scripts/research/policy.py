@@ -88,6 +88,33 @@ def get_layer_query(layer: str, step: int) -> str:
     return f"{base} {year}"
 
 
+def _get_targeted_query(state: ResearchState, step: int) -> str:
+    """Generate a targeted query from ALS target gene definitions.
+
+    Each of the 16 ALS targets has a gene symbol and name. Rotate through
+    targets and query templates to systematically cover the ALS literature
+    for specific molecular mechanisms.
+    """
+    from targets.als_targets import ALS_TARGETS
+    targets = list(ALS_TARGETS.values())
+    if not targets:
+        return f"ALS treatment {_dt.datetime.now().year}"
+    target = targets[step % len(targets)]
+    gene = target.get("gene", "")
+    name = target.get("name", "")
+    year = _dt.datetime.now().year
+
+    templates = [
+        f"{gene} ALS mechanism motor neuron {year}",
+        f"{gene} ALS therapeutic clinical trial {year}",
+        f"{name} neuroprotection motor neuron survival {year}",
+        f"{gene} ALS combination therapy riluzole {year}",
+        f"{gene} ALS biomarker prognosis {year}",
+        f"{name} ALS preclinical in vivo model {year}",
+    ]
+    return templates[(step // max(len(targets), 1)) % len(templates)]
+
+
 def _get_dynamic_query(state: ResearchState, step: int, layer: str) -> str:
     """Build a search query from hypothesis-generated terms when available.
 
@@ -130,6 +157,7 @@ _ACQUISITION_ROTATION = [
     ActionType.QUERY_GALEN_KG,
     ActionType.SEARCH_PREPRINTS,
     ActionType.QUERY_GALEN_SCM,
+    ActionType.RUN_COMPUTATION,
 ]
 
 # The balanced 5-step cycle
@@ -522,15 +550,24 @@ def _build_acquisition_params(
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # Alternate: even steps use static queries, odd use hypothesis-derived
-        if step % 2 == 0:
+        # 3-strategy cycling: static → dynamic → targeted
+        strategy = step % 3
+        if strategy == 0:
             query = get_layer_query(layer, step)
-        else:
+        elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
+        else:
+            query = _get_targeted_query(state, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
-        return action, build_action_params(action, protocol_layer="circuit_stabilization")
+        # Rotate through protocol interventions and layers
+        interventions = list(state.causal_chains.keys())
+        if interventions:
+            int_name = interventions[step % len(interventions)].replace("int:", "")
+            layer = ALL_LAYERS[step % len(ALL_LAYERS)]
+            return action, build_action_params(action, query=f"ALS {int_name}", protocol_layer=layer)
+        return action, build_action_params(action, protocol_layer=ALL_LAYERS[step % len(ALL_LAYERS)])
 
     elif action == ActionType.QUERY_PATHWAYS:
         from targets.als_targets import ALS_TARGETS
@@ -588,11 +625,14 @@ def _build_acquisition_params(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # Alternate: even steps use static queries, odd use hypothesis-derived
-        if step % 2 == 0:
+        # 3-strategy cycling: static → dynamic → targeted
+        strategy = step % 3
+        if strategy == 0:
             query = get_layer_query(layer, step)
-        else:
+        elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
+        else:
+            query = _get_targeted_query(state, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:
@@ -607,6 +647,9 @@ def _build_acquisition_params(
         gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
         gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
         return action, build_action_params(action, target_gene=gene, protocol_layer="root_cause_suppression")
+
+    elif action == ActionType.RUN_COMPUTATION:
+        return action, build_action_params(action, protocol_layer="root_cause_suppression")
 
     return _fallback_acquisition(state, step, skip=action)
 

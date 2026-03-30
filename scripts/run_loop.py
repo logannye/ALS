@@ -362,6 +362,25 @@ def main():
         state = _bootstrap_initial_protocol(state, evidence_store, llm_manager)
         _persist_state(state, evidence_store)
 
+    # Backfill KG entities from existing evidence (idempotent, runs once on unextracted items)
+    if cfg.get("kg_extraction_enabled", True):
+        try:
+            from knowledge_quality.entity_extractor import extract_kg_from_evidence
+            total_entities = 0
+            total_rels = 0
+            while True:
+                stats = extract_kg_from_evidence(batch_size=100)
+                if stats["items_processed"] == 0:
+                    break
+                total_entities += stats["entities_created"]
+                total_rels += stats["relationships_created"]
+            if total_entities > 0:
+                print(f"[ERIK] KG backfill: {total_entities} entities, {total_rels} relationships")
+            else:
+                print("[ERIK] KG: all evidence already extracted")
+        except Exception as e:
+            print(f"[ERIK] KG backfill skipped: {e}")
+
     # Config
     regen_threshold = cfg.get("research_protocol_regen_threshold", 15)
     active_pause = cfg.get("research_inter_step_pause_s", 1.0)

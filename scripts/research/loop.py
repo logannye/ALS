@@ -229,6 +229,24 @@ def research_step(
     # 5b. Update uncertainty score (used by convergence quality gate)
     new_state = replace(new_state, uncertainty_score=compute_uncertainty_score(new_state))
 
+    # 5c. Extract entities/relationships into KG when new evidence was added
+    if result.evidence_items_added > 0:
+        try:
+            from config.loader import ConfigLoader
+            _kg_cfg = ConfigLoader()
+            _kg_enabled = _kg_cfg.get("kg_extraction_enabled", True)
+        except Exception:
+            _kg_enabled = True
+        if _kg_enabled:
+            try:
+                from knowledge_quality.entity_extractor import extract_kg_from_evidence
+                _kg_stats = extract_kg_from_evidence(batch_size=result.evidence_items_added + 10)
+                if _kg_stats["entities_created"] > 0:
+                    print(f"[RESEARCH] KG: +{_kg_stats['entities_created']} entities, "
+                          f"+{_kg_stats['relationships_created']} relationships")
+            except Exception:
+                pass  # Never crash the loop on KG extraction failure
+
     # 6. Log episode (best-effort, do not fail the step)
     try:
         _episode = build_episode(
@@ -469,6 +487,7 @@ def _execute_action(
             ActionType.QUERY_GALEN_KG: _exec_query_galen_kg,
             ActionType.SEARCH_PREPRINTS: _exec_search_preprints,
             ActionType.QUERY_GALEN_SCM: _exec_query_galen_scm,
+            ActionType.RUN_COMPUTATION: _exec_run_computation,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -782,8 +801,33 @@ def _exec_validate_hypothesis(
 
     resolved = total_added > 0
 
-    if resolved:
-        print(f"[RESEARCH] Hypothesis {hypothesis_id[:20]}... validated with {total_added} evidence items")
+    # Update hypothesis status in DB (was never done before — all stayed "generated")
+    if resolved and hypothesis_id:
+        try:
+            from research.hypotheses import HypothesisStatus
+            from db.pool import get_connection
+            new_status = HypothesisStatus.SUPPORTED.value if total_added >= 2 else HypothesisStatus.SEARCHING.value
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE erik_core.objects
+                        SET body = jsonb_set(
+                            jsonb_set(body, '{status}', %s::jsonb),
+                            '{validation_evidence_count}', %s::jsonb
+                        ),
+                        updated_at = NOW()
+                        WHERE id = %s AND status = 'active'
+                    """, (
+                        f'"{new_status}"',
+                        str(total_added),
+                        hypothesis_id,
+                    ))
+                conn.commit()
+            print(f"[RESEARCH] Hypothesis {hypothesis_id[:20]}... → {new_status} ({total_added} evidence items)")
+        except Exception as e:
+            print(f"[RESEARCH] Hypothesis status update failed: {e}")
+    elif resolved:
+        print(f"[RESEARCH] Hypothesis validated with {total_added} evidence items")
 
     return ActionResult(
         action=ActionType.VALIDATE_HYPOTHESIS,
@@ -1178,7 +1222,79 @@ def _exec_query_galen_scm(
         action=ActionType.QUERY_GALEN_SCM,
         success=True,
         evidence_items_added=added,
-        causal_depth_added=1 if edges else 0,
+        causal_depth_added=1 if added > 0 else 0,  # Only reward depth when NEW evidence produced
         protocol_layer=params.get("protocol_layer", "root_cause_suppression"),
         evidence_strength="preclinical",
+    )
+
+
+def _exec_run_computation(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Run an in-silico computational experiment on ALS targets/drugs."""
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
+
+    if cfg and not cfg.get("computation_enabled", True):
+        return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                            error="Computation disabled in config")
+
+    chembl_path = cfg.get("computation_chembl_path", "/Volumes/Databank/databases/chembl_36.db") if cfg else "/Volumes/Databank/databases/chembl_36.db"
+    depmap_path = cfg.get("computation_depmap_path", "/Volumes/Databank/databases/depmap/CRISPRGeneEffect.parquet") if cfg else ""
+    gdsc_path = cfg.get("computation_gdsc_path", "/Volumes/Databank/databases/gdsc/GDSC2_fitted_dose_response.parquet") if cfg else ""
+
+    from executors.als_computation_executor import ALSComputationExecutor
+    executor = ALSComputationExecutor(
+        chembl_path=chembl_path, depmap_path=depmap_path, gdsc_path=gdsc_path,
+    )
+
+    # Rotate through experiment types and targets
+    from targets.als_targets import ALS_TARGETS
+    exp_types = ["gene_essentiality", "binding_affinity", "drug_sensitivity", "drug_interactions"]
+    exp_type = exp_types[state.step_count % len(exp_types)]
+
+    target_keys = list(ALS_TARGETS.keys())
+    interventions = list(state.causal_chains.keys())
+
+    if exp_type == "gene_essentiality" and target_keys:
+        target = ALS_TARGETS[target_keys[state.step_count % len(target_keys)]]
+        gene = target.get("gene", "TARDBP")
+        result = executor.run_experiment(exp_type, target=gene, gene=gene)
+    elif exp_type == "binding_affinity" and interventions and target_keys:
+        drug_name = interventions[state.step_count % len(interventions)].replace("int:", "")
+        target = ALS_TARGETS[target_keys[(state.step_count // len(interventions)) % len(target_keys)]]
+        gene = target.get("gene", "TARDBP")
+        result = executor.run_experiment(exp_type, target=f"{drug_name}-{gene}", drug=drug_name, gene=gene)
+    elif exp_type == "drug_sensitivity" and interventions:
+        drug_name = interventions[state.step_count % len(interventions)].replace("int:", "")
+        result = executor.run_experiment(exp_type, target=drug_name, drug=drug_name)
+    elif exp_type == "drug_interactions" and interventions:
+        drug_name = interventions[state.step_count % len(interventions)].replace("int:", "")
+        result = executor.run_experiment(exp_type, target=drug_name, drug=drug_name)
+    else:
+        return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                            error="No targets or interventions to compute on")
+
+    # Store evidence items
+    added = 0
+    for fact in result.facts:
+        try:
+            store.upsert_object(fact)
+            added += 1
+        except Exception:
+            continue
+
+    if added > 0:
+        print(f"[RESEARCH] Computation ({exp_type}): +{added} evidence items")
+
+    return ActionResult(
+        action=ActionType.RUN_COMPUTATION,
+        success=result.success,
+        evidence_items_added=added,
+        error=result.error,
+        protocol_layer=result.facts[0].body.get("protocol_layer", "root_cause_suppression") if result.facts else None,
+        evidence_strength="strong" if added > 0 else None,
     )

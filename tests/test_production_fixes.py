@@ -446,6 +446,7 @@ class TestActionDominancePrevention:
             "query_ppi_network", "check_pharmacogenomics",
             "query_galen_kg", "search_preprints", "query_galen_scm",
             "generate_hypothesis", "challenge_intervention",
+            "run_computation",
         ]
         last_used = {name: base_step - 1 for name in all_action_names}
         state = replace(
