@@ -488,6 +488,7 @@ def _execute_action(
             ActionType.SEARCH_PREPRINTS: _exec_search_preprints,
             ActionType.QUERY_GALEN_SCM: _exec_query_galen_scm,
             ActionType.RUN_COMPUTATION: _exec_run_computation,
+            ActionType.QUERY_ALSOD: _exec_query_alsod,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -1297,4 +1298,40 @@ def _exec_run_computation(
         error=result.error,
         protocol_layer=result.facts[0].body.get("protocol_layer", "root_cause_suppression") if result.facts else None,
         evidence_strength="strong" if added > 0 else None,
+    )
+
+
+def _exec_query_alsod(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query ALSoD for ALS gene variant data."""
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
+
+    if cfg and not cfg.get("alsod_enabled", True):
+        return ActionResult(action=ActionType.QUERY_ALSOD, success=False,
+                            error="ALSoD disabled in config")
+
+    from connectors.alsod import ALSoDConnector, ERIK_PRIORITY_GENES
+
+    connector = ALSoDConnector(store=store)
+    gene = params.get("gene", "")
+    if not gene:
+        gene = ERIK_PRIORITY_GENES[state.step_count % len(ERIK_PRIORITY_GENES)]
+
+    cr = connector.fetch(gene=gene, step=state.step_count)
+
+    if cr.evidence_items_added > 0:
+        print(f"[RESEARCH] ALSoD: +{cr.evidence_items_added} items for {gene}")
+
+    return ActionResult(
+        action=ActionType.QUERY_ALSOD,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+        protocol_layer="root_cause_suppression",
+        evidence_strength="strong",
     )

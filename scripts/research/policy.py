@@ -158,6 +158,7 @@ _ACQUISITION_ROTATION = [
     ActionType.SEARCH_PREPRINTS,
     ActionType.QUERY_GALEN_SCM,
     ActionType.RUN_COMPUTATION,
+    ActionType.QUERY_ALSOD,
 ]
 
 # The balanced 5-step cycle
@@ -650,6 +651,11 @@ def _build_acquisition_params(
 
     elif action == ActionType.RUN_COMPUTATION:
         return action, build_action_params(action, protocol_layer="root_cause_suppression")
+
+    elif action == ActionType.QUERY_ALSOD:
+        from connectors.alsod import ERIK_PRIORITY_GENES
+        gene = ERIK_PRIORITY_GENES[step % len(ERIK_PRIORITY_GENES)]
+        return action, build_action_params(action, gene=gene, protocol_layer="root_cause_suppression")
 
     return _fallback_acquisition(state, step, skip=action)
 

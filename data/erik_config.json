@@ -81,5 +81,6 @@
   "computation_chembl_path": "/Volumes/Databank/databases/chembl_36.db",
   "computation_depmap_path": "/Volumes/Databank/databases/depmap/CRISPRGeneEffect.parquet",
   "computation_gdsc_path": "/Volumes/Databank/databases/gdsc/GDSC2_fitted_dose_response.parquet",
+  "alsod_enabled": true,
   "protocol_max_per_layer": 3
 }

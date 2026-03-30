@@ -441,13 +441,7 @@ class TestActionDominancePrevention:
         # All actions used very recently (step-1) so diversity floor never triggers.
         # This isolates Thompson sampling behavior.
         base_step = 100
-        all_action_names = [
-            "search_pubmed", "search_trials", "query_pathways",
-            "query_ppi_network", "check_pharmacogenomics",
-            "query_galen_kg", "search_preprints", "query_galen_scm",
-            "generate_hypothesis", "challenge_intervention",
-            "run_computation",
-        ]
+        all_action_names = [at.value for at in ActionType]
         last_used = {name: base_step - 1 for name in all_action_names}
         state = replace(
             state,
