@@ -200,6 +200,26 @@ def _apply_decay(
 _MAX_CONSECUTIVE_SAME_ACTION = 3
 
 
+def _action_is_feasible(action: ActionType, state: ResearchState, target_depth: int) -> bool:
+    """Check if an action can actually execute without falling back.
+
+    Actions that would silently convert to generate_hypothesis are
+    not feasible — they bypass the consecutive cap and waste cycles.
+    """
+    if action == ActionType.DEEPEN_CAUSAL_CHAIN:
+        shallow = [(k, v) for k, v in state.causal_chains.items() if v < target_depth]
+        return len(shallow) > 0
+    if action == ActionType.GENERATE_HYPOTHESIS:
+        # Feasible unless active hypotheses are saturated (max_active reached)
+        try:
+            from config.loader import ConfigLoader
+            max_active = ConfigLoader().get("research_hypothesis_max_active", 10)
+        except Exception:
+            max_active = 10
+        return len(state.active_hypotheses) < max_active
+    return True  # Acquisition actions are always feasible
+
+
 def select_action_thompson(
     state: ResearchState,
     regen_threshold: int = 10,
@@ -210,20 +230,23 @@ def select_action_thompson(
     if state.new_evidence_since_regen >= regen_threshold and state.protocol_version >= 1:
         return ActionType.REGENERATE_PROTOCOL, build_action_params(ActionType.REGENERATE_PROTOCOL)
 
-    # Build the full candidate action type list
+    # Build the full candidate action type list, filtering infeasible actions
     all_types: list[ActionType] = list(set(_ACQUISITION_ROTATION))
     all_types.extend([ActionType.GENERATE_HYPOTHESIS, ActionType.DEEPEN_CAUSAL_CHAIN])
     if hasattr(ActionType, "CHALLENGE_INTERVENTION"):
         all_types.append(ActionType.CHALLENGE_INTERVENTION)
 
-    # --- Consecutive-action cap: exclude the last action if repeated too many times ---
+    # Remove infeasible actions (prevents silent fallback to generate_hypothesis)
+    all_types = [at for at in all_types if _action_is_feasible(at, state, target_depth)]
+
+    # --- Consecutive-action cap: exclude the ACTUAL last action if repeated too many times ---
     excluded_action: str | None = None
     if state.consecutive_same_action >= _MAX_CONSECUTIVE_SAME_ACTION and state.last_action:
         excluded_action = state.last_action
 
     candidates = [at for at in all_types if at.value != excluded_action]
     if not candidates:
-        candidates = all_types  # safety fallback
+        candidates = all_types if all_types else list(set(_ACQUISITION_ROTATION))
 
     # Diversity floor: force any action type not used in 30 steps
     for at in candidates:
@@ -252,7 +275,12 @@ def _build_thompson_params(
     state: ResearchState,
     target_depth: int,
 ) -> tuple[ActionType, dict[str, Any]]:
-    """Build params for Thompson-selected action using existing helpers."""
+    """Build params for Thompson-selected action using existing helpers.
+
+    IMPORTANT: Never silently convert one action type to another.
+    If an action can't execute, fall back to an acquisition action
+    (not generate_hypothesis) to maintain action diversity.
+    """
     if action == ActionType.GENERATE_HYPOTHESIS:
         return ActionType.GENERATE_HYPOTHESIS, build_action_params(ActionType.GENERATE_HYPOTHESIS)
     elif action == ActionType.DEEPEN_CAUSAL_CHAIN:
@@ -260,7 +288,11 @@ def _build_thompson_params(
         if shallow:
             int_id = shallow[state.step_count % len(shallow)][0]
             return action, build_action_params(action, intervention_id=int_id)
-        return ActionType.GENERATE_HYPOTHESIS, build_action_params(ActionType.GENERATE_HYPOTHESIS)
+        # All chains full — fall back to acquisition (NOT generate_hypothesis)
+        return _build_acquisition_params(
+            _ACQUISITION_ROTATION[state.step_count % len(_ACQUISITION_ROTATION)],
+            state, state.step_count,
+        )
     elif action == ActionType.CHALLENGE_INTERVENTION:
         return action, build_action_params(action)
     elif action == ActionType.REGENERATE_PROTOCOL:

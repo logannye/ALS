@@ -16,9 +16,11 @@ from research.hypotheses import is_duplicate_hypothesis
 from research.policy import (
     _update_posteriors,
     _apply_decay,
+    _action_is_feasible,
     get_layer_query,
     _get_dynamic_query,
     _BASE_LAYER_QUERIES,
+    select_action_thompson,
 )
 from research.rewards import compute_reward
 
@@ -375,3 +377,111 @@ class TestResearchStepStateUpdates:
         state = ResearchState.from_dict(d)
         assert state.last_gap_layers == []
         assert state.action_posteriors == {}
+
+
+# ===========================================================================
+# Fix 6: Action dominance prevention
+# ===========================================================================
+
+class TestActionDominancePrevention:
+
+    def test_deepen_chain_infeasible_when_all_chains_full(self):
+        """DEEPEN_CAUSAL_CHAIN should be infeasible when all chains >= target depth."""
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(state, causal_chains={"int:drug_a": 10, "int:drug_b": 8})
+        assert not _action_is_feasible(ActionType.DEEPEN_CAUSAL_CHAIN, state, target_depth=5)
+
+    def test_deepen_chain_feasible_when_shallow_chains_exist(self):
+        """DEEPEN_CAUSAL_CHAIN should be feasible when some chains are below target."""
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(state, causal_chains={"int:drug_a": 2, "int:drug_b": 8})
+        assert _action_is_feasible(ActionType.DEEPEN_CAUSAL_CHAIN, state, target_depth=5)
+
+    def test_acquisition_actions_always_feasible(self):
+        """Acquisition actions should always be feasible."""
+        state = initial_state(subject_ref="traj:draper_001")
+        for action in [ActionType.SEARCH_PUBMED, ActionType.SEARCH_TRIALS,
+                       ActionType.QUERY_PATHWAYS, ActionType.QUERY_PPI_NETWORK,
+                       ActionType.CHECK_PHARMACOGENOMICS, ActionType.QUERY_GALEN_KG,
+                       ActionType.SEARCH_PREPRINTS, ActionType.QUERY_GALEN_SCM]:
+            assert _action_is_feasible(action, state, target_depth=5)
+
+    def test_generate_hypothesis_infeasible_at_max_active(self):
+        """GENERATE_HYPOTHESIS should be infeasible when active_hypotheses is at max."""
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(state, active_hypotheses=[f"hypothesis {i}" for i in range(10)])
+        assert not _action_is_feasible(ActionType.GENERATE_HYPOTHESIS, state, target_depth=5)
+
+    def test_generate_hypothesis_feasible_below_max(self):
+        """GENERATE_HYPOTHESIS should be feasible when below max active."""
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(state, active_hypotheses=["hypothesis 1", "hypothesis 2"])
+        assert _action_is_feasible(ActionType.GENERATE_HYPOTHESIS, state, target_depth=5)
+
+    def test_thompson_excludes_infeasible_actions(self):
+        """Thompson should not select DEEPEN_CAUSAL_CHAIN when all chains are full."""
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(
+            state,
+            causal_chains={"int:a": 10, "int:b": 10},
+            protocol_version=1,
+            step_count=100,
+        )
+        # Run 50 selections — none should be deepen_causal_chain
+        actions_selected = set()
+        for i in range(50):
+            test_state = replace(state, step_count=100 + i)
+            action, params = select_action_thompson(test_state, regen_threshold=999, target_depth=5)
+            actions_selected.add(action.value)
+        assert "deepen_causal_chain" not in actions_selected
+
+    def test_thompson_diverse_when_chains_full(self):
+        """When chains are full, Thompson should select a mix of acquisition + hypothesis actions."""
+        state = initial_state(subject_ref="traj:draper_001")
+        # All actions used very recently (step-1) so diversity floor never triggers.
+        # This isolates Thompson sampling behavior.
+        base_step = 100
+        all_action_names = [
+            "search_pubmed", "search_trials", "query_pathways",
+            "query_ppi_network", "check_pharmacogenomics",
+            "query_galen_kg", "search_preprints", "query_galen_scm",
+            "generate_hypothesis", "challenge_intervention",
+        ]
+        last_used = {name: base_step - 1 for name in all_action_names}
+        state = replace(
+            state,
+            causal_chains={"int:a": 10, "int:b": 10},
+            protocol_version=1,
+            step_count=base_step,
+            last_action_per_type=last_used,
+        )
+        actions_selected = []
+        for i in range(50):
+            test_state = replace(state, step_count=base_step + i,
+                                 last_action_per_type={k: base_step + i - 1 for k in all_action_names})
+            action, _ = select_action_thompson(test_state, regen_threshold=999, target_depth=5)
+            actions_selected.append(action.value)
+
+        unique = set(actions_selected)
+        gen_hyp_count = actions_selected.count("generate_hypothesis")
+        # Should have at least 3 different action types and gen_hypothesis should be < 80%
+        assert len(unique) >= 3, f"Only {len(unique)} action types: {unique}"
+        assert gen_hyp_count / len(actions_selected) < 0.80, (
+            f"generate_hypothesis is {gen_hyp_count}/{len(actions_selected)} = "
+            f"{gen_hyp_count/len(actions_selected):.0%}, should be < 80%"
+        )
+
+    def test_deepen_fallback_goes_to_acquisition_not_hypothesis(self):
+        """When DEEPEN_CAUSAL_CHAIN has no shallow chains, fallback should be acquisition."""
+        from research.policy import _build_thompson_params
+        state = initial_state(subject_ref="traj:draper_001")
+        state = replace(
+            state,
+            causal_chains={"int:a": 10, "int:b": 10},
+            step_count=50,
+        )
+        action, params = _build_thompson_params(ActionType.DEEPEN_CAUSAL_CHAIN, state, target_depth=5)
+        # Should NOT be generate_hypothesis
+        assert action != ActionType.GENERATE_HYPOTHESIS, (
+            f"DEEPEN_CAUSAL_CHAIN fell back to {action.value}, should be acquisition"
+        )
