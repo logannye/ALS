@@ -38,6 +38,7 @@ class ResearchState:
     consecutive_same_action: int = 0
     evidence_at_step: dict[int, int] = field(default_factory=dict)
     stagnation_resets: int = 0
+    last_stagnation_step: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -69,6 +70,7 @@ class ResearchState:
             "consecutive_same_action": self.consecutive_same_action,
             "evidence_at_step": {str(k): v for k, v in self.evidence_at_step.items()},
             "stagnation_resets": self.stagnation_resets,
+            "last_stagnation_step": self.last_stagnation_step,
         }
 
     @classmethod

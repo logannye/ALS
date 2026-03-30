@@ -74,10 +74,15 @@ def research_step(
                 _db_count_after = evidence_store.count_by_type("EvidenceItem")
                 _true_new = max(0, _db_count_after - _db_count_before)
                 result.evidence_items_added = _true_new
-                # No new evidence = no real causal depth gained (prevents
-                # phantom rewards from duplicate upserts, e.g. Galen SCM)
-                if _true_new == 0 and result.causal_depth_added > 0:
-                    result.causal_depth_added = 0
+                if _true_new == 0:
+                    # No new evidence = no real causal depth gained (prevents
+                    # phantom rewards from duplicate upserts, e.g. Galen SCM)
+                    if result.causal_depth_added > 0:
+                        result.causal_depth_added = 0
+                    # No new evidence = hypothesis not truly resolved (prevents
+                    # phantom reward=2.50 from stale duplicate PubMed results)
+                    if result.hypothesis_resolved:
+                        result.hypothesis_resolved = False
             except Exception:
                 pass  # Fall back to connector-reported count
 
@@ -247,8 +252,9 @@ def research_step(
         _stag_cfg = ConfigLoader()
         _stag_window = _stag_cfg.get("stagnation_detection_window", 200)
         _stag_min_growth = _stag_cfg.get("stagnation_min_growth", 5)
+        _stag_cooldown = _stag_cfg.get("stagnation_cooldown_steps", 50)
     except Exception:
-        _stag_window, _stag_min_growth = 200, 5
+        _stag_window, _stag_min_growth, _stag_cooldown = 200, 5, 50
 
     _evidence_at_step = dict(new_state.evidence_at_step)
     _checkpoint_interval = 50
@@ -256,7 +262,10 @@ def research_step(
         _evidence_at_step[new_step] = total_evidence
 
     _stag_detected = False
-    if new_step > _stag_window and _evidence_at_step:
+    _steps_since_last = new_step - new_state.last_stagnation_step
+    if (new_step > _stag_window
+            and _evidence_at_step
+            and _steps_since_last >= _stag_cooldown):
         _ref_candidates = [k for k in _evidence_at_step if k <= new_step - _stag_window]
         if _ref_candidates:
             _ref_step = max(_ref_candidates)
@@ -278,8 +287,9 @@ def research_step(
             action_posteriors=_reset_posteriors,
             stagnation_resets=_resets,
             evidence_at_step=_evidence_at_step,
+            last_stagnation_step=new_step,
         )
-        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors")
+        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors (cooldown {_stag_cooldown} steps)")
     else:
         new_state = replace(new_state, evidence_at_step=_evidence_at_step)
 
@@ -693,7 +703,7 @@ def _exec_generate_hypothesis(
         )
 
     # Read dedup config (hot-reloadable)
-    _dedup_threshold = 0.45
+    _dedup_threshold = 0.35
     _gap_same_type_max = 3
     try:
         from config.loader import ConfigLoader
@@ -715,13 +725,23 @@ def _exec_generate_hypothesis(
     gap = gaps[0]  # Highest priority gap
     topic = gap.get("layer", params.get("topic", "root_cause_suppression"))
 
-    # Pre-generation check: skip if too many active hypotheses target the same gap type
+    # Pre-generation check: skip if too many active hypotheses target the same gap
     _gap_type = gap.get("gap_type", "")
+    _gap_layer = gap.get("layer", "")
+    # Build match keywords from the gap description and layer
+    _match_keys = []
+    if _gap_type:
+        _match_keys.append(_gap_type.replace("_", " "))
+    if _gap_layer:
+        # For missing_data:csf_biomarkers → match "csf"
+        for part in _gap_layer.split(":"):
+            for word in part.split("_"):
+                if len(word) >= 3:
+                    _match_keys.append(word.lower())
     _same_gap_count = 0
     for h in state.active_hypotheses:
-        if _gap_type and _gap_type.replace("_", " ") in h.lower():
-            _same_gap_count += 1
-        elif gap.get("layer", "") and gap["layer"].replace("_", " ") in h.lower():
+        h_lower = h.lower()
+        if any(k in h_lower for k in _match_keys if k):
             _same_gap_count += 1
     if _same_gap_count >= _gap_same_type_max:
         return ActionResult(

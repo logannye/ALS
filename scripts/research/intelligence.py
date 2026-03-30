@@ -110,7 +110,11 @@ def analyze_protocol_gaps(
         "cortical_excitability_tms": 0.3,
     }
     for measurement in state.missing_measurements:
-        priority = missing_priority.get(measurement, 0.3)
+        base_priority = missing_priority.get(measurement, 0.3)
+        # Recency penalty: halve priority for each recent targeting of this gap
+        _gap_key = f"missing_data:{measurement}"
+        _md_recency = state.last_gap_layers.count(_gap_key) if hasattr(state, "last_gap_layers") else 0
+        priority = max(0.05, base_priority * (0.5 ** _md_recency))
         resolvability = (
             "clinical_required" if measurement in _CLINICAL_REQUIRED_MEASUREMENTS
             else "computational"
@@ -118,6 +122,7 @@ def analyze_protocol_gaps(
         gaps.append({
             "gap_type": "missing_data",
             "description": f"Missing measurement: {measurement}",
+            "layer": _gap_key,  # used by recency tracking in loop.py
             "priority": priority,
             "suggested_action": "generate_hypothesis",
             "search_queries": [f"ALS {measurement.replace('_', ' ')} clinical utility prognosis"],

@@ -85,5 +85,7 @@
   "protocol_max_per_layer": 3,
   "stagnation_detection_window": 200,
   "stagnation_min_growth": 5,
+  "stagnation_cooldown_steps": 50,
+  "hypothesis_dedup_threshold": 0.35,
   "adversarial_max_challenges_per_intervention": 3
 }
