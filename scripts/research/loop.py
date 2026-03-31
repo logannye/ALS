@@ -86,6 +86,16 @@ def research_step(
             except Exception:
                 pass  # Fall back to connector-reported count
 
+    # 2b. Update target exhaustion counter for query expansion
+    from research.query_expansion import get_exhaustion_key
+    _exhaustion_key = get_exhaustion_key(action.value, params)
+    _target_exhaustion = dict(state.target_exhaustion)
+    if _exhaustion_key:
+        if result.evidence_items_added == 0:
+            _target_exhaustion[_exhaustion_key] = _target_exhaustion.get(_exhaustion_key, 0) + 1
+        else:
+            _target_exhaustion[_exhaustion_key] = 0
+
     # 3. Compute reward
     # Estimate uncertainty before/after (proportion of layers with zero evidence)
     total_layers = max(len(state.evidence_by_layer), 1)
@@ -241,6 +251,7 @@ def research_step(
         last_action_per_type=_last_action_per_type,
         last_gap_layers=_last_gap_layers,
         action_posteriors=_posteriors,
+        target_exhaustion=_target_exhaustion,
     )
 
     # 5b. Update uncertainty score (used by convergence quality gate)

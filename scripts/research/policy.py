@@ -143,6 +143,41 @@ def _get_dynamic_query(state: ResearchState, step: int, layer: str) -> str:
     return get_layer_query(layer, step)
 
 
+def _get_expanded_query(state: ResearchState, step: int, layer: str) -> str:
+    """Generate a novel PubMed query by expanding exhausted targets via KG neighbors.
+
+    Queries the KG for genes related to the current rotation target, then builds
+    a query using neighbor gene names and ALS context. Falls back to targeted
+    query if no KG neighbors are available or expansion is disabled.
+    """
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+        if not cfg.get("query_expansion_enabled", True):
+            return _get_targeted_query(state, step)
+    except Exception:
+        return _get_targeted_query(state, step)
+
+    from targets.als_targets import ALS_TARGETS
+    from research.query_expansion import get_gene_neighbors, get_expanded_queries
+
+    targets = list(ALS_TARGETS.values())
+    if not targets:
+        return _get_targeted_query(state, step)
+    target = targets[step % len(targets)]
+    gene = target.get("gene", "")
+
+    neighbors = get_gene_neighbors(gene, max_neighbors=5, min_confidence=0.4)
+    if not neighbors:
+        return _get_targeted_query(state, step)
+
+    queries = get_expanded_queries(gene, neighbors, state)
+    if queries:
+        return queries[0]
+
+    return _get_targeted_query(state, step)
+
+
 # Legacy constant — kept for backward compat with any external readers
 LAYER_SEARCH_QUERIES: dict[str, str] = {
     layer: queries[0] for layer, queries in _BASE_LAYER_QUERIES.items()
@@ -566,6 +601,36 @@ def _select_acquisition_action(
     return _fallback_acquisition(state, step, skip=None)
 
 
+def _maybe_expand_gene(
+    gene: str,
+    action: ActionType,
+    state: ResearchState,
+) -> str:
+    """Check if a gene is exhausted for this action and expand if needed."""
+    try:
+        from config.loader import ConfigLoader
+        _cfg = ConfigLoader()
+        if not _cfg.get("query_expansion_enabled", True):
+            return gene
+        threshold = _cfg.get("query_expansion_exhaustion_threshold", 3)
+        max_neighbors = _cfg.get("query_expansion_max_neighbors", 10)
+        min_confidence = _cfg.get("query_expansion_min_confidence", 0.4)
+    except Exception:
+        return gene
+
+    from research.query_expansion import should_expand, get_expanded_gene
+    exhaustion_key = f"{gene}:{action.value}"
+    if should_expand(exhaustion_key, state, threshold=threshold):
+        expanded = get_expanded_gene(
+            gene, action.value, state,
+            max_neighbors=max_neighbors, min_confidence=min_confidence,
+        )
+        if expanded != gene:
+            print(f"[RESEARCH] EXPANSION: {exhaustion_key} exhausted, expanding to {expanded}")
+            return expanded
+    return gene
+
+
 def _build_acquisition_params(
     action: ActionType,
     state: ResearchState,
@@ -575,14 +640,16 @@ def _build_acquisition_params(
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # 3-strategy cycling: static → dynamic → targeted
-        strategy = step % 3
+        # 4-strategy cycling: static → dynamic → targeted → expanded
+        strategy = step % 4
         if strategy == 0:
             query = get_layer_query(layer, step)
         elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
-        else:
+        elif strategy == 2:
             query = _get_targeted_query(state, step)
+        else:
+            query = _get_expanded_query(state, step, layer)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
@@ -601,12 +668,14 @@ def _build_acquisition_params(
             target_idx = step % len(target_keys)
             target_key = target_keys[target_idx]
             target = ALS_TARGETS[target_key]
+            gene = target.get("gene", "")
+            gene = _maybe_expand_gene(gene, action, state)
             layers = target.get("protocol_layers", ["root_cause_suppression"])
             return action, build_action_params(
                 action,
                 target_name=target_key,
                 uniprot_id=target.get("uniprot_id", ""),
-                gene_symbol=target.get("gene", ""),
+                gene_symbol=gene,
                 protocol_layer=layers[0] if layers else "root_cause_suppression",
             )
         # Fallback: rotate to next acquisition action
@@ -619,6 +688,7 @@ def _build_acquisition_params(
         if target_genes:
             gene_idx = step % len(target_genes)
             target_key, gene = target_genes[gene_idx]
+            gene = _maybe_expand_gene(gene, action, state)
             target = ALS_TARGETS[target_key]
             layers = target.get("protocol_layers", ["root_cause_suppression"])
             return action, build_action_params(
@@ -638,6 +708,7 @@ def _build_acquisition_params(
         from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
         gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
         gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        gene = _maybe_expand_gene(gene, action, state)
         return action, build_action_params(action, genes=[gene], protocol_layer="root_cause_suppression")
 
     elif action == ActionType.SEARCH_PREPRINTS:
@@ -650,14 +721,16 @@ def _build_acquisition_params(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # 3-strategy cycling: static → dynamic → targeted
-        strategy = step % 3
+        # 4-strategy cycling: static → dynamic → targeted → expanded
+        strategy = step % 4
         if strategy == 0:
             query = get_layer_query(layer, step)
         elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
-        else:
+        elif strategy == 2:
             query = _get_targeted_query(state, step)
+        else:
+            query = _get_expanded_query(state, step, layer)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:
@@ -671,6 +744,7 @@ def _build_acquisition_params(
         from connectors.galen_kg import ALS_CROSS_REFERENCE_GENES
         gene_idx = step % len(ALS_CROSS_REFERENCE_GENES)
         gene = ALS_CROSS_REFERENCE_GENES[gene_idx]
+        gene = _maybe_expand_gene(gene, action, state)
         return action, build_action_params(action, target_gene=gene, protocol_layer="root_cause_suppression")
 
     elif action == ActionType.RUN_COMPUTATION:
@@ -679,17 +753,19 @@ def _build_acquisition_params(
     elif action == ActionType.QUERY_ALSOD:
         from connectors.alsod import ERIK_PRIORITY_GENES
         gene = ERIK_PRIORITY_GENES[step % len(ERIK_PRIORITY_GENES)]
+        gene = _maybe_expand_gene(gene, action, state)
         return action, build_action_params(action, gene=gene, protocol_layer="root_cause_suppression")
 
     elif action in (ActionType.QUERY_GTEX, ActionType.QUERY_CLINVAR, ActionType.QUERY_GWAS,
                     ActionType.QUERY_HPA, ActionType.QUERY_DRUGBANK, ActionType.QUERY_ALPHAFOLD,
                     ActionType.QUERY_REACTOME_LOCAL):
-        # All gene-rotating connectors: pick ALS target by step
+        # All gene-rotating connectors: pick ALS target by step, expand if exhausted
         from targets.als_targets import ALS_TARGETS
         target_keys = list(ALS_TARGETS.keys())
         if target_keys:
             target = ALS_TARGETS[target_keys[step % len(target_keys)]]
             gene = target.get("gene", "TARDBP")
+            gene = _maybe_expand_gene(gene, action, state)
             return action, build_action_params(action, gene=gene, protocol_layer="root_cause_suppression")
         return action, build_action_params(action, gene="TARDBP", protocol_layer="root_cause_suppression")
 
@@ -700,6 +776,7 @@ def _build_acquisition_params(
         target_keys = list(ALS_TARGETS.keys())
         drug = interventions[step % len(interventions)].replace("int:", "") if interventions else "riluzole"
         gene = ALS_TARGETS[target_keys[step % len(target_keys)]].get("gene", "TARDBP") if target_keys else "TARDBP"
+        gene = _maybe_expand_gene(gene, action, state)
         return action, build_action_params(action, drug=drug, gene=gene, protocol_layer="root_cause_suppression")
 
     return _fallback_acquisition(state, step, skip=action)

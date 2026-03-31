@@ -87,5 +87,11 @@
   "stagnation_min_growth": 5,
   "stagnation_cooldown_steps": 50,
   "hypothesis_dedup_threshold": 0.35,
-  "adversarial_max_challenges_per_intervention": 3
+  "adversarial_max_challenges_per_intervention": 3,
+  "query_expansion_enabled": true,
+  "query_expansion_exhaustion_threshold": 3,
+  "query_expansion_max_neighbors": 10,
+  "query_expansion_min_confidence": 0.4,
+  "query_expansion_llm_enabled": false,
+  "query_expansion_history_max": 500
 }

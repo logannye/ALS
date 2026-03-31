@@ -39,6 +39,9 @@ class ResearchState:
     evidence_at_step: dict[int, int] = field(default_factory=dict)
     stagnation_resets: int = 0
     last_stagnation_step: int = 0
+    target_exhaustion: dict[str, int] = field(default_factory=dict)
+    expansion_query_history: list[str] = field(default_factory=list)
+    expansion_gene_history: dict[str, list[str]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -71,6 +74,9 @@ class ResearchState:
             "evidence_at_step": {str(k): v for k, v in self.evidence_at_step.items()},
             "stagnation_resets": self.stagnation_resets,
             "last_stagnation_step": self.last_stagnation_step,
+            "target_exhaustion": dict(self.target_exhaustion),
+            "expansion_query_history": list(self.expansion_query_history),
+            "expansion_gene_history": {k: list(v) for k, v in self.expansion_gene_history.items()},
         }
 
     @classmethod
