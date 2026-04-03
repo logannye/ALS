@@ -24,6 +24,15 @@ class TestGalenKGGeneList:
     def test_gene_list_not_empty(self):
         assert len(ALS_CROSS_REFERENCE_GENES) >= 10
 
+    def test_cross_reference_genes_count(self):
+        assert len(ALS_CROSS_REFERENCE_GENES) >= 25
+
+    def test_cross_reference_genes_includes_expanded_targets(self):
+        for gene in ["ANXA11", "CHCHD10", "KIF5A", "VCP", "UBQLN2",
+                      "SQSTM1", "ATXN2", "PFN1", "VAPB", "TUBA4A",
+                      "HNRNPA1", "SARM1", "BDNF", "GDNF", "C5"]:
+            assert gene in ALS_CROSS_REFERENCE_GENES, f"{gene} missing"
+
 
 class TestGalenKGConnectorUnit:
     def test_connector_importable(self):

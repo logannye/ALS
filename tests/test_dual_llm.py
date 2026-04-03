@@ -27,10 +27,12 @@ class TestDualLLMManager:
         mgr.unload_protocol_model()
         assert mgr._protocol_engine is None
 
-    def test_research_model_path(self):
+    def test_research_model_id(self):
         mgr = DualLLMManager(lazy=True)
-        assert "9B" in mgr._research_model_path or "fallback" in mgr._research_model_path.lower()
+        mid = mgr._research_model_id
+        assert "9B" in mid or "fallback" in mid.lower() or "nova-micro" in mid
 
-    def test_protocol_model_path(self):
+    def test_protocol_model_id(self):
         mgr = DualLLMManager(lazy=True)
-        assert "35B" in mgr._protocol_model_path or "mxfp4" in mgr._protocol_model_path
+        mid = mgr._protocol_model_id
+        assert "35B" in mid or "mxfp4" in mid or "nova-pro" in mid

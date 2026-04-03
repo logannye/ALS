@@ -381,6 +381,19 @@ def main():
         except Exception as e:
             print(f"[ERIK] KG backfill skipped: {e}")
 
+    # Initialize causal gap tracker
+    if cfg.get("causal_gap_tracking_enabled", True):
+        try:
+            from research.causal_gaps import _ensure_gaps_table, seed_gaps_from_targets, count_gaps_by_status
+            _ensure_gaps_table()
+            new_gaps = seed_gaps_from_targets()
+            gap_counts = count_gaps_by_status()
+            if new_gaps > 0:
+                print(f"[ERIK] Causal gaps: seeded {new_gaps} new gaps")
+            print(f"[ERIK] Causal gaps: {gap_counts}")
+        except Exception as e:
+            print(f"[ERIK] Causal gap init skipped: {e}")
+
     # Config
     regen_threshold = cfg.get("research_protocol_regen_threshold", 15)
     active_pause = cfg.get("research_inter_step_pause_s", 1.0)

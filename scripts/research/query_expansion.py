@@ -11,6 +11,10 @@ from __future__ import annotations
 import re
 from typing import Any, TYPE_CHECKING
 
+import os as _os
+
+import psycopg
+
 if TYPE_CHECKING:
     from research.state import ResearchState
 
@@ -80,6 +84,70 @@ def get_gene_neighbors(
 
 
 # ---------------------------------------------------------------------------
+# Galen KG neighbor lookup (731K entities, 6.5M relationships)
+# ---------------------------------------------------------------------------
+
+def get_gene_neighbors_galen(
+    gene: str,
+    max_neighbors: int = 10,
+    min_confidence: float = 0.4,
+) -> list[dict]:
+    """Query Galen's cancer KG for gene/protein neighbors of *gene*.
+
+    Returns list of dicts: [{"gene": "BECN1", "relationship": "regulates", "confidence": 0.8}, ...]
+    Returns [] if galen_kg is unreachable or on any error.
+    """
+    try:
+        user = _os.environ.get("USER", "logannye")
+        conn = psycopg.connect(
+            f"dbname=galen_kg user={user}",
+            connect_timeout=10,
+            options="-c statement_timeout=15000 -c work_mem=16MB",
+        )
+    except Exception:
+        return []
+
+    neighbors: list[dict] = []
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT DISTINCT sub.name, sub.rel, sub.conf FROM (
+                    (SELECT e2.name, r.relationship_type AS rel,
+                            COALESCE(r.confidence, 0.5) AS conf
+                     FROM entities e1
+                     JOIN relationships r ON r.source_id = e1.id
+                     JOIN entities e2 ON r.target_id = e2.id
+                     WHERE e1.name = %s AND e2.entity_type IN ('gene', 'protein')
+                       AND e2.name != %s
+                     ORDER BY r.confidence DESC NULLS LAST LIMIT %s)
+                    UNION
+                    (SELECT e1.name, r.relationship_type,
+                            COALESCE(r.confidence, 0.5)
+                     FROM entities e2
+                     JOIN relationships r ON r.target_id = e2.id
+                     JOIN entities e1 ON r.source_id = e1.id
+                     WHERE e2.name = %s AND e1.entity_type IN ('gene', 'protein')
+                       AND e1.name != %s
+                     ORDER BY r.confidence DESC NULLS LAST LIMIT %s)
+                ) sub WHERE sub.conf >= %s
+                ORDER BY sub.conf DESC LIMIT %s
+            """, (gene, gene, max_neighbors, gene, gene, max_neighbors,
+                  min_confidence, max_neighbors))
+            for row in cur.fetchall():
+                neighbors.append({
+                    "gene": row[0],
+                    "relationship": row[1],
+                    "confidence": float(row[2]),
+                })
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+    return neighbors
+
+
+# ---------------------------------------------------------------------------
 # Expanded gene selection
 # ---------------------------------------------------------------------------
 
@@ -92,9 +160,12 @@ def get_expanded_gene(
 ) -> str:
     """Pick the highest-confidence unexplored neighbor gene.
 
-    Falls back to original_gene if no expansion candidates exist.
+    Tries Galen's 731K-entity cancer KG first for cross-disease neighbors,
+    then falls back to erik_core KG, then to original_gene.
     """
-    neighbors = get_gene_neighbors(original_gene, max_neighbors, min_confidence)
+    neighbors = get_gene_neighbors_galen(original_gene, max_neighbors, min_confidence)
+    if not neighbors:
+        neighbors = get_gene_neighbors(original_gene, max_neighbors, min_confidence)
     if not neighbors:
         return original_gene
 

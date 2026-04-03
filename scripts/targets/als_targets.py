@@ -284,6 +284,224 @@ ALS_TARGETS: dict[str, dict] = {
             "dual inhibitors offer broader autophagy induction."
         ),
     },
+    # ------------------------------------------------------------------
+    # Phase 10 expansion: ALSoD definitive/strong tier + pathway targets
+    # ------------------------------------------------------------------
+    "ANXA11": {
+        "name": "ANXA11",
+        "gene": "ANXA11",
+        "uniprot_id": "P50995",
+        "description": (
+            "Annexin A11; calcium-dependent phospholipid-binding protein required "
+            "for RNA granule transport along axons. Mutations cause ALS with "
+            "FTD. Definitive ALSoD evidence tier."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["root_cause_suppression"],
+        "druggable": False,
+        "druggability_notes": (
+            "No established small-molecule modulators. RNA granule dynamics "
+            "and liquid-liquid phase separation are emerging drugging strategies."
+        ),
+    },
+    "CHCHD10": {
+        "name": "CHCHD10",
+        "gene": "CHCHD10",
+        "uniprot_id": "Q8WYQ3",
+        "description": (
+            "Coiled-coil-helix-coiled-coil-helix domain-containing 10; "
+            "mitochondrial cristae junction protein. Mutations cause ALS/FTD "
+            "with mitochondrial myopathy. Definitive ALSoD evidence tier."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Mitochondrial inner-membrane protein; no direct small-molecule "
+            "targets. Mitochondrial biogenesis enhancers (e.g. bezafibrate, "
+            "urolithin A) are indirect approaches."
+        ),
+    },
+    "KIF5A": {
+        "name": "KIF5A",
+        "gene": "KIF5A",
+        "uniprot_id": "Q12840",
+        "description": (
+            "Kinesin family member 5A; neuronal kinesin heavy chain for "
+            "anterograde axonal transport. C-terminal de novo mutations cause "
+            "ALS via cargo-binding domain disruption. Definitive ALSoD tier."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Motor protein; kinesin inhibitors exist but would worsen "
+            "transport. Strategies focus on stabilizing cargo binding or "
+            "enhancing compensatory transport mechanisms."
+        ),
+    },
+    "VCP": {
+        "name": "VCP",
+        "gene": "VCP",
+        "uniprot_id": "P55072",
+        "description": (
+            "Valosin-containing protein (p97); AAA-ATPase central to "
+            "ubiquitin-proteasome system, ER-associated degradation, and "
+            "autophagosome maturation. Mutations cause ALS/FTD/IBM/Paget."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": True,
+        "druggability_notes": (
+            "Well-validated enzymatic target with multiple allosteric "
+            "inhibitors (NMS-873, CB-5083). Gain-of-function mutations "
+            "suggest modulation rather than inhibition may be needed."
+        ),
+    },
+    "UBQLN2": {
+        "name": "UBQLN2",
+        "gene": "UBQLN2",
+        "uniprot_id": "Q9UHD9",
+        "description": (
+            "Ubiquilin-2; ubiquitin-like domain shuttling factor that "
+            "delivers ubiquitinated substrates to the proteasome. X-linked "
+            "ALS/FTD mutations impair proteasomal clearance."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Protein-protein interaction mediator; no direct small-molecule "
+            "modulators. Proteasome activators and autophagy enhancers are "
+            "indirect therapeutic strategies."
+        ),
+    },
+    "SQSTM1": {
+        "name": "SQSTM1",
+        "gene": "SQSTM1",
+        "uniprot_id": "Q13501",
+        "description": (
+            "Sequestosome-1 (p62); selective autophagy receptor that bridges "
+            "ubiquitinated cargo to LC3 on autophagosomes. Mutations impair "
+            "aggrephagy of TDP-43 and SOD1 aggregates in ALS."
+        ),
+        "subtypes": ["sporadic_tdp43", "sod1", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Scaffold protein; hard to drug directly. Autophagy-flux "
+            "enhancers (rapamycin, trehalose, TFEB activators) increase "
+            "p62-mediated clearance indirectly."
+        ),
+    },
+    "ATXN2": {
+        "name": "ATXN2",
+        "gene": "ATXN2",
+        "uniprot_id": "Q99700",
+        "description": (
+            "Ataxin-2; RNA-binding protein with polyglutamine tract. "
+            "Intermediate-length expansions (27-33 CAG) are the strongest "
+            "genetic modifier of ALS risk. ATXN2 ASO reduces TDP-43 toxicity."
+        ),
+        "subtypes": ["sporadic_tdp43", "tardbp", "c9orf72", "mixed"],
+        "protocol_layers": ["root_cause_suppression"],
+        "druggable": True,
+        "druggability_notes": (
+            "ASO knockdown of ATXN2 (ION541/BIIB105) in Phase 1 clinical "
+            "trial for ALS. Reduces TDP-43 aggregation by decreasing stress "
+            "granule formation. Validated genetic modifier target."
+        ),
+    },
+    "PFN1": {
+        "name": "PFN1",
+        "gene": "PFN1",
+        "uniprot_id": "P07737",
+        "description": (
+            "Profilin-1; actin-binding protein critical for cytoskeletal "
+            "dynamics in motor neuron growth cones. Mutations cause familial "
+            "ALS via impaired actin polymerization. Definitive ALSoD tier."
+        ),
+        "subtypes": ["mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Small actin-binding protein; no established small-molecule "
+            "modulators. Downstream cytoskeletal stabilizers (e.g. "
+            "tropomodulin enhancers) may compensate."
+        ),
+    },
+    "VAPB": {
+        "name": "VAPB",
+        "gene": "VAPB",
+        "uniprot_id": "O95292",
+        "description": (
+            "VAMP-associated protein B; ER-mitochondria tethering protein "
+            "at membrane contact sites. P56S mutation causes ALS type 8 via "
+            "ER stress and disrupted calcium signaling."
+        ),
+        "subtypes": ["mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": False,
+        "druggability_notes": (
+            "Integral membrane protein; no direct modulators. ER stress "
+            "attenuators (e.g. 4-PBA, TUDCA) and calcium channel blockers "
+            "are indirect therapeutic approaches."
+        ),
+    },
+    "TUBA4A": {
+        "name": "TUBA4A",
+        "gene": "TUBA4A",
+        "uniprot_id": "P68366",
+        "description": (
+            "Tubulin alpha-4A chain; major component of neuronal "
+            "microtubules essential for axonal transport. Mutations cause "
+            "ALS via microtubule destabilization. Strong ALSoD evidence tier."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["pathology_reversal"],
+        "druggable": True,
+        "druggability_notes": (
+            "Microtubule-stabilizing agents (noscapine, epothilone D) have "
+            "shown neuroprotection in ALS models. Tubulin dynamics are a "
+            "well-established pharmacological target class."
+        ),
+    },
+    "HNRNPA1": {
+        "name": "HNRNPA1",
+        "gene": "HNRNPA1",
+        "uniprot_id": "P09651",
+        "description": (
+            "Heterogeneous nuclear ribonucleoprotein A1; RNA metabolism "
+            "factor that colocalizes with TDP-43 in stress granules. "
+            "Prion-like domain mutations cause ALS/MSP. Definitive ALSoD tier."
+        ),
+        "subtypes": ["sporadic_tdp43", "mixed"],
+        "protocol_layers": ["root_cause_suppression"],
+        "druggable": False,
+        "druggability_notes": (
+            "RNA-binding protein; prion-like domain is undruggable by "
+            "conventional approaches. Stress granule dissolution strategies "
+            "and phase separation modulators under investigation."
+        ),
+    },
+    "SARM1": {
+        "name": "SARM1",
+        "gene": "SARM1",
+        "uniprot_id": "Q6SZW1",
+        "description": (
+            "Sterile alpha and TIR motif-containing protein 1; NADase "
+            "enzyme that executes axon degeneration (Wallerian degeneration). "
+            "Blocking SARM1 preserves motor axons in ALS models."
+        ),
+        "subtypes": ["sporadic_tdp43", "sod1", "fus", "tardbp", "c9orf72", "glia_amplified", "mixed", "unresolved"],
+        "protocol_layers": ["circuit_stabilization"],
+        "druggable": True,
+        "druggability_notes": (
+            "Highly druggable enzymatic target. Multiple NADase inhibitors "
+            "in preclinical and Phase 1 development (e.g. Lilly's SARM1 "
+            "inhibitors). Blocking axon degeneration is subtype-agnostic."
+        ),
+    },
 }
 
 

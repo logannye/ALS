@@ -196,14 +196,33 @@ class EvidenceStore:
         """
         return self._run_query(sql, ())
 
+    # Fields that belong to the BaseEnvelope schema — everything else is
+    # a domain-specific extension that must be merged into ``body``.
+    _ENVELOPE_KEYS = frozenset({
+        "id", "type", "schema_version", "tenant_id", "status",
+        "time", "provenance", "uncertainty", "privacy", "body",
+    })
+
     def upsert_object(self, obj) -> None:
-        """Upsert any BaseEnvelope object into erik_core.objects."""
+        """Upsert any BaseEnvelope object into erik_core.objects.
+
+        Domain-specific top-level fields (e.g. ``layers`` on
+        CureProtocolCandidate) are merged into ``body`` so they survive
+        the roundtrip through the JSONB column.
+        """
         raw = obj.model_dump(mode="json")
+        body: dict = dict(raw.get("body", {}))
+
+        # Merge all non-envelope top-level fields into body
+        for key, value in raw.items():
+            if key not in self._ENVELOPE_KEYS:
+                body[key] = value
+
         self._upsert_object(
             obj_id=raw["id"],
             obj_type=raw["type"],
             status=raw.get("status", "active"),
-            body=raw.get("body", {}),
+            body=body,
             provenance_source_system=raw.get("provenance", {}).get("source_system"),
             confidence=raw.get("uncertainty", {}).get("confidence"),
         )

@@ -33,6 +33,7 @@ from world_model.counterfactual_check import run_counterfactual_analysis
 def generate_cure_protocol(
     use_llm: bool = True,
     model_path: Optional[str] = None,
+    reasoning_engine: Optional[ReasoningEngine] = None,
 ) -> dict[str, Any]:
     """Generate Erik Draper's cure protocol candidate.
 
@@ -76,7 +77,8 @@ def generate_cure_protocol(
     # ------------------------------------------------------------------
     # LLM engine + evidence store
     # ------------------------------------------------------------------
-    reasoning_engine = ReasoningEngine(model_path=model_path)
+    if reasoning_engine is None:
+        reasoning_engine = ReasoningEngine(model_path=model_path)
     store = EvidenceStore()
 
     patient_state_json = json.dumps(snapshot.body, indent=2, default=str)

@@ -13,7 +13,7 @@ import json
 import re
 from typing import Optional
 
-from llm.inference import LLMInference
+from llm.inference import create_llm
 from world_model.prompts.templates import SYSTEM_PROMPT, VERIFICATION_TEMPLATE
 
 
@@ -133,8 +133,11 @@ class ReasoningEngine:
         self,
         lazy: bool = False,
         model_path: Optional[str] = None,
+        model_id: Optional[str] = None,
     ) -> None:
-        self._llm = LLMInference(model_path=model_path, lazy=lazy)  # type: ignore[arg-type]
+        # model_id takes precedence; model_path kept for backward compatibility
+        effective_id = model_id or model_path
+        self._llm = create_llm(model_id=effective_id, lazy=lazy)
 
     # ------------------------------------------------------------------
     # Public API

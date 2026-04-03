@@ -24,6 +24,41 @@ from research.state import ResearchState, ALL_LAYERS
 
 
 import datetime as _dt
+import json as _json
+import pathlib as _pathlib
+
+# ---------------------------------------------------------------------------
+# Dynamic drug list from interventions.json
+# ---------------------------------------------------------------------------
+
+_DRUG_NAMES_CACHE: list[str] | None = None
+_FALLBACK_DRUGS = ["riluzole", "edaravone", "rapamycin", "pridopidine", "masitinib"]
+
+
+def _get_pharmacogenomics_drugs() -> list[str]:
+    """Load drug names from interventions.json (drug/small_molecule/peptide classes).
+
+    Cached after first call. Falls back to 5-drug list on any error.
+    """
+    global _DRUG_NAMES_CACHE
+    if _DRUG_NAMES_CACHE is not None:
+        return _DRUG_NAMES_CACHE
+    try:
+        path = _pathlib.Path(__file__).parent.parent.parent / "data" / "seed" / "interventions.json"
+        with open(path) as f:
+            items = _json.load(f)
+        names: list[str] = []
+        for item in items:
+            cls = item.get("intervention_class", "")
+            if cls in ("drug", "small_molecule", "peptide"):
+                raw = item.get("name", "").split("(")[0].split("/")[0].strip()
+                if raw:
+                    names.append(raw.lower())
+        _DRUG_NAMES_CACHE = names if names else _FALLBACK_DRUGS
+    except Exception:
+        _DRUG_NAMES_CACHE = _FALLBACK_DRUGS
+    return _DRUG_NAMES_CACHE
+
 
 # Base query bank per layer — rotated by step count for diversity
 _BASE_LAYER_QUERIES: dict[str, list[str]] = {
@@ -143,6 +178,26 @@ def _get_dynamic_query(state: ResearchState, step: int, layer: str) -> str:
     return get_layer_query(layer, step)
 
 
+def _get_drug_centric_query(state: ResearchState, step: int) -> str:
+    """Generate a drug-name-based PubMed query — a new dimension beyond gene-centric.
+
+    Rotates through all drugs from interventions.json (drug/small_molecule/peptide)
+    with ALS-specific query templates.
+    """
+    drugs = _get_pharmacogenomics_drugs()
+    if not drugs:
+        return f"ALS treatment {_dt.datetime.now().year}"
+    drug = drugs[step % len(drugs)]
+    year = _dt.datetime.now().year
+    templates = [
+        f"{drug} ALS motor neuron mechanism {year}",
+        f"{drug} ALS clinical trial outcome {year}",
+        f"{drug} neuroprotection combination therapy ALS {year}",
+        f"{drug} pharmacokinetics blood brain barrier ALS {year}",
+    ]
+    return templates[(step // max(len(drugs), 1)) % len(templates)]
+
+
 def _get_expanded_query(state: ResearchState, step: int, layer: str) -> str:
     """Generate a novel PubMed query by expanding exhausted targets via KG neighbors.
 
@@ -159,7 +214,7 @@ def _get_expanded_query(state: ResearchState, step: int, layer: str) -> str:
         return _get_targeted_query(state, step)
 
     from targets.als_targets import ALS_TARGETS
-    from research.query_expansion import get_gene_neighbors, get_expanded_queries
+    from research.query_expansion import get_gene_neighbors_galen, get_gene_neighbors, get_expanded_queries
 
     targets = list(ALS_TARGETS.values())
     if not targets:
@@ -167,7 +222,9 @@ def _get_expanded_query(state: ResearchState, step: int, layer: str) -> str:
     target = targets[step % len(targets)]
     gene = target.get("gene", "")
 
-    neighbors = get_gene_neighbors(gene, max_neighbors=5, min_confidence=0.4)
+    neighbors = get_gene_neighbors_galen(gene, max_neighbors=5, min_confidence=0.4)
+    if not neighbors:
+        neighbors = get_gene_neighbors(gene, max_neighbors=5, min_confidence=0.4)
     if not neighbors:
         return _get_targeted_query(state, step)
 
@@ -204,11 +261,12 @@ _ACQUISITION_ROTATION = [
     ActionType.QUERY_REACTOME_LOCAL,
 ]
 
-# The balanced 5-step cycle
+# Depth-biased 5-step cycle: 2 acquisition, 1 reasoning, 1 validation, 1 deepening
 _CYCLE_LENGTH = 5
-_ACQUIRE_STEPS = {0, 2, 4}   # 3 of 5 steps are acquisition
-_REASON_STEP = 1              # 1 of 5 is reasoning (chain/hypothesis gen)
-_VALIDATE_STEP = 3            # 1 of 5 is validation
+_ACQUIRE_STEPS = {0, 4}      # 2 of 5 steps are acquisition (was 3)
+_REASON_STEP = 1              # 1 of 5 is reasoning (hypothesis gen)
+_VALIDATE_STEP = 2            # 1 of 5 is validation
+_DEEPEN_STEP = 3              # 1 of 5 is dedicated causal chain deepening or computation
 
 # Max consecutive validation attempts before forcing something else
 _MAX_CONSECUTIVE_VALIDATIONS = 2
@@ -443,7 +501,7 @@ def _select_acquisition_action_for_type(
         return _fallback_acquisition(state, step, skip=ActionType.QUERY_PPI_NETWORK)
 
     elif action == ActionType.CHECK_PHARMACOGENOMICS:
-        drugs = ["riluzole", "edaravone", "rapamycin", "pridopidine", "masitinib"]
+        drugs = _get_pharmacogenomics_drugs()
         drug_idx = step % len(drugs)
         return action, build_action_params(
             action, drug_name=drugs[drug_idx], protocol_layer="adaptive_maintenance"
@@ -511,55 +569,80 @@ def _select_action_cycle(
     # Expire stale hypotheses (validated too many times without resolution)
     _maybe_expire_hypotheses(state)
 
-    # 1. Acquisition steps (positions 0, 2, 4 in the cycle)
+    # 1. Acquisition steps (positions 0, 4 in the cycle)
     if cycle_pos in _ACQUIRE_STEPS:
         return _select_acquisition_action(state)
 
-    # 2. Reasoning step (position 1): chain deepening or hypothesis generation
+    # 2. Reasoning step (position 1): hypothesis generation
     if cycle_pos == _REASON_STEP:
-        return _select_reasoning_action(state, target_depth)
+        if state.top_uncertainties or state.protocol_version > 0:
+            return ActionType.GENERATE_HYPOTHESIS, build_action_params(
+                ActionType.GENERATE_HYPOTHESIS,
+            )
+        return _select_acquisition_action(state)
 
-    # 3. Validation step (position 3): validate if pending, otherwise acquire
+    # 3. Validation step (position 2): validate if pending, otherwise acquire
     if cycle_pos == _VALIDATE_STEP:
-        # Check if we've been validating too much consecutively
         consecutive_validations = _count_consecutive_validations(state)
         if state.active_hypotheses and consecutive_validations < _MAX_CONSECUTIVE_VALIDATIONS:
             hyp_id = state.active_hypotheses[0]
             return ActionType.VALIDATE_HYPOTHESIS, build_action_params(
                 ActionType.VALIDATE_HYPOTHESIS, hypothesis_id=hyp_id,
             )
-        # No valid hypotheses or budget exhausted — acquire instead
         return _select_acquisition_action(state)
+
+    # 4. Deepening step (position 3): causal chain deepening or computation
+    if cycle_pos == _DEEPEN_STEP:
+        return _select_deepening_action(state, target_depth)
 
     # Fallback
     return _select_acquisition_action(state)
 
 
-def _select_reasoning_action(
+def _select_deepening_action(
     state: ResearchState,
     target_depth: int,
 ) -> tuple[ActionType, dict[str, Any]]:
-    """Pick between chain deepening and hypothesis generation."""
+    """Dedicated step for causal chain deepening or computation.
+
+    Prioritizes deepening shallow causal chains (70% probability), with
+    fallback to computational experiments or hypothesis generation.
+    """
+    import random
     step = state.step_count
 
-    # Alternate: even reasoning steps deepen chains, odd generate hypotheses
-    if (step // _CYCLE_LENGTH) % 2 == 0:
-        # Try chain deepening
-        shallow = [(k, v) for k, v in state.causal_chains.items() if v < target_depth]
-        if shallow:
-            idx = step % len(shallow)
-            int_id, _ = shallow[idx]
-            return ActionType.DEEPEN_CAUSAL_CHAIN, build_action_params(
-                ActionType.DEEPEN_CAUSAL_CHAIN, intervention_id=int_id,
-            )
+    # Prioritize chain deepening when chains are shallow
+    shallow = [(k, v) for k, v in state.causal_chains.items() if v < target_depth]
+    if shallow and random.random() < 0.7:
+        # Sort by depth (shallowest first) to prioritize biggest gaps
+        shallow.sort(key=lambda x: x[1])
+        idx = step % len(shallow)
+        int_id, _ = shallow[idx]
+        return ActionType.DEEPEN_CAUSAL_CHAIN, build_action_params(
+            ActionType.DEEPEN_CAUSAL_CHAIN, intervention_id=int_id,
+        )
 
-    # Generate hypothesis (intelligence module picks the gap)
+    # Alternate between computation and molecule design
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+        if cfg.get("molecular_computation_enabled", False) and step % 2 == 0:
+            return ActionType.DESIGN_MOLECULE, build_action_params(
+                ActionType.DESIGN_MOLECULE,
+            )
+        elif cfg.get("computation_enabled", True):
+            return ActionType.RUN_COMPUTATION, build_action_params(
+                ActionType.RUN_COMPUTATION,
+            )
+    except Exception:
+        pass
+
+    # Fallback: generate hypothesis
     if state.top_uncertainties or state.protocol_version > 0:
         return ActionType.GENERATE_HYPOTHESIS, build_action_params(
             ActionType.GENERATE_HYPOTHESIS,
         )
 
-    # Fallback to acquisition
     return _select_acquisition_action(state)
 
 
@@ -640,16 +723,18 @@ def _build_acquisition_params(
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # 4-strategy cycling: static → dynamic → targeted → expanded
-        strategy = step % 4
+        # 5-strategy cycling: static → dynamic → targeted → expanded → drug-centric
+        strategy = step % 5
         if strategy == 0:
             query = get_layer_query(layer, step)
         elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
         elif strategy == 2:
             query = _get_targeted_query(state, step)
-        else:
+        elif strategy == 3:
             query = _get_expanded_query(state, step, layer)
+        else:
+            query = _get_drug_centric_query(state, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.SEARCH_TRIALS:
@@ -700,7 +785,7 @@ def _build_acquisition_params(
         return _fallback_acquisition(state, step, skip=ActionType.QUERY_PPI_NETWORK)
 
     elif action == ActionType.CHECK_PHARMACOGENOMICS:
-        drugs = ["riluzole", "edaravone", "rapamycin", "pridopidine", "masitinib"]
+        drugs = _get_pharmacogenomics_drugs()
         drug_idx = step % len(drugs)
         return action, build_action_params(action, drug_name=drugs[drug_idx], protocol_layer="adaptive_maintenance")
 
@@ -721,16 +806,18 @@ def _build_acquisition_params(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # 4-strategy cycling: static → dynamic → targeted → expanded
-        strategy = step % 4
+        # 5-strategy cycling: static → dynamic → targeted → expanded → drug-centric
+        strategy = step % 5
         if strategy == 0:
             query = get_layer_query(layer, step)
         elif strategy == 1:
             query = _get_dynamic_query(state, step, layer)
         elif strategy == 2:
             query = _get_targeted_query(state, step)
-        else:
+        elif strategy == 3:
             query = _get_expanded_query(state, step, layer)
+        else:
+            query = _get_drug_centric_query(state, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:

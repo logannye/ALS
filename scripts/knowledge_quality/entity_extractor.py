@@ -27,6 +27,7 @@ _FIELD_TO_ENTITY_TYPE: dict[str, str] = {
     "target_name": "protein",
     "source_name": "protein",
     "gene_symbol": "gene",
+    "gene": "gene",  # PharmGKB, ClinVar, DrugBank use 'gene' not 'gene_symbol'
     "drug_name": "drug",
 }
 
@@ -226,6 +227,41 @@ def _infer_relationships(entities: list[dict], body: dict, evidence_id: str) -> 
                 "evidence": claim[:200] if claim else f"{gene['name']} contributes to {mech['name']}",
                 "sources": [evidence_id],
                 "pch_layer": min(pch, 2),
+                "evidence_type": "inferred_from_evidence",
+            })
+
+    # Drug → protein: "binds" (from binding affinity data like BindingDB)
+    for drug in drugs:
+        for prot in proteins:
+            rel_type = "binds"
+            rid = _make_relationship_id(drug["id"], prot["id"], rel_type)
+            relationships.append({
+                "id": rid,
+                "source_id": drug["id"],
+                "target_id": prot["id"],
+                "relationship_type": rel_type,
+                "confidence": conf,
+                "evidence": claim[:200] if claim else f"{drug['name']} binds {prot['name']}",
+                "sources": [evidence_id],
+                "pch_layer": min(pch, 2),  # Binding is at most L2
+                "evidence_type": "inferred_from_evidence",
+            })
+
+    # Protein → protein: "interacts_with" (from Galen KG cross-references)
+    for i, p1 in enumerate(proteins):
+        for p2 in proteins[i + 1:]:
+            # Use body's relationship_type if present, otherwise default
+            rel_type = body.get("relationship_type", "interacts_with")
+            rid = _make_relationship_id(p1["id"], p2["id"], rel_type)
+            relationships.append({
+                "id": rid,
+                "source_id": p1["id"],
+                "target_id": p2["id"],
+                "relationship_type": rel_type,
+                "confidence": conf,
+                "evidence": claim[:200] if claim else f"{p1['name']} {rel_type} {p2['name']}",
+                "sources": [evidence_id],
+                "pch_layer": 1,  # Always L1 — observational
                 "evidence_type": "inferred_from_evidence",
             })
 

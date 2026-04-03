@@ -46,6 +46,7 @@ RELATION_TYPES: dict[str, dict[str, str]] = {
     "supersedes":       {"category": "evidential"},
     # Therapeutic
     "targets":          {"category": "therapeutic"},
+    "binds":            {"category": "therapeutic"},
     "treats":           {"category": "therapeutic"},
     "contraindicates":  {"category": "therapeutic"},
     "eligible_for":     {"category": "therapeutic"},
@@ -79,6 +80,7 @@ OBSERVATIONAL_RELATION_TYPES: frozenset[str] = frozenset({
     "part_of",
     "expressed_in",
     "associated_with",
+    "interacts_with",
     "derived_from",
     "measures",
 })

@@ -299,8 +299,11 @@ def research_step(
             stagnation_resets=_resets,
             evidence_at_step=_evidence_at_step,
             last_stagnation_step=new_step,
+            target_exhaustion={},           # Clear exhaustion counters so expanded genes get retried
+            expansion_query_history=[],     # Allow query expansion to re-discover neighbors
+            expansion_gene_history={},      # Allow gene re-expansion via Galen KG
         )
-        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors (cooldown {_stag_cooldown} steps)")
+        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors + exhaustion + expansion (cooldown {_stag_cooldown} steps)")
     else:
         new_state = replace(new_state, evidence_at_step=_evidence_at_step)
 
@@ -448,10 +451,9 @@ def _bootstrap_initial_protocol(
     try:
         from world_model.protocol_generator import generate_cure_protocol
 
-        engine = llm_manager.get_protocol_engine()
-        model_path = engine._llm.model_path if engine and hasattr(engine, '_llm') else None
+        protocol_engine = llm_manager.get_protocol_engine()
 
-        result_dict = generate_cure_protocol(use_llm=True, model_path=model_path)
+        result_dict = generate_cure_protocol(use_llm=True, reasoning_engine=protocol_engine)
         llm_manager.unload_protocol_model()
 
         protocol = result_dict.get("protocol")
@@ -573,6 +575,7 @@ def _execute_action(
             ActionType.QUERY_ALPHAFOLD: _exec_query_alphafold,
             ActionType.QUERY_REACTOME_LOCAL: _exec_query_reactome_local,
             ActionType.CHALLENGE_INTERVENTION: _exec_challenge_intervention,
+            ActionType.DESIGN_MOLECULE: _exec_design_molecule,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -1074,13 +1077,11 @@ def _exec_regenerate_protocol(
     try:
         from world_model.protocol_generator import generate_cure_protocol
 
-        engine = llm_manager.get_protocol_engine()
-        model_path = getattr(engine, "_llm", None)
-        model_path_str = getattr(model_path, "model_path", None) if model_path else None
+        protocol_engine = llm_manager.get_protocol_engine()
 
         pipeline_result = generate_cure_protocol(
             use_llm=True,
-            model_path=model_path_str,
+            reasoning_engine=protocol_engine,
         )
 
         protocol = pipeline_result.get("protocol")
@@ -1348,7 +1349,7 @@ def _exec_run_computation(
 
     # Rotate through experiment types and targets
     from targets.als_targets import ALS_TARGETS
-    exp_types = ["gene_essentiality", "binding_affinity", "drug_sensitivity", "drug_interactions"]
+    exp_types = ["gene_essentiality", "binding_affinity", "drug_sensitivity", "drug_interactions", "molecular_properties", "molecular_docking"]
     exp_type = exp_types[state.step_count % len(exp_types)]
 
     target_keys = list(ALS_TARGETS.keys())
@@ -1369,6 +1370,100 @@ def _exec_run_computation(
     elif exp_type == "drug_interactions" and interventions:
         drug_name = interventions[state.step_count % len(interventions)].replace("int:", "")
         result = executor.run_experiment(exp_type, target=drug_name, drug=drug_name)
+    elif exp_type == "molecular_properties":
+        # Screen compound libraries for drug design targets
+        if cfg and cfg.get("molecular_computation_enabled", False):
+            try:
+                from executors.molecular_executor import screen_compound_library
+                import json as _json
+                import pathlib as _pathlib
+                targets_path = _pathlib.Path(__file__).parent.parent.parent / "data" / "seed" / "drug_design_targets.json"
+                ddt_list = _json.loads(targets_path.read_text())
+                ddt_id = ddt_list[state.step_count % len(ddt_list)]["id"]
+                mol_result = screen_compound_library(ddt_id, chembl_path=chembl_path)
+                # Convert molecular facts to BaseEnvelope objects for storage
+                from ontology.base import BaseEnvelope
+                result_facts = []
+                for fact_dict in mol_result.facts:
+                    env = BaseEnvelope(
+                        id=fact_dict["id"],
+                        type=fact_dict["type"],
+                        status=fact_dict.get("status", "active"),
+                        body=fact_dict.get("body", {}),
+                    )
+                    result_facts.append(env)
+                # Wrap in a compatible result object
+                from executors.als_computation_executor import ComputationResult
+                result = ComputationResult(
+                    experiment_type="molecular_properties",
+                    target=ddt_id,
+                    success=mol_result.success,
+                    error=mol_result.error,
+                    facts=result_facts,
+                )
+            except Exception as e:
+                return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                                    error=f"Molecular computation failed: {e}")
+        else:
+            # Molecular computation not enabled — fall back to gene essentiality
+            exp_type = "gene_essentiality"
+            if target_keys:
+                target = ALS_TARGETS[target_keys[state.step_count % len(target_keys)]]
+                gene = target.get("gene", "TARDBP")
+                result = executor.run_experiment(exp_type, target=gene, gene=gene)
+            else:
+                return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                                    error="No targets for fallback computation")
+    elif exp_type == "molecular_docking":
+        # Virtual screening: fingerprint similarity to known actives
+        if cfg and cfg.get("molecular_computation_enabled", False):
+            try:
+                from executors.docking_executor import screen_by_similarity
+                from executors.molecular_executor import _query_chembl_actives
+                import json as _json
+                import pathlib as _pathlib
+                targets_path = _pathlib.Path(__file__).parent.parent.parent / "data" / "seed" / "drug_design_targets.json"
+                ddt_list = _json.loads(targets_path.read_text())
+                ddt = ddt_list[state.step_count % len(ddt_list)]
+                ddt_id = ddt["id"]
+                # Get ChEMBL actives as both reference and candidates
+                smiles_list = _query_chembl_actives(ddt["target_name"], chembl_path, max_results=30)
+                if smiles_list:
+                    screen_result = screen_by_similarity(ddt_id, smiles_list, chembl_path=chembl_path, max_candidates=20)
+                    from ontology.base import BaseEnvelope
+                    from executors.als_computation_executor import ComputationResult
+                    result_facts = []
+                    for fact_dict in screen_result.facts:
+                        env = BaseEnvelope(
+                            id=fact_dict["id"], type=fact_dict["type"],
+                            status=fact_dict.get("status", "active"),
+                            body=fact_dict.get("body", {}),
+                        )
+                        result_facts.append(env)
+                    result = ComputationResult(
+                        experiment_type="virtual_screening", target=ddt_id,
+                        success=screen_result.success, error=screen_result.error,
+                        facts=result_facts,
+                    )
+                else:
+                    result = ComputationResult(
+                        experiment_type="virtual_screening", target=ddt_id,
+                        success=False, error="No ChEMBL actives found for screening",
+                    )
+            except Exception as e:
+                return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                                    error=f"Virtual screening failed: {e}")
+        else:
+            # Docking not enabled — fall back to binding_affinity
+            exp_type = "binding_affinity"
+            if interventions and target_keys:
+                drug_name = interventions[state.step_count % len(interventions)].replace("int:", "")
+                target = ALS_TARGETS[target_keys[(state.step_count // len(interventions)) % len(target_keys)]]
+                gene = target.get("gene", "TARDBP")
+                result = executor.run_experiment(exp_type, target=f"{drug_name}-{gene}", drug=drug_name, gene=gene)
+            else:
+                return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
+                                    error="No targets for fallback computation")
     else:
         return ActionResult(action=ActionType.RUN_COMPUTATION, success=False,
                             error="No targets or interventions to compute on")
@@ -1393,6 +1488,146 @@ def _exec_run_computation(
         protocol_layer=result.facts[0].body.get("protocol_layer", "root_cause_suppression") if result.facts else None,
         evidence_strength="strong" if added > 0 else None,
     )
+
+
+def _exec_design_molecule(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Design novel drug molecules for ALS targets using computational chemistry.
+
+    Picks the highest-leverage drug design target (from causal gaps or rotation),
+    retrieves known actives from ChEMBL, generates novel candidates via scaffold
+    hopping or fragment recombination, and stores the best candidates as evidence.
+    """
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+    except Exception:
+        cfg = None
+
+    if cfg and not cfg.get("molecular_computation_enabled", False):
+        return ActionResult(action=ActionType.DESIGN_MOLECULE, success=False,
+                            error="Molecular computation disabled")
+
+    chembl_path = cfg.get("computation_chembl_path", "/Volumes/Databank/databases/chembl_36.db") if cfg else "/Volumes/Databank/databases/chembl_36.db"
+
+    try:
+        import json as _json
+        import pathlib as _pathlib
+        from executors.molecule_generator import generate_candidates
+        from executors.molecular_executor import _query_chembl_actives, compute_drug_properties
+
+        # Pick target: prefer causal gap targets, fall back to rotation
+        target_id = params.get("target_id", "")
+        if not target_id:
+            try:
+                from research.causal_gaps import load_open_gaps
+                gaps = load_open_gaps(limit=5)
+                computational_gaps = [g for g in gaps if g.resolution_path == "computational" and g.target_refs]
+                if computational_gaps:
+                    target_id = computational_gaps[0].target_refs[0]
+            except Exception:
+                pass
+
+        if not target_id:
+            targets_path = _pathlib.Path(__file__).parent.parent.parent / "data" / "seed" / "drug_design_targets.json"
+            ddt_list = _json.loads(targets_path.read_text())
+            target_id = ddt_list[state.step_count % len(ddt_list)]["id"]
+
+        # Load target info
+        targets_path = _pathlib.Path(__file__).parent.parent.parent / "data" / "seed" / "drug_design_targets.json"
+        ddt_list = _json.loads(targets_path.read_text())
+        target = next((t for t in ddt_list if t["id"] == target_id), None)
+        if not target:
+            return ActionResult(action=ActionType.DESIGN_MOLECULE, success=False,
+                                error=f"Target {target_id} not found")
+
+        # Get reference actives from ChEMBL
+        ref_smiles = _query_chembl_actives(target["target_name"], chembl_path, max_results=20)
+        if not ref_smiles:
+            return ActionResult(action=ActionType.DESIGN_MOLECULE, success=False,
+                                error=f"No ChEMBL actives for {target['target_name']}")
+
+        # Generate candidates
+        strategy = params.get("strategy", "scaffold_hop")
+        max_candidates = params.get("max_candidates", 50)
+        candidates = generate_candidates(
+            target_id=target_id,
+            reference_smiles=ref_smiles,
+            strategy=strategy,
+            n_candidates=max_candidates,
+        )
+
+        if not candidates:
+            # Try fragment strategy as fallback
+            candidates = generate_candidates(
+                target_id=target_id,
+                reference_smiles=ref_smiles,
+                strategy="fragment_grow",
+                n_candidates=max_candidates,
+            )
+
+        # Store top candidates as evidence
+        from ontology.base import BaseEnvelope
+        added = 0
+        for i, cand in enumerate(candidates[:10]):
+            fact = BaseEnvelope(
+                id=f"evi:designed_{target_id.replace('ddt:', '')}_{state.step_count}_{i}",
+                type="EvidenceItem",
+                status="active",
+                body={
+                    "claim": (
+                        f"Designed molecule {cand.smiles[:60]} for {target['target_name']} "
+                        f"({target['druggable_site']}): CNS_MPO={cand.cns_mpo}, "
+                        f"MW={cand.molecular_weight}, LogP={cand.logp}, "
+                        f"SA={cand.synthetic_accessibility}, "
+                        f"similarity={cand.similarity_to_parent:.2f}"
+                    ),
+                    "source": "molecule_generator",
+                    "experiment_type": "designed_molecule",
+                    "pch_layer": 2,
+                    "protocol_layer": "root_cause_suppression",
+                    "evidence_strength": "preclinical",
+                    "designed_smiles": cand.smiles,
+                    "parent_smiles": cand.parent_smiles,
+                    "generation_strategy": cand.strategy,
+                    "cns_mpo_score": cand.cns_mpo,
+                    "molecular_weight": cand.molecular_weight,
+                    "logp": cand.logp,
+                    "lipinski_violations": cand.lipinski_violations,
+                    "synthetic_accessibility": cand.synthetic_accessibility,
+                    "similarity_to_parent": cand.similarity_to_parent,
+                    "is_novel": cand.is_novel,
+                    "target_id": target_id,
+                    "target_name": target["target_name"],
+                },
+            )
+            try:
+                store.upsert_object(fact)
+                added += 1
+            except Exception:
+                continue
+
+        if added > 0:
+            print(f"[RESEARCH] DESIGN_MOLECULE: generated {len(candidates)} candidates for "
+                  f"{target['target_name']}, stored {added} (strategy={strategy})")
+
+        return ActionResult(
+            action=ActionType.DESIGN_MOLECULE,
+            success=True,
+            evidence_items_added=added,
+            protocol_layer="root_cause_suppression",
+            evidence_strength="preclinical",
+            detail={
+                "target_id": target_id,
+                "strategy": strategy,
+                "candidates_generated": len(candidates),
+                "candidates_stored": added,
+            },
+        )
+    except Exception as e:
+        return ActionResult(action=ActionType.DESIGN_MOLECULE, success=False,
+                            error=str(e))
 
 
 def _exec_query_alsod(

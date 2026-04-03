@@ -36,6 +36,8 @@ class ActionType(str, Enum):
     QUERY_DRUGBANK = "query_drugbank"
     QUERY_ALPHAFOLD = "query_alphafold"
     QUERY_REACTOME_LOCAL = "query_reactome_local"
+    # Phase 9: Drug design
+    DESIGN_MOLECULE = "design_molecule"
 
 NETWORK_ACTIONS = {
     ActionType.SEARCH_PUBMED,
@@ -56,6 +58,11 @@ LLM_ACTIONS = {
     ActionType.VALIDATE_HYPOTHESIS,
     ActionType.SCORE_NEW_EVIDENCE,
     ActionType.REGENERATE_PROTOCOL,
+}
+
+COMPUTATIONAL_ACTIONS = {
+    ActionType.RUN_COMPUTATION,
+    ActionType.DESIGN_MOLECULE,
 }
 
 @dataclass
@@ -91,4 +98,8 @@ def build_action_params(action: ActionType, **kwargs: Any) -> dict[str, Any]:
         params.setdefault("intervention_id", "")
     elif action == ActionType.VALIDATE_HYPOTHESIS:
         params.setdefault("hypothesis_id", "")
+    elif action == ActionType.DESIGN_MOLECULE:
+        params.setdefault("target_id", "")
+        params.setdefault("strategy", "scaffold_hop")
+        params.setdefault("max_candidates", 50)
     return params

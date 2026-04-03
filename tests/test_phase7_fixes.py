@@ -38,7 +38,7 @@ def _state_with_chains(n: int = 3) -> ResearchState:
 class TestSCMExploitationFix:
 
     def test_causal_depth_discount_when_no_evidence(self):
-        """Causal depth without evidence should be 90% discounted."""
+        """Causal depth without evidence gets a mild 50% discount (grounding incentive)."""
         reward = compute_reward(
             evidence_items_added=0,
             uncertainty_before=0.5,
@@ -50,10 +50,9 @@ class TestSCMExploitationFix:
             eligibility_confirmed=False,
             protocol_stable=False,
         )
-        # causal_depth_val = log1p(1) * 0.1 = 0.693 * 0.1 = 0.0693
-        # total = 2.0 * 0.0693 = 0.1386
-        assert reward.causal_depth == pytest.approx(math.log1p(1) * 0.1, rel=0.01)
-        assert reward.total() == pytest.approx(2.0 * math.log1p(1) * 0.1, rel=0.01)
+        # causal_depth_val = log1p(1) * 0.5 = 0.693 * 0.5 = 0.3466
+        assert reward.causal_depth == pytest.approx(math.log1p(1) * 0.5, rel=0.01)
+        assert reward.total() == pytest.approx(5.0 * math.log1p(1) * 0.5, rel=0.01)
 
     def test_causal_depth_full_when_evidence_present(self):
         """Causal depth with evidence should get full reward."""

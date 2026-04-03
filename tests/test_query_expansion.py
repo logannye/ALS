@@ -134,8 +134,9 @@ class TestExpandedGeneSelection:
         state = replace(state, expansion_gene_history={
             "query_clinvar": ["OPTN", "TBK1", "NEK1"],
         })
-        # Mock KG to return exactly these 3 neighbors — all exhausted
-        with patch("research.query_expansion.get_gene_neighbors") as mock_neighbors:
+        # Mock both Galen and erik_core to return exactly these 3 neighbors — all exhausted
+        with patch("research.query_expansion.get_gene_neighbors_galen", return_value=[]), \
+             patch("research.query_expansion.get_gene_neighbors") as mock_neighbors:
             mock_neighbors.return_value = [
                 {"gene": "OPTN", "relationship": "associated_with", "confidence": 0.9},
                 {"gene": "TBK1", "relationship": "associated_with", "confidence": 0.8},
@@ -151,7 +152,8 @@ class TestExpandedGeneSelection:
         state = replace(state, expansion_gene_history={
             "query_clinvar": ["OPTN"],  # OPTN already used
         })
-        with patch("research.query_expansion.get_gene_neighbors") as mock_neighbors:
+        with patch("research.query_expansion.get_gene_neighbors_galen", return_value=[]), \
+             patch("research.query_expansion.get_gene_neighbors") as mock_neighbors:
             mock_neighbors.return_value = [
                 {"gene": "OPTN", "relationship": "associated_with", "confidence": 0.9},
                 {"gene": "TBK1", "relationship": "targets", "confidence": 0.8},
@@ -235,6 +237,62 @@ class TestQueryNormalization:
         from research.query_expansion import _normalize_query
         # Sorted normalization means order doesn't matter
         assert _normalize_query("SOD1 ALS mutation") == _normalize_query("ALS mutation SOD1")
+
+
+# ---------------------------------------------------------------------------
+# Step 5: Galen KG neighbor lookup (Phase 10)
+# ---------------------------------------------------------------------------
+
+class TestGalenKGNeighborLookup:
+    """get_gene_neighbors_galen queries Galen's 731K-entity cancer KG."""
+
+    def test_returns_list(self):
+        from research.query_expansion import get_gene_neighbors_galen
+        result = get_gene_neighbors_galen("NONEXISTENT_GENE_XYZ", max_neighbors=5)
+        assert isinstance(result, list)
+
+    def test_neighbors_have_required_fields(self):
+        from research.query_expansion import get_gene_neighbors_galen
+        neighbors = get_gene_neighbors_galen("SOD1", max_neighbors=5)
+        for n in neighbors:
+            assert "gene" in n
+            assert "relationship" in n
+            assert "confidence" in n
+
+    def test_returns_empty_on_connection_failure(self):
+        """When galen_kg is unreachable, should return empty list."""
+        from research.query_expansion import get_gene_neighbors_galen
+        with patch("research.query_expansion.psycopg") as mock_psycopg:
+            mock_psycopg.connect.side_effect = Exception("connection refused")
+            result = get_gene_neighbors_galen("SOD1")
+            assert result == []
+
+
+class TestExpandedGeneUsesGalen:
+    """get_expanded_gene should prefer Galen neighbors over erik_core."""
+
+    def test_prefers_galen_when_available(self):
+        from research.query_expansion import get_expanded_gene
+        state = initial_state("traj:test")
+        with patch("research.query_expansion.get_gene_neighbors_galen") as mock_galen:
+            mock_galen.return_value = [
+                {"gene": "BECN1", "relationship": "regulates", "confidence": 0.8},
+            ]
+            result = get_expanded_gene("SOD1", "query_clinvar", state)
+            assert result == "BECN1"
+            mock_galen.assert_called_once()
+
+    def test_falls_back_to_erik_core_when_galen_empty(self):
+        from research.query_expansion import get_expanded_gene
+        state = initial_state("traj:test")
+        with patch("research.query_expansion.get_gene_neighbors_galen") as mock_galen, \
+             patch("research.query_expansion.get_gene_neighbors") as mock_erik:
+            mock_galen.return_value = []
+            mock_erik.return_value = [
+                {"gene": "OPTN", "relationship": "associated_with", "confidence": 0.7},
+            ]
+            result = get_expanded_gene("SOD1", "query_clinvar", state)
+            assert result == "OPTN"
 
 
 # ---------------------------------------------------------------------------

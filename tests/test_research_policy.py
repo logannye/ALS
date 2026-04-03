@@ -1,11 +1,79 @@
 """Tests for action selection policy — balanced cycle with validation budget."""
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from research.actions import ActionType
 from research.state import ResearchState, initial_state
 from research.policy import select_action, _select_action_cycle, _CYCLE_LENGTH, _ACQUIRE_STEPS
+
+
+class TestPharmacogenomicsDrugList:
+    """Phase 10: Dynamic drug list loaded from interventions.json."""
+
+    def test_loads_more_than_five_drugs(self):
+        from research.policy import _get_pharmacogenomics_drugs
+        drugs = _get_pharmacogenomics_drugs()
+        assert len(drugs) > 5, f"Expected >5 drugs, got {len(drugs)}: {drugs}"
+
+    def test_includes_riluzole(self):
+        from research.policy import _get_pharmacogenomics_drugs
+        drugs = _get_pharmacogenomics_drugs()
+        assert any("riluzole" in d for d in drugs)
+
+    def test_includes_masitinib(self):
+        from research.policy import _get_pharmacogenomics_drugs
+        drugs = _get_pharmacogenomics_drugs()
+        assert any("masitinib" in d for d in drugs)
+
+    def test_fallback_on_file_error(self):
+        import research.policy as pol
+        old = pol._DRUG_NAMES_CACHE
+        pol._DRUG_NAMES_CACHE = None  # Clear cache
+        try:
+            with patch("builtins.open", side_effect=FileNotFoundError):
+                drugs = pol._get_pharmacogenomics_drugs()
+            assert drugs == pol._FALLBACK_DRUGS
+        finally:
+            pol._DRUG_NAMES_CACHE = old  # Restore
+
+    def test_returns_list_of_strings(self):
+        from research.policy import _get_pharmacogenomics_drugs
+        drugs = _get_pharmacogenomics_drugs()
+        assert isinstance(drugs, list)
+        assert all(isinstance(d, str) for d in drugs)
+
+
+class TestDrugCentricQueryStrategy:
+    """Phase 10: Drug-name-based PubMed queries as 5th strategy."""
+
+    def test_returns_string_with_drug(self):
+        from research.policy import _get_drug_centric_query
+        state = initial_state(subject_ref="traj:draper_001")
+        query = _get_drug_centric_query(state, step=0)
+        assert isinstance(query, str)
+        assert "ALS" in query or "als" in query.lower()
+
+    def test_rotates_drugs_across_steps(self):
+        from research.policy import _get_drug_centric_query
+        state = initial_state(subject_ref="traj:draper_001")
+        queries = {_get_drug_centric_query(state, step=i) for i in range(20)}
+        assert len(queries) >= 5, f"Expected >=5 unique queries, got {len(queries)}"
+
+    def test_pubmed_five_strategy_cycling(self):
+        """PubMed should use 5 strategies (step % 5), not 4."""
+        from research.policy import _build_acquisition_params
+        from research.actions import ActionType
+        state = initial_state(subject_ref="traj:draper_001")
+        queries = []
+        for step in range(5):
+            _, params = _build_acquisition_params(ActionType.SEARCH_PUBMED, state, step)
+            queries.append(params.get("query", ""))
+        # All 5 should produce queries; at least 3 should be distinct
+        assert all(q for q in queries)
+        assert len(set(queries)) >= 3
 
 
 class TestSelectAction:

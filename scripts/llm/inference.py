@@ -1,11 +1,13 @@
-"""Thin wrapper for local MLX LLM inference.
+"""Thin wrapper for local MLX LLM inference + factory for backend selection.
 
 Supports lazy loading so tests can instantiate LLMInference without a model
-present on disk.
+present on disk.  Use :func:`create_llm` to get the right backend based on
+the ``ERIK_LLM_BACKEND`` environment variable (``"mlx"`` or ``"bedrock"``).
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Optional
 
@@ -176,3 +178,47 @@ class LLMInference:
             mlx.core.clear_cache()
         except (ImportError, AttributeError):
             pass
+
+
+# ---------------------------------------------------------------------------
+# Factory — select backend via ERIK_LLM_BACKEND env var
+# ---------------------------------------------------------------------------
+
+
+def create_llm(
+    model_id: Optional[str] = None,
+    max_tokens: int = 1000,
+    temperature: float = 0.1,
+    lazy: bool = False,
+    region: Optional[str] = None,
+    max_retries: int = 3,
+) -> "LLMInference | BedrockLLM":  # noqa: F821
+    """Return an LLM backend based on ``ERIK_LLM_BACKEND`` env var.
+
+    * ``"bedrock"`` → :class:`~llm.bedrock_client.BedrockLLM` (API-based)
+    * ``"mlx"`` (default) → :class:`LLMInference` (local MLX model)
+
+    Both expose identical ``generate()``, ``generate_json()``, ``unload()``
+    methods so callers are backend-agnostic.
+    """
+    backend = os.environ.get("ERIK_LLM_BACKEND", "mlx").lower()
+
+    if backend == "bedrock":
+        from llm.bedrock_client import BedrockLLM, NOVA_MICRO
+
+        return BedrockLLM(
+            model_id=model_id or NOVA_MICRO,
+            region=region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
+            max_tokens=max_tokens,
+            temperature=temperature,
+            max_retries=max_retries,
+            lazy=lazy,
+        )
+
+    # Default: local MLX
+    return LLMInference(
+        model_path=model_id,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        lazy=lazy,
+    )

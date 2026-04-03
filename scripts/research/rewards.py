@@ -1,17 +1,22 @@
-"""8-component reward computation for the research loop."""
+"""9-component reward computation for the research loop.
+
+Reward signals are weighted to prioritize causal depth and gap closure
+over evidence breadth — reflecting the system's drug discovery mission.
+"""
 from __future__ import annotations
 import math
 from dataclasses import dataclass
 
 WEIGHTS = {
-    "evidence_gain": 3.0,
-    "uncertainty_reduction": 4.0,
-    "protocol_improvement": 3.5,
-    "hypothesis_resolution": 2.5,
-    "causal_depth": 2.0,
-    "interaction_safety": 2.0,
-    "erik_eligibility": 1.5,
-    "convergence_bonus": 1.0,
+    "evidence_gain": 1.5,           # Deprioritized: breadth has diminishing returns at 3K+ items
+    "uncertainty_reduction": 1.5,   # Deprioritized: layer coverage is not the bottleneck
+    "protocol_improvement": 4.0,    # Raised: protocol synthesis drives convergence
+    "hypothesis_resolution": 4.0,   # Raised: closing knowledge gaps advances drug discovery
+    "causal_depth": 5.0,            # PRIMARY: deep mechanistic understanding IS the mission
+    "interaction_safety": 2.0,      # Unchanged: safety is non-negotiable
+    "erik_eligibility": 3.0,        # Raised: trial access is time-sensitive (ALSFRS-R declining)
+    "convergence_bonus": 1.0,       # Unchanged
+    "gap_closure": 4.0,             # Closing structured causal gaps directly advances drug design
 }
 
 @dataclass
@@ -25,6 +30,7 @@ class RewardComponents:
     interaction_safety: float = 0.0
     erik_eligibility: float = 0.0
     convergence_bonus: float = 0.0
+    gap_closure: float = 0.0
 
     def total(self) -> float:
         return (
@@ -36,6 +42,7 @@ class RewardComponents:
             + WEIGHTS["interaction_safety"] * self.interaction_safety
             + WEIGHTS["erik_eligibility"] * self.erik_eligibility
             + WEIGHTS["convergence_bonus"] * self.convergence_bonus
+            + WEIGHTS["gap_closure"] * self.gap_closure
         )
 
     def to_dict(self) -> dict[str, float]:
@@ -48,6 +55,7 @@ class RewardComponents:
             "interaction_safety": self.interaction_safety,
             "erik_eligibility": self.erik_eligibility,
             "convergence_bonus": self.convergence_bonus,
+            "gap_closure": self.gap_closure,
             "total": self.total(),
         }
 
@@ -61,6 +69,7 @@ def compute_reward(
     interaction_safe: bool,
     eligibility_confirmed: bool,
     protocol_stable: bool,
+    gaps_updated: int = 0,
 ) -> RewardComponents:
     evidence_gain = math.log1p(evidence_items_added) if evidence_items_added > 0 else 0.0
     uncertainty_reduction = max(0.0, uncertainty_before - uncertainty_after)
@@ -70,9 +79,11 @@ def compute_reward(
     eligibility_val = 1.0 if eligibility_confirmed else 0.0
     convergence_val = 1.0 if protocol_stable else 0.0
     causal_depth_val = math.log1p(causal_depth_added) if causal_depth_added > 0 else 0.0
-    # Diminishing returns: depth without evidence is 90% discounted
+    # Mild discount: depth without simultaneous evidence is still valuable
+    # but grounding in data prevents hollow reasoning loops
     if causal_depth_added > 0 and evidence_items_added == 0:
-        causal_depth_val *= 0.1
+        causal_depth_val *= 0.5
+    gap_closure_val = math.log1p(gaps_updated) if gaps_updated > 0 else 0.0
 
     return RewardComponents(
         evidence_gain=evidence_gain,
@@ -83,4 +94,5 @@ def compute_reward(
         interaction_safety=interaction_safety_val,
         erik_eligibility=eligibility_val,
         convergence_bonus=convergence_val,
+        gap_closure=gap_closure_val,
     )

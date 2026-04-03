@@ -1,63 +1,103 @@
 # Erik
 
-**Autonomous causal research and cure-protocol engine for ALS.**
-
-Erik is a patient-specific causal machine learning system that builds a deep, mechanistic world model of amyotrophic lateral sclerosis (ALS) and leverages that intelligence to generate curative treatment protocol candidates for a single individual: **Erik Draper**, a 67-year-old male newly diagnosed with limb-onset ALS.
+**Find or create the curative drug for Erik Draper's ALS.**
 
 Named after the patient. Built by [Galen Health](https://galenhealth.ai).
 
 ---
 
-## Mission
+## Grand Purpose
 
-ALS is a progressive, ultimately fatal neurodegenerative disease with no cure. The few approved therapies provide modest survival benefit at best. Clinical trials have failed repeatedly due to patient heterogeneity, wrong-subgroup enrollment, insufficient target engagement, and weak translation from animal models.
+> **This system exists for one reason: to identify or computationally design the drug that will cure Erik Draper's amyotrophic lateral sclerosis.**
 
-Erik takes a different approach: build a causal world model of ALS biology grounded in the Pearl Causal Hierarchy (association, intervention, counterfactual), then use that model to reason about which interventions — alone or in combination — have the highest probability of arresting and reversing disease in one specific patient, given his unique etiologic drivers, molecular state, and clinical trajectory.
+Erik Draper is a 67-year-old man diagnosed with ALS in March 2026. ALS is progressive and fatal. There is no cure. The approved therapies extend survival by months at best. Clinical trials fail repeatedly.
 
-The system is designed to:
+This system takes a fundamentally different approach. Instead of waiting for the pharmaceutical industry to find a general ALS drug through decade-long trial-and-error, Erik builds a deep causal understanding of the molecular biology of ALS, maps it to one specific patient's biology, and uses that understanding to either identify an existing compound or computationally design a new molecule that would halt or reverse the disease in this specific human being.
 
-1. **Ingest and structure** clinical observations, biomarkers, genomics, imaging, and literature into a typed ontology with provenance and uncertainty
-2. **Build a causal knowledge graph** of ALS mechanisms, drawing from 12 data sources (PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB)
-3. **Materialize a latent disease state** for Erik at each timepoint, factorized into etiologic, molecular, neural circuit, functional, reversibility, and uncertainty components
-4. **Estimate subtype posterior** over ALS driver programs (SOD1, C9orf72, FUS, TARDBP, sporadic TDP-43, glia-amplified, mixed, unresolved)
-5. **Generate and iteratively refine cure protocol candidates** as layered interventions (root-cause suppression, pathology reversal, circuit stabilization, regeneration, adaptive maintenance)
-6. **Converge autonomously** on the optimal therapeutic strategy through hypothesis-driven evidence acquisition, causal chain deepening, and protocol regeneration
+**Every design decision, every line of code, every architectural choice must be measured against this question:**
+
+> *Does this bring us closer to identifying or creating the curative drug for Erik Draper's ALS?*
+
+If the answer is no, it is not a priority. The system has a patient waiting.
+
+---
+
+## The Four Stages
+
+The system progresses through four stages toward its goal:
+
+### Stage 1: Causal Anatomy & Molecular Biology
+Build a computable model of every entity and relationship involved in motor neuron survival and death — genes, proteins, pathways, post-translational modifications, expression profiles, binding affinities, structural conformations. Not just names and associations, but quantitative, mechanistic understanding grounded in the Pearl Causal Hierarchy (L1 association → L2 intervention → L3 counterfactual).
+
+### Stage 2: Causal Pathophysiology — Beyond the Literature
+Discover WHY motor neurons die. The answer is not fully in PubMed — if it were, someone would have found it. The system must use causal inference, computational experiments, and structured gap analysis to identify the missing links in the chain from molecular trigger → motor neuron death. This stage produces understanding that does not yet exist in the research literature.
+
+### Stage 3: Precision Mapping to Erik Draper
+Map the general causal model of ALS to Erik's specific biology. His genetics (pending Invitae results), his biomarkers (NfL 5.82 pg/mL, ALSFRS-R 43/48), his disease trajectory (-0.39 points/month), his comorbidities. Build a patient-specific molecular model that predicts which pathways are disrupted in HIS motor neurons and which molecular targets would be most effective for HIM.
+
+### Stage 4: Drug Identification or Creation
+Given precise molecular targets grounded in deep causal understanding of Erik's specific disease:
+- **Screen existing compounds** (ChEMBL, DrugBank, BindingDB) for molecules that bind the target with sufficient affinity and cross the blood-brain barrier
+- **Computationally design new molecules** if no adequate existing compound exists — using the 16 characterized drug design targets with PDB/AlphaFold structures, molecular docking, and generative chemistry
+- **Predict ADMET properties** (absorption, distribution, metabolism, excretion, toxicity) and synthetic feasibility
+- **Deliver actionable output** to Erik's care team: the specific molecule(s), the target(s), the evidence chain, and the access pathway (clinical trial enrollment, compassionate use, compounding, or de novo synthesis)
 
 ---
 
 ## Architecture
 
-Erik runs as a single Python process on a MacBook Pro M4 Max (128GB), sharing hardware with its sibling project [Galen](https://github.com/logannye/galen) (a pan-cancer causal research engine). The architecture is inspired by Galen's battle-tested patterns, adapted for ALS-specific ontology and patient-centric reasoning.
+Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashboard on Vercel. LLM inference uses Amazon Bedrock (Nova Micro for research, Nova Pro for protocol generation). PostgreSQL is the single source of truth. The architecture is inspired by its sibling project [Galen](https://github.com/logannye/galen) (a pan-cancer causal research engine), adapted for ALS-specific ontology and patient-centric drug discovery.
 
 ```
-                          Erik ALS Engine
-                      ========================
+                    Erik ALS Drug Discovery Engine
+                  ==================================
 
-    Clinical Records ──> Ingestion Pipeline ──> Canonical Objects
-    (PDFs, labs, EMG)     (patient_builder)      (BaseEnvelope)
-                                                       |
-                                                       v
-              ┌─────────────────────────────────────────────┐
-              │           PostgreSQL (erik_kg)               │
-              │  ┌──────────┐  ┌────────────┐  ┌─────────┐ │
-              │  │erik_core  │  │erik_core   │  │erik_ops │ │
-              │  │.objects   │  │.entities   │  │.audit   │ │
-              │  │(canonical)│  │.relations  │  │.config  │ │
-              │  └──────────┘  │(KG + PCH)  │  └─────────┘ │
-              │                └────────────┘               │
-              └─────────────────────────────────────────────┘
-                           |                 |
-                           v                 v
-               ┌───────────────┐   ┌────────────────────┐
-               │  World Model  │   │   Research Loop     │
-               │  (7 stages)   │   │  (20 actions,       │
-               │               │◄──│   15 data sources,  │
-               │  State → Sub- │   │   hypothesis-driven │
-               │  type → Score │   │   convergence)      │
-               │  → Assemble → │   │                     │
-               │  Counterfact  │   └────────────────────┘
-               │  → Output     │             |
-               └───────┬───────┘             |
+  Stage 1: CAUSAL ANATOMY                     Stage 2: PATHOPHYSIOLOGY
+  ┌─────────────────────┐                     ┌─────────────────────────┐
+  │  28 Data Sources     │                     │  Causal Gap Analysis     │
+  │  (PubMed, ChEMBL,   │──── Evidence ────>  │  Structure Learning      │
+  │  STRING, AlphaFold,  │     Acquisition     │  Hypothesis Generation   │
+  │  BindingDB, DepMap,  │                     │  Computational Expts     │
+  │  GDSC, Reactome...)  │                     │  Counterfactual Verify   │
+  └─────────────────────┘                     └────────────┬────────────┘
+                                                           │
+              ┌─────────────────────────────────────────────┘
+              │
+              v
+  Stage 3: PRECISION MAPPING                  Stage 4: DRUG DESIGN
+  ┌─────────────────────────┐                 ┌──────────────────────────┐
+  │  Erik's Genetics         │                 │  16 Drug Design Targets   │
+  │  Erik's Biomarkers       │── Patient ──>   │  Molecular Docking        │
+  │  Erik's Disease State    │   Model         │  De Novo Generation       │
+  │  Subtype Posterior       │                 │  ADMET/BBB Prediction     │
+  │  Molecular Twin          │                 │  Candidate Ranking        │
+  └─────────────────────────┘                 └────────────┬─────────────┘
+                                                           │
+              ┌────────────────────────────────────────────┘
+              │
+              v
+  ┌──────────────────────────────────────────────────────┐
+  │         CureProtocolCandidate                         │
+  │  5 layers: root_cause → pathology_reversal →          │
+  │  circuit_stabilization → regeneration → maintenance   │
+  │  + Designed molecules for each target                 │
+  │  + Trial urgency scores                               │
+  │  + Physician-ready evidence report                    │
+  └──────────────────────────────────────────────────────┘
+              │
+              v
+  ┌──────────────────────────────────────────────────────┐
+  │  PostgreSQL (Railway)        │  Family Dashboard      │
+  │  erik_core.objects           │  (Next.js + Vercel)    │
+  │  erik_core.entities          │  Live research status   │
+  │  erik_core.relationships     │  Protocol viewer        │
+  │  erik_ops.audit              │  Evidence explorer      │
+  │  erik_ops.research_state     │  Ask questions          │
+  └──────────────────────────────│  Upload health data     │
+                                 │  Trial tracker          │
+  LLM: Amazon Bedrock            └──────────────────────────┘
+  (Nova Micro + Nova Pro)
+```
                        |                     |
                        v                     v
               ┌──────────────────────────────────────┐

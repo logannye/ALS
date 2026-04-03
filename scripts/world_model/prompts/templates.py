@@ -209,3 +209,45 @@ Return a single JSON object with this exact schema:
   "cited_evidence": [<list of evi:* or int:* IDs used>]
 }}
 """
+
+# ---------------------------------------------------------------------------
+# Physician Report — Clinical summary + recommendations for treating physician
+# ---------------------------------------------------------------------------
+
+PHYSICIAN_REPORT_TEMPLATE = """\
+TASK: Generate a clinical summary and actionable recommendations for the
+treating physician of Erik Draper (67M, limb-onset ALS, diagnosed March 2026).
+
+This report must be evidence-grounded, concise, and actionable. The physician
+is Dr. Thakore at Cleveland Clinic. Write for a neurologist who understands
+ALS but has not seen this system's analysis before.
+
+PATIENT DISEASE STATE:
+{patient_state_json}
+
+CURRENT CURE PROTOCOL (5-layer):
+{protocol_json}
+
+TOP EVIDENCE SUMMARY (most relevant findings):
+{evidence_items_json}
+
+OPEN CAUSAL GAPS (what we don't yet understand):
+{causal_gaps_json}
+
+Return a single JSON object:
+{{
+  "clinical_summary": <string — 3-4 sentence overview of Erik's current status, trajectory, and the system's assessment>,
+  "protocol_explanation": <string — plain-language explanation of the 5-layer treatment strategy and why these interventions were selected>,
+  "recommendations": [
+    {{
+      "recommendation": <string — specific, actionable recommendation>,
+      "rationale": <string — why this is recommended, citing evidence IDs>,
+      "timeline": <"immediate" | "within_week" | "within_month" | "within_quarter">,
+      "type": <"genetic_testing" | "biomarker" | "imaging" | "trial_enrollment" | "intervention_start" | "monitoring" | "referral">,
+      "cited_evidence": [<list of evi:* IDs>]
+    }}
+  ],
+  "key_uncertainties": [<string — top 5 things we don't know that affect treatment decisions>],
+  "cited_evidence": [<all evi:* and int:* IDs referenced anywhere in this report>]
+}}
+"""

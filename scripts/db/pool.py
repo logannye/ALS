@@ -19,6 +19,10 @@ _DB_USER = os.environ.get("USER", "logannye")
 
 
 def _make_conninfo() -> str:
+    """Build connection string.  Prefers DATABASE_URL (Railway, remote) if set."""
+    url = os.environ.get("DATABASE_URL")
+    if url:
+        return url
     return f"dbname={_DB_NAME} user={_DB_USER}"
 
 

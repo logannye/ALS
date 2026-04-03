@@ -17,6 +17,10 @@ from connectors.base import BaseConnector, ConnectorResult
 ALS_CROSS_REFERENCE_GENES = [
     "SOD1", "TARDBP", "FUS", "C9orf72", "STMN2", "UNC13A",
     "SIGMAR1", "SLC1A2", "MTOR", "CSF1R", "OPTN", "TBK1", "NEK1",
+    # Phase 10 expansion: ALSoD definitive/strong + pathway targets
+    "ANXA11", "CHCHD10", "KIF5A", "VCP", "UBQLN2", "SQSTM1",
+    "ATXN2", "PFN1", "VAPB", "TUBA4A", "HNRNPA1", "SARM1",
+    "BDNF", "GDNF", "C5",
 ]
 
 

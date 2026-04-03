@@ -8,11 +8,11 @@ REQUIRED_FIELDS = {"name", "gene", "uniprot_id", "description", "subtypes", "pro
 
 
 class TestALSTargetsDict:
-    def test_has_at_least_fifteen_entries(self):
-        assert len(ALS_TARGETS) >= 15
+    def test_has_at_least_twenty_five_entries(self):
+        assert len(ALS_TARGETS) >= 25
 
-    def test_has_sixteen_entries(self):
-        assert len(ALS_TARGETS) == 16
+    def test_has_twenty_eight_entries(self):
+        assert len(ALS_TARGETS) == 28
 
     def test_all_targets_have_required_fields(self):
         for name, target in ALS_TARGETS.items():
@@ -125,6 +125,82 @@ class TestGetTarget:
         t = get_target("mTOR")
         assert t is not None
         assert t["uniprot_id"] == "P42345"
+
+
+    # --- Phase 10 expanded targets ---
+
+    def test_get_anxa11(self):
+        t = get_target("ANXA11")
+        assert t is not None
+        assert t["uniprot_id"] == "P50995"
+
+    def test_get_chchd10(self):
+        t = get_target("CHCHD10")
+        assert t is not None
+        assert t["uniprot_id"] == "Q8WYQ3"
+
+    def test_get_kif5a(self):
+        t = get_target("KIF5A")
+        assert t is not None
+        assert t["uniprot_id"] == "Q12840"
+
+    def test_get_vcp(self):
+        t = get_target("VCP")
+        assert t is not None
+        assert t["uniprot_id"] == "P55072"
+        assert t["druggable"] is True
+
+    def test_get_ubqln2(self):
+        t = get_target("UBQLN2")
+        assert t is not None
+        assert t["uniprot_id"] == "Q9UHD9"
+
+    def test_get_sqstm1(self):
+        t = get_target("SQSTM1")
+        assert t is not None
+        assert t["uniprot_id"] == "Q13501"
+
+    def test_get_atxn2(self):
+        t = get_target("ATXN2")
+        assert t is not None
+        assert t["uniprot_id"] == "Q99700"
+
+    def test_get_pfn1(self):
+        t = get_target("PFN1")
+        assert t is not None
+        assert t["uniprot_id"] == "P07737"
+
+    def test_get_vapb(self):
+        t = get_target("VAPB")
+        assert t is not None
+        assert t["uniprot_id"] == "O95292"
+
+    def test_get_tuba4a(self):
+        t = get_target("TUBA4A")
+        assert t is not None
+        assert t["uniprot_id"] == "P68366"
+
+    def test_get_hnrnpa1(self):
+        t = get_target("HNRNPA1")
+        assert t is not None
+        assert t["uniprot_id"] == "P09651"
+
+    def test_get_sarm1(self):
+        t = get_target("SARM1")
+        assert t is not None
+        assert t["uniprot_id"] == "Q6SZW1"
+        assert t["druggable"] is True
+
+    def test_new_targets_cover_all_protocol_layers(self):
+        """Expanded target set covers every protocol layer."""
+        all_layers = set()
+        for t in ALS_TARGETS.values():
+            all_layers.update(t["protocol_layers"])
+        # At minimum these 4 layers should be present
+        assert "root_cause_suppression" in all_layers
+        assert "pathology_reversal" in all_layers
+        assert "circuit_stabilization" in all_layers
+        assert "regeneration_reinnervation" in all_layers
 
 
 class TestGetTargetsForSubtype:

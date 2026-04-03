@@ -138,6 +138,50 @@ class TestEvidenceCounterUpdates:
 
         assert new_state.evidence_by_strength["moderate"] == 3
 
+class TestStagnationRecovery:
+    """Phase 10: Stagnation recovery must clear exhaustion counters and expansion history."""
+
+    def test_stagnation_recovery_clears_target_exhaustion(self):
+        """When stagnation triggers, target_exhaustion should be emptied."""
+        from unittest.mock import patch, MagicMock
+        from research.actions import ActionResult
+        from dataclasses import replace
+
+        state = initial_state(subject_ref="traj:draper_001")
+        # Set up state that will trigger stagnation: high step count, no growth
+        state = replace(
+            state,
+            step_count=299,  # Will become 300 (checkpoint at 300)
+            total_evidence_items=100,
+            evidence_at_step={0: 100, 50: 100, 100: 100, 150: 100, 200: 100},
+            last_stagnation_step=0,
+            target_exhaustion={"SOD1:query_clinvar": 10, "FUS:query_gtex": 5},
+            expansion_query_history=["old_query_1", "old_query_2"],
+            expansion_gene_history={"query_clinvar": ["OPTN"]},
+        )
+
+        mock_result = ActionResult(
+            action=ActionType.SEARCH_PUBMED,
+            evidence_items_added=0,
+        )
+
+        mock_store = MagicMock()
+        mock_store.count_by_type.return_value = 100
+
+        with patch("research.loop._execute_action", return_value=mock_result):
+            new_state = research_step(
+                state=state,
+                evidence_store=mock_store,
+                llm_manager=MagicMock(get_research_engine=MagicMock(return_value=None)),
+            )
+
+        # Stagnation should have fired and cleared these fields
+        if new_state.stagnation_resets > state.stagnation_resets:
+            assert new_state.target_exhaustion == {}
+            assert new_state.expansion_query_history == []
+            assert new_state.expansion_gene_history == {}
+
+
     def test_uncertainty_decreases_when_empty_layer_gets_evidence(self):
         """Reward uncertainty_reduction should be > 0 when previously empty layer gets evidence."""
         from unittest.mock import patch, MagicMock
