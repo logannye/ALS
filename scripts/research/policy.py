@@ -372,6 +372,10 @@ def select_action_thompson(
         all_types.append(ActionType.VALIDATE_HYPOTHESIS)
     if hasattr(ActionType, "CHALLENGE_INTERVENTION"):
         all_types.append(ActionType.CHALLENGE_INTERVENTION)
+    # Computational + drug design actions
+    all_types.append(ActionType.RUN_COMPUTATION)
+    if hasattr(ActionType, "DESIGN_MOLECULE"):
+        all_types.append(ActionType.DESIGN_MOLECULE)
 
     # Remove infeasible actions (prevents silent fallback to generate_hypothesis)
     all_types = [at for at in all_types if _action_is_feasible(at, state, target_depth)]

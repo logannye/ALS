@@ -61,7 +61,7 @@
   "combination_analysis_enabled": true,
   "combination_antagonism_threshold": 0.7,
   "combination_overlap_threshold": 0.6,
-  "thompson_policy_enabled": true,
+  "thompson_policy_enabled": false,
   "thompson_decay_interval": 40,
   "thompson_decay_rate": 0.85,
   "thompson_diversity_floor": 25,
