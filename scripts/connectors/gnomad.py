@@ -132,7 +132,7 @@ class GnomADConnector(BaseConnector):
 
             if self._store:
                 self._store.upsert_object(evi)
-                result.evidence_items_added += 1
+            result.evidence_items_added += 1
 
         except Exception as e:
             result.errors.append(f"gnomAD query failed for {gene}: {e}")

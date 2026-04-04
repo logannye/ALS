@@ -13,6 +13,7 @@ from __future__ import annotations
 import glob
 import logging
 import math
+import os
 import statistics
 from pathlib import Path
 from typing import Any
@@ -170,15 +171,44 @@ def _compute_fold_change(
     return fc, p_value
 
 
+_GPL_ANNOTATION_PATH = os.path.join(_DEFAULT_PATH, "gpl570_gene_probes.tsv")
+_GPL_CACHE: dict[str, list[str]] | None = None
+
+
+def _load_gpl_annotation() -> dict[str, list[str]]:
+    """Load the GPL570 gene-to-probe mapping (cached after first call)."""
+    global _GPL_CACHE
+    if _GPL_CACHE is not None:
+        return _GPL_CACHE
+
+    mapping: dict[str, list[str]] = {}
+    annot_path = _GPL_ANNOTATION_PATH
+    if not os.path.exists(annot_path):
+        _GPL_CACHE = mapping
+        return mapping
+
+    with open(annot_path, "r") as f:
+        next(f, None)  # skip header
+        for line in f:
+            parts = line.strip().split("\t")
+            if len(parts) >= 2:
+                gene = parts[0].upper()
+                probe_ids = [p.strip() for p in parts[1].split(",") if p.strip()]
+                mapping[gene] = probe_ids
+
+    _GPL_CACHE = mapping
+    return mapping
+
+
 def _find_gene_probe(
     probes: dict[str, list[float]],
     gene: str,
 ) -> tuple[str, list[float]] | None:
-    """Find a probe matching the given gene symbol (case-insensitive exact match).
+    """Find a probe matching the given gene symbol.
 
-    This is a simplification — real probe-to-gene mapping requires GPL
-    annotation files. For now, only works when the probe ID happens to
-    match the gene symbol directly.
+    Uses the GPL570 annotation file to map gene symbols to Affymetrix
+    probe IDs, then selects the probe with the highest mean expression
+    (most reliable signal). Falls back to direct probe ID match.
 
     Parameters
     ----------
@@ -191,10 +221,31 @@ def _find_gene_probe(
     -------
     ``(probe_id, values)`` if found, else ``None``.
     """
+    gene_upper = gene.upper()
+
+    # Try GPL annotation mapping first
+    gpl = _load_gpl_annotation()
+    candidate_probes = gpl.get(gene_upper, [])
+    best_match: tuple[str, list[float]] | None = None
+    best_mean = -1.0
+
+    for probe_id in candidate_probes:
+        if probe_id in probes:
+            values = probes[probe_id]
+            mean_val = sum(values) / max(len(values), 1)
+            if mean_val > best_mean:
+                best_mean = mean_val
+                best_match = (probe_id, values)
+
+    if best_match is not None:
+        return best_match
+
+    # Fallback: direct probe ID match (for RNA-seq or non-GPL570 data)
     gene_lower = gene.lower()
     for probe_id, values in probes.items():
         if probe_id.lower() == gene_lower:
             return probe_id, values
+
     return None
 
 

@@ -189,9 +189,9 @@ class UniProtConnector(BaseConnector):
         if self._store:
             try:
                 self._store.upsert_object(evi)
-                result.evidence_items_added += 1
             except Exception:
                 pass
+        result.evidence_items_added += 1
 
     def _search(self, *, gene: str = "", accession: str = "") -> dict | None:
         """Search the UniProt TSV by gene symbol or accession.
