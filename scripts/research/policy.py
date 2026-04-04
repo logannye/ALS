@@ -259,6 +259,14 @@ _ACQUISITION_ROTATION = [
     ActionType.QUERY_DRUGBANK,
     ActionType.QUERY_ALPHAFOLD,
     ActionType.QUERY_REACTOME_LOCAL,
+    # Phase 10: expanded evidence sources
+    ActionType.QUERY_GNOMAD,
+    ActionType.QUERY_UNIPROT,
+    ActionType.QUERY_SPLICEAI,
+    ActionType.QUERY_FAERS,
+    ActionType.QUERY_DISGENET,
+    ActionType.QUERY_GEO_ALS,
+    ActionType.QUERY_CMAP,
 ]
 
 # Depth-biased 5-step cycle: 2 acquisition, 1 reasoning, 1 validation, 1 deepening
@@ -849,7 +857,9 @@ def _build_acquisition_params(
 
     elif action in (ActionType.QUERY_GTEX, ActionType.QUERY_CLINVAR, ActionType.QUERY_GWAS,
                     ActionType.QUERY_HPA, ActionType.QUERY_DRUGBANK, ActionType.QUERY_ALPHAFOLD,
-                    ActionType.QUERY_REACTOME_LOCAL):
+                    ActionType.QUERY_REACTOME_LOCAL,
+                    ActionType.QUERY_GNOMAD, ActionType.QUERY_UNIPROT, ActionType.QUERY_SPLICEAI,
+                    ActionType.QUERY_DISGENET, ActionType.QUERY_GEO_ALS):
         # All gene-rotating connectors: pick ALS target by step, expand if exhausted
         from targets.als_targets import ALS_TARGETS
         target_keys = list(ALS_TARGETS.keys())
@@ -869,6 +879,18 @@ def _build_acquisition_params(
         gene = ALS_TARGETS[target_keys[step % len(target_keys)]].get("gene", "TARDBP") if target_keys else "TARDBP"
         gene = _maybe_expand_gene(gene, action, state)
         return action, build_action_params(action, drug=drug, gene=gene, protocol_layer="root_cause_suppression")
+
+    elif action == ActionType.QUERY_FAERS:
+        drugs = _get_pharmacogenomics_drugs()
+        drug = drugs[step % len(drugs)] if drugs else "riluzole"
+        return action, build_action_params(action, drug_name=drug, protocol_layer="adaptive_maintenance")
+
+    elif action == ActionType.QUERY_CMAP:
+        interventions = list(state.causal_chains.keys())
+        if interventions and step % 2 == 0:
+            drug = interventions[step % len(interventions)].replace("int:", "")
+            return action, build_action_params(action, compound=drug, protocol_layer="pathology_reversal")
+        return action, build_action_params(action, protocol_layer="pathology_reversal")
 
     return _fallback_acquisition(state, step, skip=action)
 

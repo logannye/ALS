@@ -54,7 +54,7 @@ Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashbo
 
   Stage 1: CAUSAL ANATOMY                     Stage 2: PATHOPHYSIOLOGY
   ┌─────────────────────┐                     ┌─────────────────────────┐
-  │  28 Data Sources     │                     │  Causal Gap Analysis     │
+  │  31 Data Sources     │                     │  Causal Gap Analysis     │
   │  (PubMed, ChEMBL,   │──── Evidence ────>  │  Structure Learning      │
   │  STRING, AlphaFold,  │     Acquisition     │  Hypothesis Generation   │
   │  BindingDB, DepMap,  │                     │  Computational Expts     │
@@ -152,9 +152,9 @@ The system infrastructure is fully operational:
 
 - **Canonical Substrate** — 25 Pydantic models, 16 enums, 38 typed relations, PostgreSQL schema, Erik's 51 observations
 - **Evidence Fabric** — 93 curated evidence items, 25 interventions, 16 drug targets, 10 computational design targets
-- **15 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL, OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB, Galen KG (cross-disease), bioRxiv/medRxiv (preprints), Galen SCM (causal graph)
+- **31 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL (with ADME/Tox profiling), OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB, Galen KG (cross-disease), bioRxiv/medRxiv (preprints), Galen SCM (causal graph), GTEx, ClinVar-local, GWAS Catalog, BindingDB, HPA, DrugBank-local, AlphaFold, Reactome-local, ALSoD, gnomAD (constraint metrics), UniProt (protein annotations), SpliceAI (splice-altering variants), FAERS (FDA drug safety), DisGeNET (gene-disease associations), GEO ALS (expression profiling), CMap/LINCS (transcriptomic drug repurposing)
 - **World Model Pipeline** — 7-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → **combination synergy analysis** → protocol assembly → **adversarial counterfactual verification** → output
-- **Research Loop** — 30 action types, Thompson sampling policy (with fixed-cycle fallback), hypothesis system, causal chain construction (depth 10), protocol convergence detection, episode logging, gap resolvability classification, clinical subtype posterior, **clinical trial eligibility matching**, **adversarial protocol verification**, **PRO-ACT trajectory matching**, **stagnation detection and recovery**
+- **Research Loop** — 37 action types, depth-biased cycle policy (5-step: 2 acquisition, 1 reasoning, 1 validation, 1 deepening), hypothesis system, causal chain construction (depth 10), protocol convergence detection, episode logging, gap resolvability classification, clinical subtype posterior, **clinical trial eligibility matching**, **adversarial protocol verification**, **PRO-ACT trajectory matching**, **stagnation detection and recovery**
 
 ### Stage 2: Research (Running 24/7)
 
@@ -241,6 +241,42 @@ The converged protocol is not a final answer — it is the **best answer given c
 - **New research publishes** — the loop discovers new evidence and regenerates
 
 The system re-enters active research mode automatically when new data changes the protocol's top-3 interventions.
+
+---
+
+## Phase 11: Expanded Evidence Sources (April 3, 2026)
+
+Seven new data source connectors and a major ChEMBL ADME/Tox expansion, increasing Erik's evidence acquisition surface from 24 to 31 connectors and from 30 to 37 action types.
+
+### 7 New Database Connectors
+| Database | Type | What It Provides |
+|----------|------|------------------|
+| **gnomAD v4.1** (on disk, 91MB) | Constraint metrics | Gene-level LoF/missense constraint (pLI, LOEUF) — determines how intolerant ALS target genes are to mutation |
+| **UniProt** (on disk, 52MB) | Protein annotations | Function, subcellular localization, disease associations, post-translational modifications for ALS targets |
+| **SpliceAI** (on disk) | Splice predictions | Delta scores for splice-altering variants — critical for UNC13A/STMN2 cryptic exon targets |
+| **FAERS** (FDA API) | Drug safety | Adverse event reports and safety signals for ALS drug candidates |
+| **DisGeNET** (on disk) | Gene-disease | Gene-disease association scores with evidence source tracking for ALS genes |
+| **GEO ALS** (on disk, 8 datasets) | Expression profiling | Differential expression from 8 ALS microarray/RNA-seq studies (GSE124439, GSE153960, GSE56808, etc.) |
+| **CMap/LINCS** (clue.io API) | Drug repurposing | Connectivity Map transcriptomic reversal — identifies compounds that reverse ALS disease signatures |
+
+### ChEMBL ADME/Tox Expansion
+The ChEMBL connector gained 5 new query types beyond basic bioactivity:
+- **Compound properties** — MW, ALogP, HBA/HBD, PSA, RO5 violations, QED score, SMILES
+- **Drug mechanisms** — Mechanism of action, action type, direct interaction status
+- **Metabolism** — Enzyme-mediated metabolic conversions and metabolite identification
+- **Drug indications** — Approved/investigational indications with max clinical phase
+- **Full ADME/Tox profile** — Orchestrated query combining bioactivity + properties + MOA per target
+
+The `QUERY_CHEMBL` action now rotates through all 28 ALS target genes using `fetch_full_profile()`, producing compound property, mechanism, and metabolism evidence alongside bioactivity data.
+
+### Depth-Biased Cycle Policy
+Thompson sampling disabled in favor of a deterministic 5-step cycle: acquire → reason → validate → deepen → acquire. Provides more predictable action diversity and eliminates Thompson's tendency toward hypothesis saturation.
+
+### Results
+- 7 new connectors + 7 test files (198 new tests)
+- ChEMBL expansion: 5 query builders, 5 fetch methods, 4 evidence converters, `fetch_full_profile` orchestrator (51 tests)
+- Test fixes: 7 pre-existing failures from Thompson disable resolved
+- 1,473 total tests, 0 failures
 
 ---
 
@@ -405,9 +441,9 @@ Queries Galen's structural causal model for cross-disease causal reasoning. Inst
 | Action types exercised | 8 of 15 |
 | Time to convergence | ~17 minutes |
 
-### Current Mode: Active Research (Phase 7 — Deep Causal Understanding)
+### Current Mode: Active Research (Phase 11 — Expanded Evidence Sources)
 
-The system is running with 24 data connectors across 9 databases, a knowledge graph with 1,600+ entities, computational experiments (DepMap/GDSC/ChEMBL), and targeted gene-specific PubMed queries. Evidence is flowing at ~156 items/hour across 20 action types. Monitor with:
+The system is running with 31 data connectors across 16 databases, a knowledge graph with 1,600+ entities, computational experiments (DepMap/GDSC/ChEMBL), and targeted gene-specific PubMed queries. Evidence is flowing across 37 action types. Monitor with:
 
 ```bash
 tail -f /Users/logannye/.openclaw/erik/logs/erik_research.log
@@ -434,9 +470,13 @@ The system checks every cycle for:
 | 5 | Research Loop Recovery | **Complete** | Fixed 3 systemic failures: 79% empty steps → ~25%, hypothesis fixation → diversity, 0.12% evidence utilization → 30+ citations. Thompson enabled, yield-aware skip, hypothesis dedup, rotating queries. 29 new tests. |
 | 6 | Production Stall Recovery | **Complete** | Fixed 5 compounding failures causing complete evidence stall (220 steps, 0 evidence). Hypothesis statement storage, gap recency penalty, dynamic queries, Thompson posterior wiring. 30 new tests. |
 | 7 | Deep Causal Understanding | **Complete** | 9 new databases (GTEx, ClinVar, GWAS, BindingDB, HPA, DrugBank, AlphaFold, Reactome, ALSoD), KG entity extraction, computational experiments (DepMap/GDSC/ChEMBL), targeted queries, SCM fix, hypothesis validation. 78x evidence rate. 94 tests. |
-| 8 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
+| 8 | Production Deadlock Fix | **Complete** | Thompson VALIDATE_HYPOTHESIS integration, hypothesis expiry at max_active, Galen SCM depth dedup, DrugBank encoding fix, CHALLENGE_INTERVENTION wiring, stagnation detection. 19 tests. |
+| 9 | Query Expansion Engine | **Complete** | Break evidence saturation plateau with expanded gene targets (16→28), drug rotation (5→18), Galen KG cross-reference expansion, drug-centric PubMed/preprint queries. |
+| 10 | Cloud Deployment | **Complete** | Railway backend + Vercel frontend, Amazon Bedrock LLM, depth-biased cycle policy replacing Thompson sampling. |
+| 11 | Expanded Evidence Sources | **Complete** | 7 new connectors (gnomAD, UniProt, SpliceAI, FAERS, DisGeNET, GEO ALS, CMap/LINCS), ChEMBL ADME/Tox expansion (compound properties, MOA, metabolism, indications), 37 action types. 198 new tests. |
+| 12 | Clinical Translation | Next | Physician review, trial enrollment, compassionate use applications |
 
-System is fully operational with 24 data connectors, knowledge graph (1,600+ entities, 145+ relationships), computational experiments (gene essentiality, drug sensitivity, binding affinity), 9 local databases, targeted gene-specific queries, intelligent gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, Thompson sampling action selection, yield-aware action routing, hypothesis deduplication, dynamic query expansion, and configurable protocol assembly.
+System is fully operational with 31 data connectors, knowledge graph (1,600+ entities, 145+ relationships), computational experiments (gene essentiality, drug sensitivity, binding affinity), 16 databases (9 local + 7 API), targeted gene-specific queries, intelligent gap-driven research, resolvability-aware gap classification, clinical subtype posterior, cross-disease knowledge transfer from Galen, uncertainty-based convergence, clinical trial eligibility matching, adversarial protocol verification, drug combination synergy analysis, PRO-ACT trajectory matching, depth-biased cycle policy, yield-aware action routing, hypothesis deduplication, dynamic query expansion, ChEMBL ADME/Tox profiling, and configurable protocol assembly.
 
 ---
 
@@ -448,10 +488,11 @@ scripts/
   db/               # PostgreSQL schema (DDL), connection pool, migrations
   ingestion/        # Clinical document parsing, patient trajectory builder
   evidence/         # Evidence store (PostgreSQL CRUD) + seed builder
-  connectors/       # 24 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
+  connectors/       # 31 connectors (PubMed, ClinicalTrials, ChEMBL, OpenTargets, DrugBank,
                     #   Reactome, KEGG, STRING, ClinVar, OMIM, PharmGKB, GalenKG, GalenSCM,
                     #   bioRxiv/medRxiv, PRO-ACT, ALSoD, GTEx, ClinVar-local, GWAS Catalog,
-                    #   BindingDB, HPA, DrugBank-local, AlphaFold, Reactome-local)
+                    #   BindingDB, HPA, DrugBank-local, AlphaFold, Reactome-local,
+                    #   gnomAD, UniProt, SpliceAI, FAERS, DisGeNET, GEO ALS, CMap/LINCS)
   targets/          # Canonical ALS drug target definitions (16 targets)
   llm/              # MLX LLM inference wrapper (generate, generate_json, lazy loading, unload)
   world_model/      # 7-stage cure protocol pipeline (state, subtype, scoring, combination
@@ -461,7 +502,7 @@ scripts/
     combination_analyzer.py  # Drug synergy/antagonism/redundancy detection
   knowledge_quality/ # KG entity extraction from evidence items
   executors/        # ALS computational experiments (DepMap, GDSC, ChEMBL binding)
-  research/         # Autonomous research loop (28 actions, Thompson sampling policy,
+  research/         # Autonomous research loop (37 actions, depth-biased cycle policy,
                     #   rewards, hypotheses, causal chains, convergence, trajectory,
                     #   intelligence, gap resolvability, adversarial verification, eligibility)
     eligibility.py  # Clinical trial eligibility matching for Erik
@@ -472,9 +513,9 @@ scripts/
   config/           # Hot-reloadable JSON config
 data/
   seed/             # Curated evidence seed (7 JSON files, 128 objects)
-  erik_config.json  # Hot-reloadable runtime config (~75 keys)
+  erik_config.json  # Hot-reloadable runtime config (~120 keys)
 logs/               # LaunchAgent log output (erik_research.log, erik_research.err)
-tests/              # 1000+ pytest tests mirroring scripts/ structure
+tests/              # 1,473+ pytest tests mirroring scripts/ structure
 docs/
   specs/            # Design specifications
   plans/            # Implementation plans

@@ -18,4 +18,11 @@ markers = [
     "network: marks tests that require network access (deselect with '-m \"not network\"')",
     "chembl: marks tests that require the local ChEMBL 36 SQLite database",
     "llm: marks tests that require a local LLM model",
+    "gnomad: marks tests that require gnomAD constraint data",
+    "uniprot: marks tests that require UniProt data",
+    "spliceai: marks tests that require SpliceAI data",
+    "faers: marks tests that require openFDA API access",
+    "disgenet: marks tests that require DisGeNET data",
+    "geo_als: marks tests that require local GEO ALS data",
+    "cmap: marks tests that require clue.io API access",
 ]

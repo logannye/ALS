@@ -98,14 +98,17 @@ class TestHypothesisExpiryAtMaxActive:
     """_maybe_expire_hypotheses must force-expire at max_active to prevent deadlock."""
 
     def test_force_expire_at_max_active(self):
-        """When hypotheses are at max_active (10), oldest should be expired."""
+        """When hypotheses are at max_active, oldest should be expired."""
+        import json
+        with open("data/erik_config.json") as f:
+            max_active = json.load(f).get("research_hypothesis_max_active", 10)
         state = initial_state("traj:test")
         state = ResearchState(**{
             **state.to_dict(),
-            "active_hypotheses": [f"hypothesis {i}" for i in range(10)],
+            "active_hypotheses": [f"hypothesis {i}" for i in range(max_active)],
         })
         _maybe_expire_hypotheses(state)
-        assert len(state.active_hypotheses) == 9
+        assert len(state.active_hypotheses) == max_active - 1
         assert state.active_hypotheses[0] == "hypothesis 1"  # oldest expired
         assert state.resolved_hypotheses == 1
 
@@ -133,17 +136,20 @@ class TestHypothesisExpiryAtMaxActive:
         If hypotheses are at max_active before the call, after Thompson
         runs they should be reduced (proving expiry was called).
         """
+        import json
+        with open("data/erik_config.json") as f:
+            max_active = json.load(f).get("research_hypothesis_max_active", 10)
         state = initial_state("traj:test")
         state = ResearchState(**{
             **state.to_dict(),
             "protocol_version": 1,
             "step_count": 100,
-            "active_hypotheses": [f"hypothesis {i}" for i in range(10)],
+            "active_hypotheses": [f"hypothesis {i}" for i in range(max_active)],
             "last_action_per_type": {at.value: 99 for at in ActionType},
         })
         # select_action_thompson mutates state.active_hypotheses via _maybe_expire_hypotheses
         select_action_thompson(state, regen_threshold=999)
-        assert len(state.active_hypotheses) <= 9, (
+        assert len(state.active_hypotheses) <= max_active - 1, (
             "Expected _maybe_expire_hypotheses to fire from Thompson path"
         )
 

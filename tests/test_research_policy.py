@@ -110,9 +110,9 @@ class TestSelectAction:
         assert action in {ActionType.DEEPEN_CAUSAL_CHAIN, ActionType.GENERATE_HYPOTHESIS}
 
     def test_validation_on_validate_step_with_hypotheses(self):
-        """Cycle position 3 with active hypotheses should validate."""
+        """Cycle position 2 with active hypotheses should validate."""
         state = self._state(
-            step_count=3,
+            step_count=2,  # position 2 = _VALIDATE_STEP
             active_hypotheses=["hyp:test1"],
             action_counts={"validate_hypothesis": 1},
         )
@@ -162,13 +162,13 @@ class TestSelectAction:
 
     def test_deepen_chain_when_below_target_depth_10(self):
         """With target_depth=10, chains at depth 8 should still trigger deepening."""
+        import random
+        random.seed(1)  # Ensure deterministic 70% deepening path
         state = self._state(
-            step_count=1,  # cycle position 1 = reasoning step
+            step_count=3,  # position 3 = _DEEPEN_STEP
             causal_chains={"int:pridopidine": 8},
             top_uncertainties=["test"],
         )
-        # Even-numbered cycle → chain deepening preferred
-        state.step_count = 1  # cycle 0, position 1, even cycle → deepen
         action, params = _select_action_cycle(state, regen_threshold=100, target_depth=10)
         assert action == ActionType.DEEPEN_CAUSAL_CHAIN
         assert params.get("intervention_id") == "int:pridopidine"

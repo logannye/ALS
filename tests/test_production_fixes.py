@@ -408,8 +408,11 @@ class TestActionDominancePrevention:
 
     def test_generate_hypothesis_infeasible_at_max_active(self):
         """GENERATE_HYPOTHESIS should be infeasible when active_hypotheses is at max."""
+        import json
+        with open("data/erik_config.json") as f:
+            max_active = json.load(f).get("research_hypothesis_max_active", 10)
         state = initial_state(subject_ref="traj:draper_001")
-        state = replace(state, active_hypotheses=[f"hypothesis {i}" for i in range(10)])
+        state = replace(state, active_hypotheses=[f"hypothesis {i}" for i in range(max_active)])
         assert not _action_is_feasible(ActionType.GENERATE_HYPOTHESIS, state, target_depth=5)
 
     def test_generate_hypothesis_feasible_below_max(self):

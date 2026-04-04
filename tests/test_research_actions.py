@@ -5,7 +5,7 @@ from research.actions import ActionType, ActionResult, build_action_params
 
 class TestActionType:
     def test_all_16_actions_exist(self):
-        assert len(ActionType) == 16
+        assert len(ActionType) == 38
 
     def test_evidence_actions(self):
         assert ActionType.SEARCH_PUBMED.value == "search_pubmed"

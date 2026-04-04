@@ -576,6 +576,13 @@ def _execute_action(
             ActionType.QUERY_REACTOME_LOCAL: _exec_query_reactome_local,
             ActionType.CHALLENGE_INTERVENTION: _exec_challenge_intervention,
             ActionType.DESIGN_MOLECULE: _exec_design_molecule,
+            ActionType.QUERY_GNOMAD: _exec_query_gnomad,
+            ActionType.QUERY_UNIPROT: _exec_query_uniprot,
+            ActionType.QUERY_SPLICEAI: _exec_query_spliceai,
+            ActionType.QUERY_FAERS: _exec_query_faers,
+            ActionType.QUERY_DISGENET: _exec_query_disgenet,
+            ActionType.QUERY_GEO_ALS: _exec_query_geo_als,
+            ActionType.QUERY_CMAP: _exec_query_cmap,
         }
         fn = dispatch.get(action)
         if fn is None:
@@ -630,21 +637,32 @@ def _exec_search_trials(
 def _exec_query_chembl(
     params: dict, state: ResearchState, store: Any, llm_manager: Any,
 ) -> ActionResult:
-    """Query ChEMBL for bioactivity data."""
+    """Query ChEMBL for full ADME/Tox profile (bioactivity + properties + MOA)."""
     from connectors.chembl import ChEMBLConnector
+    from targets.als_targets import ALS_TARGETS
 
     connector = ChEMBLConnector(store=store)
-    target_name = params.get("target_name", "")
-    if target_name:
-        cr = connector.fetch(target_name=target_name)
+
+    # Rotate through ALS targets by step count
+    target_keys = list(ALS_TARGETS.keys())
+    target = ALS_TARGETS[target_keys[state.step_count % len(target_keys)]]
+    uniprot = target.get("uniprot_id", "")
+
+    if uniprot:
+        cr = connector.fetch_full_profile(uniprot_id=uniprot)
     else:
         cr = connector.fetch()
+
+    if cr.evidence_items_added > 0:
+        gene = target.get("gene", "unknown")
+        print(f"[RESEARCH] ChEMBL ADME/Tox: +{cr.evidence_items_added} items for {gene} ({uniprot})")
+
     return ActionResult(
         action=ActionType.QUERY_CHEMBL,
         success=not cr.errors,
         evidence_items_added=cr.evidence_items_added,
-        interventions_added=cr.interventions_added,
         error="; ".join(cr.errors) if cr.errors else None,
+        protocol_layer="root_cause_suppression",
     )
 
 
@@ -1860,4 +1878,112 @@ def _exec_challenge_intervention(
             "drug_name": drug_name,
             "queries_used": len(queries),
         },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 10 database connectors
+# ---------------------------------------------------------------------------
+
+_exec_query_gnomad = _make_als_gene_executor(
+    "connectors.gnomad.GnomADConnector", ActionType.QUERY_GNOMAD,
+)
+_exec_query_uniprot = _make_als_gene_executor(
+    "connectors.uniprot.UniProtConnector", ActionType.QUERY_UNIPROT,
+)
+_exec_query_spliceai = _make_als_gene_executor(
+    "connectors.spliceai.SpliceAIConnector", ActionType.QUERY_SPLICEAI,
+)
+_exec_query_disgenet = _make_als_gene_executor(
+    "connectors.disgenet.DisGeNETConnector", ActionType.QUERY_DISGENET,
+)
+_exec_query_geo_als = _make_als_gene_executor(
+    "connectors.geo_als.GEOALSConnector", ActionType.QUERY_GEO_ALS,
+)
+
+
+def _exec_query_faers(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query FDA FAERS for drug safety signals."""
+    from connectors.faers import FAERSConnector
+
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+        min_reports = cfg.get("faers_min_report_count", 10)
+        enabled = cfg.get("faers_enabled", True)
+    except Exception:
+        min_reports = 10
+        enabled = True
+
+    if not enabled:
+        return ActionResult(action=ActionType.QUERY_FAERS, success=False, error="FAERS disabled")
+
+    drug_name = params.get("drug_name", "riluzole")
+    connector = FAERSConnector(store=store, min_report_count=min_reports)
+    cr, is_safe = connector.fetch_safety_profile(drug_name=drug_name)
+
+    if cr.evidence_items_added > 0:
+        print(f"[RESEARCH] FAERS: +{cr.evidence_items_added} items for {drug_name} (safe={is_safe})")
+
+    return ActionResult(
+        action=ActionType.QUERY_FAERS,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        interaction_safe=is_safe,
+        error="; ".join(cr.errors) if cr.errors else None,
+        protocol_layer="adaptive_maintenance",
+        evidence_strength="moderate" if cr.evidence_items_added > 0 else None,
+    )
+
+
+def _exec_query_cmap(
+    params: dict, state: ResearchState, store: Any, llm_manager: Any,
+) -> ActionResult:
+    """Query CMap/LINCS for drug repurposing via transcriptomic reversal."""
+    from connectors.cmap import CMapConnector
+
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader()
+        api_key = cfg.get("cmap_api_key", None)
+        min_score = cfg.get("cmap_min_connectivity_score", -90.0)
+        enabled = cfg.get("cmap_enabled", True)
+    except Exception:
+        api_key = None
+        min_score = -90.0
+        enabled = True
+
+    if not enabled:
+        return ActionResult(action=ActionType.QUERY_CMAP, success=False, error="CMap disabled")
+
+    connector = CMapConnector(store=store, api_key=api_key, min_connectivity_score=min_score)
+
+    # Alternate between compound-centric and signature-reversal queries
+    compound = params.get("compound", "")
+    if compound:
+        cr = connector.fetch(compound=compound)
+    elif state.step_count % 2 == 0:
+        # Even steps: rotate through known drugs
+        interventions = list(state.causal_chains.keys())
+        if interventions:
+            drug = interventions[state.step_count % len(interventions)].replace("int:", "")
+            cr = connector.fetch(compound=drug)
+        else:
+            cr = connector.fetch(compound="riluzole")
+    else:
+        # Odd steps: signature reversal query (auto-loads GEO disease signature)
+        cr = connector.fetch()
+
+    if cr.evidence_items_added > 0:
+        print(f"[RESEARCH] CMap: +{cr.evidence_items_added} items")
+
+    return ActionResult(
+        action=ActionType.QUERY_CMAP,
+        success=not cr.errors,
+        evidence_items_added=cr.evidence_items_added,
+        error="; ".join(cr.errors) if cr.errors else None,
+        protocol_layer="pathology_reversal",
+        evidence_strength="preclinical" if cr.evidence_items_added > 0 else None,
     )

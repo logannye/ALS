@@ -102,5 +102,22 @@
 
   "causal_gap_tracking_enabled": true,
   "molecular_computation_enabled": true,
-  "molecular_docking_enabled": false
+  "molecular_docking_enabled": false,
+
+  "gnomad_enabled": true,
+  "gnomad_constraint_path": "/Volumes/Databank/databases/gnomad/gnomad_v4.1_constraint_metrics.tsv",
+  "uniprot_enabled": true,
+  "uniprot_data_path": "/Volumes/Databank/databases/uniprot/uniprot_human_swissprot.tsv",
+  "spliceai_enabled": true,
+  "spliceai_data_path": "/Volumes/Databank/databases/spliceai",
+  "faers_enabled": true,
+  "faers_min_report_count": 10,
+  "disgenet_enabled": true,
+  "disgenet_data_path": "/Volumes/Databank/databases/disgenet/curated_gene_disease_associations.tsv",
+  "geo_als_enabled": true,
+  "geo_als_data_path": "/Volumes/Databank/databases/geo_als",
+  "geo_als_datasets": ["GSE124439", "GSE153960", "GSE56808", "GSE68605", "GSE76220", "GSE139384", "GSE118336", "GSE40438"],
+  "cmap_enabled": true,
+  "cmap_api_key": null,
+  "cmap_min_connectivity_score": -90.0
 }

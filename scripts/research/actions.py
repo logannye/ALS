@@ -36,6 +36,14 @@ class ActionType(str, Enum):
     QUERY_DRUGBANK = "query_drugbank"
     QUERY_ALPHAFOLD = "query_alphafold"
     QUERY_REACTOME_LOCAL = "query_reactome_local"
+    # Phase 10: Expanded evidence sources
+    QUERY_GNOMAD = "query_gnomad"
+    QUERY_UNIPROT = "query_uniprot"
+    QUERY_SPLICEAI = "query_spliceai"
+    QUERY_FAERS = "query_faers"
+    QUERY_DISGENET = "query_disgenet"
+    QUERY_GEO_ALS = "query_geo_als"
+    QUERY_CMAP = "query_cmap"
     # Phase 9: Drug design
     DESIGN_MOLECULE = "design_molecule"
 
@@ -50,6 +58,8 @@ NETWORK_ACTIONS = {
     ActionType.QUERY_GALEN_KG,
     ActionType.SEARCH_PREPRINTS,
     ActionType.QUERY_GALEN_SCM,
+    ActionType.QUERY_FAERS,
+    ActionType.QUERY_CMAP,
 }
 
 LLM_ACTIONS = {
@@ -98,6 +108,23 @@ def build_action_params(action: ActionType, **kwargs: Any) -> dict[str, Any]:
         params.setdefault("intervention_id", "")
     elif action == ActionType.VALIDATE_HYPOTHESIS:
         params.setdefault("hypothesis_id", "")
+    elif action == ActionType.QUERY_GNOMAD:
+        params.setdefault("gene", "TARDBP")
+    elif action == ActionType.QUERY_UNIPROT:
+        params.setdefault("gene", "TARDBP")
+    elif action == ActionType.QUERY_SPLICEAI:
+        params.setdefault("gene", "TARDBP")
+    elif action == ActionType.QUERY_FAERS:
+        params.setdefault("drug_name", "")
+        params.setdefault("min_report_count", 10)
+    elif action == ActionType.QUERY_DISGENET:
+        params.setdefault("gene", "TARDBP")
+    elif action == ActionType.QUERY_GEO_ALS:
+        params.setdefault("gene", "TARDBP")
+    elif action == ActionType.QUERY_CMAP:
+        params.setdefault("compound", "")
+        params.setdefault("up_genes", None)
+        params.setdefault("down_genes", None)
     elif action == ActionType.DESIGN_MOLECULE:
         params.setdefault("target_id", "")
         params.setdefault("strategy", "scaffold_hop")

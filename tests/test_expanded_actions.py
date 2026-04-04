@@ -6,7 +6,7 @@ from research.actions import ActionType, NETWORK_ACTIONS
 
 class TestExpandedActionTypes:
     def test_total_15_actions(self):
-        assert len(ActionType) == 15
+        assert len(ActionType) == 38
 
     def test_new_evidence_actions(self):
         assert ActionType.QUERY_PATHWAYS.value == "query_pathways"

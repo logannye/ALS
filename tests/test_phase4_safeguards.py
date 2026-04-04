@@ -50,9 +50,9 @@ class TestRotatingQueries:
 
 class TestThompsonEnabled:
 
-    def test_thompson_enabled_in_config(self):
-        """Thompson sampling should be enabled in config."""
+    def test_thompson_disabled_in_config(self):
+        """Thompson sampling is disabled — depth-biased cycle policy is active."""
         import json
         with open("data/erik_config.json") as f:
             cfg = json.load(f)
-        assert cfg.get("thompson_policy_enabled") is True
+        assert cfg.get("thompson_policy_enabled") is False
