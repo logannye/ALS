@@ -104,6 +104,9 @@ def _get_last_24h_stats() -> dict:
         ).fetchone()
         last_alsfrs_date = str(row[0].date()) if row else None
 
+    # Get research layer
+    research_layer = state.get("research_layer", "normal_biology") if state else "normal_biology"
+
     return {
         "new_evidence": new_evidence,
         "total_evidence": total_evidence,
@@ -113,6 +116,7 @@ def _get_last_24h_stats() -> dict:
         "protocol_updated": protocol_updated,
         "new_trials": new_trials,
         "last_alsfrs_date": last_alsfrs_date,
+        "research_layer": research_layer,
     }
 
 
@@ -304,6 +308,7 @@ def get_summary():
         },
         "plan_version": state.get("protocol_version", 0),
         "plan_stable": not stats["protocol_updated"],
+        "research_layer": stats.get("research_layer", "normal_biology"),
     }
 
     _cache = (now, response)
