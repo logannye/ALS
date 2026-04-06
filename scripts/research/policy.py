@@ -734,20 +734,49 @@ def _build_acquisition_params(
     """Build params for a specific acquisition action."""
     if action == ActionType.SEARCH_PUBMED:
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
-        layer = ALL_LAYERS[layer_idx]
-        # 5-strategy cycling: static → dynamic → targeted → expanded → drug-centric
-        strategy = step % 5
-        if strategy == 0:
-            query = get_layer_query(layer, step)
-        elif strategy == 1:
-            query = _get_dynamic_query(state, step, layer)
-        elif strategy == 2:
-            query = _get_targeted_query(state, step)
-        elif strategy == 3:
-            query = _get_expanded_query(state, step, layer)
+        protocol_layer = ALL_LAYERS[layer_idx]
+
+        # Layer-aware query selection: use research layer to pick appropriate queries
+        from research.layer_orchestrator import ResearchLayer, get_layer_queries
+        try:
+            research_layer = ResearchLayer(state.research_layer)
+        except (ValueError, AttributeError):
+            research_layer = ResearchLayer.ALS_MECHANISMS
+
+        layer_queries = get_layer_queries(
+            research_layer,
+            genetic_profile=getattr(state, "genetic_profile", None),
+            validated_targets=[
+                k for k, v in state.causal_chains.items() if v >= 3
+            ] if research_layer == ResearchLayer.DRUG_DESIGN else None,
+        )
+
+        if layer_queries:
+            # Rotate through layer-specific queries, with occasional dynamic/expanded
+            strategy = step % 4
+            if strategy <= 1 and layer_queries:
+                # Primary: layer-specific query bank
+                query = layer_queries[step % len(layer_queries)]
+                year = __import__("datetime").datetime.now().year
+                query = f"{query} {year}"
+            elif strategy == 2:
+                query = _get_dynamic_query(state, step, protocol_layer)
+            else:
+                query = _get_expanded_query(state, step, protocol_layer)
         else:
-            query = _get_drug_centric_query(state, step)
-        return action, build_action_params(action, query=query, protocol_layer=layer)
+            # Fallback to existing 5-strategy cycling
+            strategy = step % 5
+            if strategy == 0:
+                query = get_layer_query(protocol_layer, step)
+            elif strategy == 1:
+                query = _get_dynamic_query(state, step, protocol_layer)
+            elif strategy == 2:
+                query = _get_targeted_query(state, step)
+            elif strategy == 3:
+                query = _get_expanded_query(state, step, protocol_layer)
+            else:
+                query = _get_drug_centric_query(state, step)
+        return action, build_action_params(action, query=query, protocol_layer=protocol_layer)
 
     elif action == ActionType.SEARCH_TRIALS:
         # Rotate through protocol interventions and layers
@@ -818,18 +847,24 @@ def _build_acquisition_params(
             return _fallback_acquisition(state, step, skip=ActionType.SEARCH_PREPRINTS)
         layer_idx = (step // _CYCLE_LENGTH) % len(ALL_LAYERS)
         layer = ALL_LAYERS[layer_idx]
-        # 5-strategy cycling: static → dynamic → targeted → expanded → drug-centric
-        strategy = step % 5
-        if strategy == 0:
-            query = get_layer_query(layer, step)
-        elif strategy == 1:
-            query = _get_dynamic_query(state, step, layer)
-        elif strategy == 2:
-            query = _get_targeted_query(state, step)
-        elif strategy == 3:
-            query = _get_expanded_query(state, step, layer)
+
+        # Layer-aware query selection (same as SEARCH_PUBMED)
+        from research.layer_orchestrator import ResearchLayer, get_layer_queries
+        try:
+            research_layer = ResearchLayer(state.research_layer)
+        except (ValueError, AttributeError):
+            research_layer = ResearchLayer.ALS_MECHANISMS
+
+        layer_queries = get_layer_queries(
+            research_layer,
+            genetic_profile=getattr(state, "genetic_profile", None),
+        )
+        if layer_queries:
+            query = layer_queries[step % len(layer_queries)]
+            year = __import__("datetime").datetime.now().year
+            query = f"{query} {year}"
         else:
-            query = _get_drug_centric_query(state, step)
+            query = get_layer_query(layer, step)
         return action, build_action_params(action, query=query, protocol_layer=layer)
 
     elif action == ActionType.QUERY_GALEN_SCM:
