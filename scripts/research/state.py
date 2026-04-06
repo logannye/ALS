@@ -42,6 +42,8 @@ class ResearchState:
     target_exhaustion: dict[str, int] = field(default_factory=dict)
     expansion_query_history: list[str] = field(default_factory=list)
     expansion_gene_history: dict[str, list[str]] = field(default_factory=dict)
+    research_layer: str = "normal_biology"
+    genetic_profile: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,6 +79,8 @@ class ResearchState:
             "target_exhaustion": dict(self.target_exhaustion),
             "expansion_query_history": list(self.expansion_query_history),
             "expansion_gene_history": {k: list(v) for k, v in self.expansion_gene_history.items()},
+            "research_layer": self.research_layer,
+            "genetic_profile": dict(self.genetic_profile) if self.genetic_profile else None,
         }
 
     @classmethod
