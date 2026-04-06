@@ -39,6 +39,7 @@ from evidence.evidence_store import EvidenceStore
 from research.dual_llm import DualLLMManager
 from research.loop import research_step, _bootstrap_initial_protocol, _persist_state
 from research.state import ResearchState, initial_state
+from research.layer_orchestrator import determine_layer
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +295,16 @@ def _monitoring_cycle(
     # Run a deep research step (evidence expansion continues post-convergence)
     state = _deep_research_step(state, evidence_store, llm_manager)
 
+    # Update research layer
+    new_layer = determine_layer(
+        evidence_count=state.total_evidence_items,
+        genetic_profile=state.genetic_profile,
+        validated_targets=sum(1 for d in state.causal_chains.values() if d >= 3),
+    )
+    if new_layer.value != state.research_layer:
+        print(f"[ERIK-MONITOR] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
+        state = replace(state, research_layer=new_layer.value)
+
     # Uncertainty-aware re-convergence trigger
     from research.convergence import compute_uncertainty_score
     current_score = compute_uncertainty_score(state)
@@ -337,7 +348,8 @@ def main():
         print(f"[ERIK] Resumed from DB: step={state.step_count}, "
               f"protocol_v={state.protocol_version}, "
               f"evidence={state.total_evidence_items}, "
-              f"converged={state.converged}")
+              f"converged={state.converged}, "
+              f"layer={state.research_layer}")
     else:
         print("[ERIK] No saved state — starting fresh.")
         state = initial_state(subject_ref=subject_ref)
@@ -429,6 +441,17 @@ def main():
                 regen_threshold=regen_threshold,
                 target_depth=target_depth,
             )
+
+            # Update research layer based on current state
+            new_layer = determine_layer(
+                evidence_count=state.total_evidence_items,
+                genetic_profile=state.genetic_profile,
+                validated_targets=sum(1 for d in state.causal_chains.values() if d >= 3),
+            )
+            if new_layer.value != state.research_layer:
+                print(f"[ERIK] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
+                state = replace(state, research_layer=new_layer.value)
+
             _persist_state(state, evidence_store)
 
             # Check convergence: protocol must be stable AND uncertainty low
