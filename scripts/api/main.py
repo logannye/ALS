@@ -184,6 +184,7 @@ from api.routers.trials import router as trials_router
 from api.routers.activity import router as activity_router
 from api.routers.report import router as report_router
 from api.routers.summary import router as summary_router
+from api.routers.genetics import router as genetics_router
 
 app.include_router(health_router)
 app.include_router(state_router)
@@ -195,3 +196,4 @@ app.include_router(trials_router)
 app.include_router(activity_router)
 app.include_router(report_router)
 app.include_router(summary_router)
+app.include_router(genetics_router)
