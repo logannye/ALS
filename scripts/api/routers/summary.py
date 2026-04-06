@@ -275,20 +275,21 @@ def get_summary():
     else:
         summary_data = _build_fallback_summary(stats)
 
-    # Count studies reviewed today — use step count from last 24h of state writes,
-    # or fall back to action_counts from the research state (cumulative)
-    event_counts = stats.get("event_counts", {})
-    studies_today = event_counts.get("research_query_executed", 0)
-    if studies_today == 0 and state:
-        # Estimate from action_counts — sum of search-type actions
-        action_counts = state.get("action_counts", {})
-        search_actions = sum(
-            v for k, v in action_counts.items()
-            if "search" in k or "query" in k or "pubmed" in k
-        )
-        # Show a reasonable daily estimate (total search actions / days running)
-        if search_actions > 0 and days_running > 0:
-            studies_today = max(1, search_actions // days_running)
+    # Steps taken today — difference between current step and 24h-ago step
+    steps_today = 0
+    try:
+        with get_connection() as conn:
+            row = conn.execute(
+                """SELECT (state_json->>'step_count')::int
+                   FROM erik_ops.research_state
+                   WHERE updated_at <= NOW() - INTERVAL '24 hours'
+                   ORDER BY updated_at DESC LIMIT 1"""
+            ).fetchone()
+            prev_steps = row[0] if row else 0
+            steps_today = max(0, step_count - prev_steps)
+    except Exception:
+        pass
+    # If no prior state row exists, steps_today stays 0 (honest)
 
     response = {
         "date": datetime.now(timezone.utc).strftime("%A, %B %-d"),
@@ -298,7 +299,7 @@ def get_summary():
         "stats": {
             "steps_total": step_count,
             "evidence_total": stats["total_evidence"],
-            "studies_today": studies_today,
+            "studies_today": steps_today,
             "days_running": days_running,
         },
         "plan_version": state.get("protocol_version", 0),
