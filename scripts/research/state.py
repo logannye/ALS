@@ -43,6 +43,7 @@ class ResearchState:
     expansion_query_history: list[str] = field(default_factory=list)
     expansion_gene_history: dict[str, list[str]] = field(default_factory=dict)
     exploration_burst_remaining: int = 0
+    min_active_steps_remaining: int = 0
     research_layer: str = "normal_biology"
     genetic_profile: dict[str, Any] | None = None
 
@@ -81,6 +82,7 @@ class ResearchState:
             "expansion_query_history": list(self.expansion_query_history),
             "expansion_gene_history": {k: list(v) for k, v in self.expansion_gene_history.items()},
             "exploration_burst_remaining": self.exploration_burst_remaining,
+            "min_active_steps_remaining": self.min_active_steps_remaining,
             "research_layer": self.research_layer,
             "genetic_profile": dict(self.genetic_profile) if self.genetic_profile else None,
         }

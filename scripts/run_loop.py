@@ -283,8 +283,9 @@ def _monitoring_cycle(
 
     # One-time force reconverge (set via config, auto-clears)
     if cfg.get("force_active_research", False):
-        print("[ERIK-MONITOR] force_active_research=true — re-entering active research")
-        state = replace(state, converged=False, protocol_stable_cycles=0)
+        _min_active = cfg.get("min_active_steps_after_transition", 200)
+        print(f"[ERIK-MONITOR] force_active_research=true — {_min_active} active steps required")
+        state = replace(state, converged=False, protocol_stable_cycles=0, min_active_steps_remaining=_min_active)
         # Auto-disable so it only fires once
         try:
             import json
@@ -319,13 +320,15 @@ def _monitoring_cycle(
         provisional_genetics_min_evidence=cfg.get("provisional_genetics_min_evidence", 500),
     )
     if new_layer.value != state.research_layer:
+        _min_active = cfg.get("min_active_steps_after_transition", 200)
         print(f"[ERIK-MONITOR] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
-        print(f"[ERIK-MONITOR] Layer transition invalidates convergence — re-entering active research")
+        print(f"[ERIK-MONITOR] Layer transition invalidates convergence — {_min_active} active steps required")
         state = replace(
             state,
             research_layer=new_layer.value,
             converged=False,
             protocol_stable_cycles=0,
+            min_active_steps_remaining=_min_active,
         )
 
     # Uncertainty-aware re-convergence trigger
@@ -486,7 +489,13 @@ def main():
             _unc = state.uncertainty_score
             _stable = state.protocol_stable_cycles >= 5
             _quality = _unc < 0.3
-            if (_stable and _quality) and not state.converged:
+            _min_remaining = getattr(state, "min_active_steps_remaining", 0)
+            if _min_remaining > 0:
+                # Convergence guard: must complete minimum active steps first
+                state = replace(state, min_active_steps_remaining=_min_remaining - 1)
+                if _min_remaining % 50 == 0:
+                    print(f"[ERIK] Convergence guard: {_min_remaining} active steps remaining")
+            elif (_stable and _quality) and not state.converged:
                 state = replace(state, converged=True)
                 _persist_state(state, evidence_store)
                 print(f"[ERIK] ★ CONVERGED at step {state.step_count}. "
