@@ -1741,7 +1741,9 @@ def _make_als_gene_executor(connector_class_path: str, action_type: ActionType, 
         uniprot = target.get("uniprot_id", "")
 
         # Dynamically import the connector
-        module_name, class_name = connector_class_path.rsplit(".", 1)
+        from connectors.connector_mode import resolve_connector_class
+        resolved_path = resolve_connector_class(connector_class_path)
+        module_name, class_name = resolved_path.rsplit(".", 1)
         import importlib
         mod = importlib.import_module(module_name)
         cls = getattr(mod, class_name)
