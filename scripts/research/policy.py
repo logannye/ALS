@@ -333,6 +333,16 @@ def select_action(
     exploration_fraction: float = 0.15,
 ) -> tuple[ActionType, dict[str, Any]]:
     """Select next research action. Dispatches to Thompson or cycle."""
+    # During exploration burst, force least-used acquisition actions
+    burst = getattr(state, "exploration_burst_remaining", 0)
+    if burst > 0:
+        all_counts = getattr(state, "action_counts", {}) or {}
+        acq_with_counts = [(a, all_counts.get(a.value, 0)) for a in _ACQUISITION_ROTATION]
+        acq_with_counts.sort(key=lambda x: x[1])
+        if acq_with_counts:
+            chosen_action = acq_with_counts[0][0]
+            return _build_acquisition_params(chosen_action, state, state.step_count)
+
     try:
         from config.loader import ConfigLoader
         cfg = ConfigLoader()

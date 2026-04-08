@@ -28,6 +28,40 @@ _EMA_ALPHA = 0.2
 
 
 # ---------------------------------------------------------------------------
+# Stagnation recovery
+# ---------------------------------------------------------------------------
+
+def _apply_stagnation_recovery(state: ResearchState, step: int) -> ResearchState:
+    """Apply stagnation recovery: expire hypotheses, reset posteriors, burst exploration."""
+    _active = list(state.active_hypotheses)
+    _n_expire = max(1, len(_active) // 2)
+    for _ in range(_n_expire):
+        if _active:
+            _active.pop(0)
+
+    _reset_posteriors = {k: (1.0, 1.0) for k in state.action_posteriors}
+    _burst = 20  # Next 20 steps use forced diverse actions
+
+    new_state = replace(
+        state,
+        active_hypotheses=_active,
+        action_posteriors=_reset_posteriors,
+        stagnation_resets=state.stagnation_resets + 1,
+        last_stagnation_step=step,
+        target_exhaustion={},
+        expansion_query_history=[],
+        expansion_gene_history={},
+        exploration_burst_remaining=_burst,
+    )
+    print(
+        f"[RESEARCH] STAGNATION RECOVERY #{new_state.stagnation_resets}: "
+        f"expired {_n_expire} hypotheses, reset posteriors + exhaustion, "
+        f"burst={_burst} steps"
+    )
+    return new_state
+
+
+# ---------------------------------------------------------------------------
 # Main research step
 # ---------------------------------------------------------------------------
 
@@ -285,25 +319,8 @@ def research_step(
                 _stag_detected = True
 
     if _stag_detected:
-        _active = list(new_state.active_hypotheses)
-        _n_expire = max(1, len(_active) // 2)
-        for _ in range(_n_expire):
-            if _active:
-                _active.pop(0)
-        _reset_posteriors = {k: (1.0, 1.0) for k in new_state.action_posteriors}
-        _resets = new_state.stagnation_resets + 1
-        new_state = replace(
-            new_state,
-            active_hypotheses=_active,
-            action_posteriors=_reset_posteriors,
-            stagnation_resets=_resets,
-            evidence_at_step=_evidence_at_step,
-            last_stagnation_step=new_step,
-            target_exhaustion={},           # Clear exhaustion counters so expanded genes get retried
-            expansion_query_history=[],     # Allow query expansion to re-discover neighbors
-            expansion_gene_history={},      # Allow gene re-expansion via Galen KG
-        )
-        print(f"[RESEARCH] STAGNATION RECOVERY #{_resets}: expired {_n_expire} hypotheses, reset posteriors + exhaustion + expansion (cooldown {_stag_cooldown} steps)")
+        new_state = replace(new_state, evidence_at_step=_evidence_at_step)
+        new_state = _apply_stagnation_recovery(new_state, new_step)
     else:
         new_state = replace(new_state, evidence_at_step=_evidence_at_step)
 
@@ -324,6 +341,10 @@ def research_step(
                           f"+{_kg_stats['relationships_created']} relationships")
             except Exception:
                 pass  # Never crash the loop on KG extraction failure
+
+    # 5e. Decrement exploration burst counter
+    if getattr(new_state, "exploration_burst_remaining", 0) > 0:
+        new_state = replace(new_state, exploration_burst_remaining=new_state.exploration_burst_remaining - 1)
 
     # 6. Log episode (best-effort, do not fail the step)
     try:
