@@ -300,6 +300,8 @@ def _monitoring_cycle(
         evidence_count=state.total_evidence_items,
         genetic_profile=state.genetic_profile,
         validated_targets=sum(1 for d in state.causal_chains.values() if d >= 3),
+        provisional_genetics_enabled=cfg.get("provisional_genetics_enabled", False),
+        provisional_genetics_min_evidence=cfg.get("provisional_genetics_min_evidence", 500),
     )
     if new_layer.value != state.research_layer:
         print(f"[ERIK-MONITOR] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
@@ -443,10 +445,14 @@ def main():
             )
 
             # Update research layer based on current state
+            from config.loader import ConfigLoader as _CfgLoader
+            _layer_cfg = _CfgLoader()
             new_layer = determine_layer(
                 evidence_count=state.total_evidence_items,
                 genetic_profile=state.genetic_profile,
                 validated_targets=sum(1 for d in state.causal_chains.values() if d >= 3),
+                provisional_genetics_enabled=_layer_cfg.get("provisional_genetics_enabled", False),
+                provisional_genetics_min_evidence=_layer_cfg.get("provisional_genetics_min_evidence", 500),
             )
             if new_layer.value != state.research_layer:
                 print(f"[ERIK] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
