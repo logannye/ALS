@@ -94,6 +94,7 @@
   "query_expansion_history_max": 500,
   "query_expansion_use_galen": true,
 
+  "connector_mode": "auto",
   "llm_backend": "mlx",
   "bedrock_region": "us-east-1",
   "bedrock_research_model_id": "amazon.nova-micro-v1:0",
