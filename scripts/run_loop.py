@@ -305,7 +305,13 @@ def _monitoring_cycle(
     )
     if new_layer.value != state.research_layer:
         print(f"[ERIK-MONITOR] ★ LAYER TRANSITION: {state.research_layer} → {new_layer.value}")
-        state = replace(state, research_layer=new_layer.value)
+        print(f"[ERIK-MONITOR] Layer transition invalidates convergence — re-entering active research")
+        state = replace(
+            state,
+            research_layer=new_layer.value,
+            converged=False,
+            protocol_stable_cycles=0,
+        )
 
     # Uncertainty-aware re-convergence trigger
     from research.convergence import compute_uncertainty_score
