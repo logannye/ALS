@@ -41,6 +41,7 @@
   "pharmgkb_base_url": "https://api.pharmgkb.org/v1",
   "proact_data_dir": null,
   "genetics_received": false,
+  "force_active_research": true,
   "provisional_genetics_enabled": true,
   "provisional_genetics_min_evidence": 500,
   "galen_kg_enabled": true,

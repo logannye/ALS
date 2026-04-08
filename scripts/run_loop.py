@@ -281,6 +281,21 @@ def _monitoring_cycle(
     """
     cfg = ConfigLoader()
 
+    # One-time force reconverge (set via config, auto-clears)
+    if cfg.get("force_active_research", False):
+        print("[ERIK-MONITOR] force_active_research=true — re-entering active research")
+        state = replace(state, converged=False, protocol_stable_cycles=0)
+        # Auto-disable so it only fires once
+        try:
+            import json
+            from pathlib import Path
+            _cfg_path = Path(__file__).resolve().parent.parent / "data" / "erik_config.json"
+            _cfg_data = json.loads(_cfg_path.read_text())
+            _cfg_data["force_active_research"] = False
+            _cfg_path.write_text(json.dumps(_cfg_data, indent=2) + "\n")
+        except Exception:
+            pass  # Config write failed; will re-trigger next cycle but that's fine
+
     # Check if genetic results have arrived
     if cfg.get("genetics_received", False) and "genetics_processed" not in (state.top_uncertainties or []):
         print("[ERIK-MONITOR] Genetic results detected! Re-entering active research.")
