@@ -41,6 +41,8 @@
   "pharmgkb_base_url": "https://api.pharmgkb.org/v1",
   "proact_data_dir": null,
   "genetics_received": false,
+  "provisional_genetics_enabled": true,
+  "provisional_genetics_min_evidence": 500,
   "galen_kg_enabled": true,
   "galen_kg_database": "galen_kg",
   "trial_eligibility_enabled": true,
@@ -90,7 +92,7 @@
   "query_expansion_exhaustion_threshold": 3,
   "query_expansion_max_neighbors": 10,
   "query_expansion_min_confidence": 0.4,
-  "query_expansion_llm_enabled": false,
+  "query_expansion_llm_enabled": true,
   "query_expansion_history_max": 500,
   "query_expansion_use_galen": true,
 

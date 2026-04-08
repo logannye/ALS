@@ -235,6 +235,45 @@ def _get_expanded_query(state: ResearchState, step: int, layer: str) -> str:
     return _get_targeted_query(state, step)
 
 
+def _get_llm_query(
+    llm: Any,
+    active_hypotheses: list[str],
+    top_uncertainties: list[str],
+    layer: str,
+) -> str:
+    """Generate a novel PubMed search query using the LLM."""
+    import datetime
+    year = datetime.datetime.now().year
+
+    prompt = (
+        "You are a biomedical research assistant. Generate ONE PubMed search query "
+        "that would help investigate ALS (amyotrophic lateral sclerosis) treatment.\n\n"
+        f"Current research focus: {layer.replace('_', ' ')}\n"
+        f"Active hypotheses:\n"
+    )
+    for h in active_hypotheses[:3]:
+        prompt += f"- {h[:150]}\n"
+    prompt += f"\nKey uncertainties:\n"
+    for u in top_uncertainties[:3]:
+        prompt += f"- {u[:150]}\n"
+    prompt += (
+        f"\nGenerate a SINGLE PubMed query (10-15 words) that explores a NOVEL angle "
+        f"not directly covered by the hypotheses above. Include '{year}' for recency. "
+        f"Output ONLY the query, nothing else."
+    )
+
+    try:
+        result = llm.generate(prompt, max_tokens=60, temperature=0.7)
+        query = result.strip().strip('"').strip("'")
+        if len(query) > 10:
+            return query
+    except Exception:
+        pass
+
+    # Fallback to static
+    return get_layer_query(layer, hash(str(active_hypotheses)) % 100)
+
+
 # Legacy constant — kept for backward compat with any external readers
 LAYER_SEARCH_QUERIES: dict[str, str] = {
     layer: queries[0] for layer, queries in _BASE_LAYER_QUERIES.items()
@@ -753,7 +792,7 @@ def _build_acquisition_params(
 
         if layer_queries:
             # Rotate through layer-specific queries, with occasional dynamic/expanded
-            strategy = step % 4
+            strategy = step % 5
             if strategy <= 1 and layer_queries:
                 # Primary: layer-specific query bank
                 query = layer_queries[step % len(layer_queries)]
@@ -761,8 +800,31 @@ def _build_acquisition_params(
                 query = f"{query} {year}"
             elif strategy == 2:
                 query = _get_dynamic_query(state, step, protocol_layer)
-            else:
+            elif strategy == 3:
                 query = _get_expanded_query(state, step, protocol_layer)
+            else:
+                # Strategy 4: LLM-powered dynamic query generation
+                try:
+                    from config.loader import ConfigLoader
+                    _llm_cfg = ConfigLoader()
+                    llm_enabled = _llm_cfg.get("query_expansion_llm_enabled", False)
+                except Exception:
+                    llm_enabled = False
+
+                if llm_enabled:
+                    try:
+                        from llm.inference import LLMManager
+                        llm = LLMManager.get_instance()
+                        query = _get_llm_query(
+                            llm=llm,
+                            active_hypotheses=state.active_hypotheses,
+                            top_uncertainties=state.top_uncertainties,
+                            layer=protocol_layer,
+                        )
+                    except Exception:
+                        query = _get_drug_centric_query(state, step)
+                else:
+                    query = _get_drug_centric_query(state, step)
         else:
             # Fallback to existing 5-strategy cycling
             strategy = step % 5
