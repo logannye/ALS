@@ -6,14 +6,17 @@ the previous one:
   Layer 1 (Normal Biology):    Model healthy motor neuron function
   Layer 2 (ALS Mechanisms):    Map how ALS disrupts normal biology
   Layer 3 (Erik's Case):       Narrow to Erik's specific pathways
-                                (requires genetic testing results)
+                                (requires genetic testing results, or
+                                 provisional inference when enabled)
   Layer 4 (Drug Design):       Design/identify molecules targeting
                                 Erik's validated causal targets
 
 Transitions are gated:
   1 → 2:  Evidence count >= LAYER_1_THRESHOLD (basic biology mapped)
-  2 → 3:  Genetic profile uploaded (non-None)
+  2 → 3:  Genetic profile uploaded (non-None), OR
+           provisional_genetics_enabled=True with evidence >= provisional_genetics_min_evidence
   3 → 4:  Validated causal targets >= LAYER_3_TARGET_THRESHOLD
+           AND confirmed genetics (never on provisional profile alone)
 """
 from __future__ import annotations
 
@@ -32,11 +35,18 @@ class ResearchLayer(Enum):
 LAYER_1_THRESHOLD = 100  # Advance to Layer 2 after basic biology foundation
 LAYER_3_TARGET_THRESHOLD = 2  # Advance to Layer 4 after validating causal targets
 
+# Provisional genetics defaults (overridden by config when passed to determine_layer)
+_DEFAULT_PROVISIONAL_ENABLED = False
+_DEFAULT_PROVISIONAL_MIN_EVIDENCE = 500
+
 
 def determine_layer(
     evidence_count: int,
     genetic_profile: Optional[dict[str, Any]],
     validated_targets: int,
+    *,
+    provisional_genetics_enabled: bool = _DEFAULT_PROVISIONAL_ENABLED,
+    provisional_genetics_min_evidence: int = _DEFAULT_PROVISIONAL_MIN_EVIDENCE,
 ) -> ResearchLayer:
     """Determine the current research layer from state signals.
 
@@ -46,17 +56,33 @@ def determine_layer(
             Expected keys: gene, variant, subtype.
         validated_targets: Number of causal targets with L2+ evidence linking
             them to Erik's specific disease mechanism.
+        provisional_genetics_enabled: When True, allow Layer 3 access even without
+            confirmed genetics, provided evidence_count >= provisional_genetics_min_evidence.
+            Passed from config key ``provisional_genetics_enabled``.
+        provisional_genetics_min_evidence: Minimum evidence count required to enter
+            Layer 3 on a provisional profile. Default 500 (matches config default).
 
     Returns:
         The current ResearchLayer.
+
+    Note:
+        Drug design (Layer 4) always requires *confirmed* genetics — the provisional
+        pathway never unlocks Layer 4 regardless of validated_targets.
     """
-    # Gate: Can't do drug design without genetics
     if genetic_profile is None:
         if evidence_count < LAYER_1_THRESHOLD:
             return ResearchLayer.NORMAL_BIOLOGY
+
+        # Soft-gate: allow Layer 3 on provisional inference when config permits
+        if (
+            provisional_genetics_enabled
+            and evidence_count >= provisional_genetics_min_evidence
+        ):
+            return ResearchLayer.ERIK_SPECIFIC
+
         return ResearchLayer.ALS_MECHANISMS
 
-    # Genetics received — at least Layer 3
+    # Confirmed genetics received — full Layer 3/4 progression available
     if validated_targets >= LAYER_3_TARGET_THRESHOLD:
         return ResearchLayer.DRUG_DESIGN
 
@@ -111,16 +137,28 @@ def get_layer_queries(
     """Get query templates for the current research layer.
 
     For Layers 1-2, returns static query banks.
-    For Layer 3, generates queries from the genetic profile.
+    For Layer 3, generates queries from the genetic profile (confirmed or provisional).
     For Layer 4, generates queries from validated causal targets.
+
+    When ``genetic_profile`` is None and the layer is ERIK_SPECIFIC (provisional
+    pathway), a provisional profile is inferred from default clinical parameters
+    (matching Erik's known clinical features) and used to generate queries.
     """
     if layer in (ResearchLayer.NORMAL_BIOLOGY, ResearchLayer.ALS_MECHANISMS):
         return LAYER_QUERIES[layer]
 
-    if layer == ResearchLayer.ERIK_SPECIFIC and genetic_profile:
-        gene = genetic_profile.get("gene", "")
-        variant = genetic_profile.get("variant", "")
-        subtype = genetic_profile.get("subtype", "")
+    if layer == ResearchLayer.ERIK_SPECIFIC:
+        profile = genetic_profile
+        if profile is None:
+            # Provisional pathway: infer from Erik's known clinical features
+            from research.provisional_genetics import infer_provisional_profile
+            profile = infer_provisional_profile()
+
+        gene = profile.get("gene", "")
+        variant = profile.get("variant", "")
+        subtype = profile.get("subtype", "")
+        provisional = profile.get("provisional", False)
+        qualifier = "provisional " if provisional else ""
         return [
             f"{gene} ALS mutation mechanism motor neuron",
             f"{gene} {variant} functional impact pathogenesis",
@@ -131,7 +169,7 @@ def get_layer_queries(
             f"{gene} motor neuron selective vulnerability mechanism",
             f"{gene} ALS biomarker disease monitoring",
             f"{subtype} ALS prognosis trajectory prediction",
-            f"{gene} ALS therapeutic target druggable site",
+            f"{gene} ALS therapeutic target druggable site {qualifier}profile",
         ]
 
     if layer == ResearchLayer.DRUG_DESIGN and validated_targets:
