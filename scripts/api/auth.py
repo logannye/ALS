@@ -46,7 +46,7 @@ def redeem_invite_code(code: str, family_member: str = "family") -> str:
     Raises HTTPException(403) on invalid code.
     """
     valid_codes = _get_invite_codes()
-    if code not in valid_codes:
+    if code.strip() not in valid_codes:
         raise HTTPException(status_code=403, detail="Invalid invite code")
 
     token = secrets.token_urlsafe(32)
