@@ -14,6 +14,7 @@ _API_VARIANTS: dict[str, str] = {
     "connectors.gwas_catalog.GWASCatalogConnector": "connectors.gwas_api.GWASCatalogAPIConnector",
     "connectors.gnomad.GnomADConnector": "connectors.gnomad_api.GnomADAPIConnector",
     "connectors.hpa.HPAConnector": "connectors.hpa_api.HPAAPIConnector",
+    "connectors.galen_kg.GalenKGConnector": "connectors.galen_kg_api.GalenKGAPIConnector",
 }
 
 
