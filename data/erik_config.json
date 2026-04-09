@@ -124,5 +124,6 @@
   "geo_als_datasets": ["GSE124439", "GSE153960", "GSE56808", "GSE68605", "GSE76220", "GSE139384", "GSE118336", "GSE40438"],
   "cmap_enabled": true,
   "cmap_api_key": null,
-  "cmap_min_connectivity_score": -90.0
+  "cmap_min_connectivity_score": -90.0,
+  "deep_stagnation_window": 50
 }

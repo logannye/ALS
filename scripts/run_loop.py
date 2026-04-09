@@ -145,15 +145,102 @@ _DEEP_RESEARCH_QUERIES = [
 ]
 
 
+def _deep_stagnation_detected(state: ResearchState, window: int = 50) -> bool:
+    """Return True if deep mode has produced zero evidence for *window* steps."""
+    if state.step_count < window:
+        return False
+    return (state.step_count - state.last_deep_evidence_step) >= window
+
+
+def _get_expanded_deep_actions(step: int = 0) -> list[tuple[str, dict]]:
+    """Return 30+ action tuples covering all database connectors, LLM actions,
+    preprints, and Galen cross-references for use when deep mode is stagnated.
+
+    Each tuple is (action_name_string, params_dict). The caller rotates through
+    this list using ``step % len(actions)`` to ensure broad coverage.
+    """
+    _ALS_GENES = [
+        "TARDBP", "SOD1", "FUS", "C9orf72", "SIGMAR1", "MTOR",
+        "SLC1A2", "CSF1R", "STMN2", "UNC13A", "ATXN2", "OPTN",
+        "TBK1", "NEK1", "VCP", "PFN1",
+    ]
+    _ALS_DRUGS = [
+        "riluzole", "edaravone", "rapamycin", "masitinib",
+        "ibudilast", "tofersen", "sodium phenylbutyrate",
+    ]
+    actions: list[tuple[str, dict]] = []
+
+    # --- Database connector queries (12 distinct action types) ---
+    for gene in _ALS_GENES[:6]:
+        actions.append(("query_chembl", {"target_name": gene}))
+    for gene in _ALS_GENES[:4]:
+        actions.append(("query_gwas", {"gene": gene}))
+    for gene in _ALS_GENES[:4]:
+        actions.append(("query_clinvar", {"gene": gene}))
+    for gene in _ALS_GENES[:3]:
+        actions.append(("query_bindingdb", {"target_name": gene}))
+    for gene in _ALS_GENES[:3]:
+        actions.append(("query_hpa", {"gene": gene}))
+    for drug in _ALS_DRUGS[:3]:
+        actions.append(("query_drugbank", {"drug_name": drug}))
+    for gene in _ALS_GENES[:3]:
+        actions.append(("query_uniprot", {"gene": gene}))
+    for gene in _ALS_GENES[:2]:
+        actions.append(("query_alphafold", {"gene": gene}))
+    for gene in _ALS_GENES[:4]:
+        actions.append(("query_disgenet", {"gene": gene}))
+    for gene in _ALS_GENES[:4]:
+        actions.append(("query_gnomad", {"gene": gene}))
+    for gene in _ALS_GENES[:3]:
+        actions.append(("query_geo_als", {"gene": gene}))
+    actions.append(("query_reactome_local", {"target_name": "TDP-43"}))
+    actions.append(("query_reactome_local", {"target_name": "mTOR signaling"}))
+    actions.append(("query_reactome_local", {"target_name": "autophagy"}))
+
+    # --- LLM actions ---
+    actions.append(("generate_hypothesis", {"topic": "ALS proteostasis failure mechanisms", "uncertainty": "TDP-43 aggregation triggers"}))
+    actions.append(("generate_hypothesis", {"topic": "ALS neuroinflammation therapeutic targets", "uncertainty": "CSF1R inhibition safety"}))
+    actions.append(("generate_hypothesis", {"topic": "ALS RNA metabolism dysfunction", "uncertainty": "STMN2 cryptic exon as biomarker"}))
+    actions.append(("deepen_causal_chain", {"intervention_id": "TDP-43 proteostasis"}))
+    actions.append(("deepen_causal_chain", {"intervention_id": "SOD1 aggregation"}))
+
+    # --- Preprints ---
+    actions.append(("search_preprints", {"query": "ALS motor neuron degeneration mechanism 2025 2026"}))
+    actions.append(("search_preprints", {"query": "ALS gene therapy clinical 2025 2026"}))
+    actions.append(("search_preprints", {"query": "ALS biomarker neurofilament 2025 2026"}))
+
+    # --- Galen cross-references ---
+    actions.append(("query_galen_kg", {"entity_type": "gene", "entity_name": "TARDBP"}))
+    actions.append(("query_galen_kg", {"entity_type": "gene", "entity_name": "SOD1"}))
+    actions.append(("query_galen_kg", {"entity_type": "drug", "entity_name": "riluzole"}))
+
+    # --- Original 5 action types for completeness ---
+    actions.append(("search_pubmed", {"query": "ALS novel therapeutic target 2025 2026"}))
+    actions.append(("search_pubmed", {"query": "ALS stem cell therapy motor neuron 2025"}))
+    actions.append(("search_trials", {}))
+    for gene in ["TARDBP", "NEK1", "OPTN"]:
+        actions.append(("query_ppi_network", {"gene_symbol": gene}))
+    actions.append(("query_pathways", {"target_name": "autophagy"}))
+    actions.append(("query_pathways", {"target_name": "ubiquitin proteasome"}))
+    actions.append(("check_pharmacogenomics", {"drug_name": "tofersen"}))
+    actions.append(("check_pharmacogenomics", {"drug_name": "masitinib"}))
+
+    return actions
+
+
 def _deep_research_step(
     state: ResearchState,
     evidence_store: EvidenceStore,
     llm_manager: DualLLMManager,
 ) -> ResearchState:
-    """Execute one deep research step — intelligent evidence expansion
+    """Execute one deep research step -- intelligent evidence expansion
     that continues even after protocol convergence.
 
-    Alternates between:
+    When stagnated (zero new evidence for ``deep_stagnation_window`` steps),
+    switches to the expanded action set covering all database connectors,
+    LLM actions, preprints, and Galen cross-references.
+
+    Otherwise alternates between:
     - Gap-driven research: analyze protocol gaps, search for what matters most
     - Systematic rotation: cycle through hardcoded queries for broad coverage
 
@@ -164,48 +251,58 @@ def _deep_research_step(
     from research.loop import _execute_action, _persist_state
     from research.rewards import compute_reward
 
-    # Every 3rd step: gap-driven research
-    use_gap_analysis = (state.step_count % 3 == 0)
+    cfg = ConfigLoader()
+    stagnation_window = cfg.get("deep_stagnation_window", 50)
+    stagnated = _deep_stagnation_detected(state, window=stagnation_window)
 
-    if use_gap_analysis:
-        try:
-            from research.intelligence import analyze_protocol_gaps, filter_actionable_gaps
-            gaps = analyze_protocol_gaps(state, evidence_store)
-            # Log clinical recommendations periodically
-            clinical_gaps = [g for g in gaps if g.get("resolvability") == "clinical_required"]
-            if clinical_gaps and state.step_count % 50 == 0:
-                for cg in clinical_gaps[:3]:
-                    print(f"[ERIK-CLINICAL] Recommendation: {cg['description']} (requires clinical action)")
-            actionable_gaps = filter_actionable_gaps(gaps)
-            if actionable_gaps:
-                gap = actionable_gaps[0]
-                queries = gap.get("search_queries", [])
-                if queries:
-                    # Use the top gap's first search query
-                    action_name = "search_pubmed"
-                    params = {"query": queries[0], "max_results": 20}
-                    print(f"[ERIK-DEEP] Gap-driven: {gap['gap_type']} — {gap['description'][:60]}...")
+    # Build action_name -> ActionType map from the full enum
+    _action_type_map = {at.value: at for at in ActionType}
+
+    if stagnated:
+        # --- Expanded action rotation (breaks out of exhausted queries) ---
+        expanded = _get_expanded_deep_actions(step=state.step_count)
+        idx = state.step_count % len(expanded)
+        action_name, params = expanded[idx]
+        print(
+            f"[ERIK-DEEP] STAGNATION DETECTED ({state.step_count - state.last_deep_evidence_step} steps dry) "
+            f"— using expanded action #{idx}: {action_name}"
+        )
+    else:
+        # --- Normal mode: gap-driven + hardcoded rotation ---
+        use_gap_analysis = (state.step_count % 3 == 0)
+
+        if use_gap_analysis:
+            try:
+                from research.intelligence import analyze_protocol_gaps, filter_actionable_gaps
+                gaps = analyze_protocol_gaps(state, evidence_store)
+                # Log clinical recommendations periodically
+                clinical_gaps = [g for g in gaps if g.get("resolvability") == "clinical_required"]
+                if clinical_gaps and state.step_count % 50 == 0:
+                    for cg in clinical_gaps[:3]:
+                        print(f"[ERIK-CLINICAL] Recommendation: {cg['description']} (requires clinical action)")
+                actionable_gaps = filter_actionable_gaps(gaps)
+                if actionable_gaps:
+                    gap = actionable_gaps[0]
+                    queries = gap.get("search_queries", [])
+                    if queries:
+                        # Use the top gap's first search query
+                        action_name = "search_pubmed"
+                        params = {"query": queries[0], "max_results": 20}
+                        print(f"[ERIK-DEEP] Gap-driven: {gap['gap_type']} — {gap['description'][:60]}...")
+                    else:
+                        use_gap_analysis = False
                 else:
                     use_gap_analysis = False
-            else:
+            except Exception:
                 use_gap_analysis = False
-        except Exception:
-            use_gap_analysis = False
 
-    if not use_gap_analysis:
-        # Systematic rotation through hardcoded queries
-        deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
-        action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
+        if not use_gap_analysis:
+            # Systematic rotation through hardcoded queries
+            deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
+            action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
 
-    # Map string to ActionType
-    action_map = {
-        "search_pubmed": ActionType.SEARCH_PUBMED,
-        "search_trials": ActionType.SEARCH_TRIALS,
-        "query_ppi_network": ActionType.QUERY_PPI_NETWORK,
-        "query_pathways": ActionType.QUERY_PATHWAYS,
-        "check_pharmacogenomics": ActionType.CHECK_PHARMACOGENOMICS,
-    }
-    action = action_map.get(action_name, ActionType.SEARCH_PUBMED)
+    # Map string to ActionType using full enum map (supports all 37+ action types)
+    action = _action_type_map.get(action_name, ActionType.SEARCH_PUBMED)
     params["action"] = action
 
     # Execute (with evidence deduplication)
@@ -225,14 +322,14 @@ def _deep_research_step(
         except Exception:
             pass
 
-    # Compute simple reward
+    # Compute reward — pass through hypothesis_resolved and causal_depth_added
     reward = compute_reward(
         evidence_items_added=result.evidence_items_added,
         uncertainty_before=0.3,
         uncertainty_after=0.3,
         protocol_score_delta=0.0,
-        hypothesis_resolved=False,
-        causal_depth_added=0,
+        hypothesis_resolved=result.hypothesis_resolved,
+        causal_depth_added=result.causal_depth_added,
         interaction_safe=result.interaction_safe,
         eligibility_confirmed=result.eligibility_confirmed,
         protocol_stable=False,
@@ -246,6 +343,11 @@ def _deep_research_step(
     action_counts = dict(state.action_counts)
     action_counts[action.value] = action_counts.get(action.value, 0) + 1
 
+    # Track last_deep_evidence_step: update when evidence or causal depth was added
+    new_last_deep_evidence_step = state.last_deep_evidence_step
+    if result.evidence_items_added > 0 or result.causal_depth_added > 0:
+        new_last_deep_evidence_step = state.step_count + 1  # +1 because step_count increments below
+
     state = replace(
         state,
         step_count=state.step_count + 1,
@@ -254,6 +356,7 @@ def _deep_research_step(
         last_action=f"deep:{action.value}",
         last_reward=reward.total(),
         action_counts=action_counts,
+        last_deep_evidence_step=new_last_deep_evidence_step,
     )
 
     print(
@@ -261,6 +364,7 @@ def _deep_research_step(
         f"evidence={result.evidence_items_added} | "
         f"total={new_evidence} | "
         f"since_regen={new_since_regen}"
+        + (f" | STAGNATED (last_evidence@{new_last_deep_evidence_step})" if stagnated else "")
     )
 
     return state
