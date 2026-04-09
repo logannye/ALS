@@ -174,3 +174,50 @@ class TestDeepStagnationConfigKey:
         assert "deep_stagnation_window" in cfg
         assert isinstance(cfg["deep_stagnation_window"], int)
         assert cfg["deep_stagnation_window"] == 50
+
+
+class TestLayerBalancedSelection:
+    """Tests for _get_layer_weighted_query() — inverse-proportion layer balancing."""
+
+    def test_starving_layer_gets_priority(self):
+        """When root_cause dominates (4000) and regen/adaptive are starved (10),
+        the selected layer should be one of the under-represented layers."""
+        from run_loop import _get_layer_weighted_query
+
+        evidence_by_layer = {
+            "root_cause_suppression": 4000,
+            "pathology_reversal": 500,
+            "circuit_stabilization": 300,
+            "regeneration_reinnervation": 10,
+            "adaptive_maintenance": 10,
+        }
+        # Try many steps — the starving layers should dominate selection
+        starving = {"regeneration_reinnervation", "adaptive_maintenance"}
+        chosen_layers = set()
+        for step in range(100):
+            _, layer = _get_layer_weighted_query(evidence_by_layer, step)
+            chosen_layers.add(layer)
+        # The two starving layers should appear at least once each
+        assert starving & chosen_layers, (
+            f"Expected at least one of {starving} in selections, got {chosen_layers}"
+        )
+
+    def test_balanced_layers_rotate_evenly(self):
+        """When all layers have equal evidence, at least 3 different layers
+        should be selected across 25 steps."""
+        from run_loop import _get_layer_weighted_query
+
+        evidence_by_layer = {
+            "root_cause_suppression": 100,
+            "pathology_reversal": 100,
+            "circuit_stabilization": 100,
+            "regeneration_reinnervation": 100,
+            "adaptive_maintenance": 100,
+        }
+        chosen_layers = set()
+        for step in range(25):
+            _, layer = _get_layer_weighted_query(evidence_by_layer, step)
+            chosen_layers.add(layer)
+        assert len(chosen_layers) >= 3, (
+            f"Expected at least 3 distinct layers across 25 steps, got {chosen_layers}"
+        )

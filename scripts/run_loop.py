@@ -40,6 +40,7 @@ from research.dual_llm import DualLLMManager
 from research.loop import research_step, _bootstrap_initial_protocol, _persist_state
 from research.state import ResearchState, initial_state
 from research.layer_orchestrator import determine_layer
+from research.policy import _BASE_LAYER_QUERIES
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +144,43 @@ _DEEP_RESEARCH_QUERIES = [
     ("check_pharmacogenomics", {"drug_name": "edaravone"}),
     ("check_pharmacogenomics", {"drug_name": "rapamycin"}),
 ]
+
+
+def _get_layer_weighted_query(
+    evidence_by_layer: dict[str, int],
+    step: int,
+) -> tuple[str, str]:
+    """Select a query biased toward under-represented evidence layers.
+
+    Uses inverse-proportion weighting so layers with fewer evidence items
+    get proportionally more queries.  Selection is deterministic given
+    ``step`` (no random state).
+
+    Returns ``(query_string, layer_name)``.
+    """
+    import datetime as _dt
+
+    # Build inverse-proportion weights for every layer in _BASE_LAYER_QUERIES
+    layers = list(_BASE_LAYER_QUERIES.keys())
+    weights = [1.0 / (evidence_by_layer.get(layer, 0) + 1) for layer in layers]
+    total_weight = sum(weights)
+
+    # Deterministic selection via cumulative scan
+    # Use golden-ratio stride for maximal spread across layers
+    target = ((step * 61) % 100) / 100.0 * total_weight
+    cumulative = 0.0
+    chosen_layer = layers[-1]  # fallback
+    for layer, w in zip(layers, weights):
+        cumulative += w
+        if cumulative >= target:
+            chosen_layer = layer
+            break
+
+    # Pick a query from the chosen layer, rotating by step
+    queries = _BASE_LAYER_QUERIES[chosen_layer]
+    query = queries[step % len(queries)]
+    year = _dt.datetime.now().year
+    return (f"{query} {year}", chosen_layer)
 
 
 def _deep_stagnation_detected(state: ResearchState, window: int = 50) -> bool:
@@ -329,9 +367,15 @@ def _deep_research_step(
                 use_gap_analysis = False
 
         if not use_gap_analysis:
-            # Systematic rotation through hardcoded queries
-            deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
-            action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
+            # Alternate between layer-weighted (even) and hardcoded rotation (odd)
+            if state.step_count % 2 == 0:
+                query, layer = _get_layer_weighted_query(state.evidence_by_layer, state.step_count)
+                action_name = "search_pubmed"
+                params = {"query": query, "max_results": 20}
+                print(f"[ERIK-DEEP] Layer-balanced: targeting {layer}")
+            else:
+                deep_step = state.step_count % len(_DEEP_RESEARCH_QUERIES)
+                action_name, params = _DEEP_RESEARCH_QUERIES[deep_step]
 
     # Map string to ActionType using full enum map (supports all 37+ action types)
     action = _action_type_map.get(action_name, ActionType.SEARCH_PUBMED)
