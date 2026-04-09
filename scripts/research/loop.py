@@ -342,6 +342,20 @@ def research_step(
             except Exception:
                 pass  # Never crash the loop on KG extraction failure
 
+    # 5f. Build mechanism→mechanism chains when new KG entities were created
+    if result.evidence_items_added > 0:
+        try:
+            from config.loader import ConfigLoader
+            _chain_cfg = ConfigLoader()
+            if _chain_cfg.get("chain_builder_enabled", True):
+                from research.chain_builder import build_mechanism_chains
+                _chain_stats = build_mechanism_chains()
+                if _chain_stats["edges_created"] > 0:
+                    print(f"[RESEARCH] Chains: +{_chain_stats['edges_created']} mechanism→mechanism edges "
+                          f"({_chain_stats['chains_found']} chains found)")
+        except Exception:
+            pass  # Never crash the loop on chain building failure
+
     # 5e. Decrement exploration burst counter
     if getattr(new_state, "exploration_burst_remaining", 0) > 0:
         new_state = replace(new_state, exploration_burst_remaining=new_state.exploration_burst_remaining - 1)
