@@ -244,6 +244,46 @@ The system re-enters active research mode automatically when new data changes th
 
 ---
 
+## Cloud Acceleration (April 8, 2026)
+
+Evidence acquisition had stagnated at ~0/hour for days. Root cause: the cloud migration to Railway left 15 local-file-based connectors pointing at `/Volumes/Databank/databases/` — paths that don't exist in the Railway container. All 15 connectors silently returned zero evidence on every call. Additionally, Layer 3 (erik_specific) was hard-gated on genetic testing results that hadn't arrived.
+
+### Connector Mode Framework
+New `CONNECTOR_MODE` environment variable transparently swaps local-file connectors to REST API variants. Set `CONNECTOR_MODE=api` on Railway; local development continues using local files unchanged. The resolver sits in `_make_als_gene_executor()` so no action dispatch code needed modification.
+
+### 9 REST API Connectors
+| Connector | API | Replaces |
+|-----------|-----|----------|
+| `chembl_api.py` | EBI ChEMBL REST API | 30.7GB local SQLite |
+| `uniprot_api.py` | UniProt REST API | 52MB local TSV |
+| `alphafold_api.py` | AlphaFold EBI API | Local PDB files |
+| `gtex_api.py` | GTEx Portal API v2 | Local SQLite |
+| `gwas_api.py` | GWAS Catalog REST API | Local TSV |
+| `gnomad_api.py` | gnomAD GraphQL API | Local constraint TSV |
+| `hpa_api.py` | Human Protein Atlas API | Local TSV |
+| `galen_kg_api.py` | Galen HTTP bridge | Direct PostgreSQL (MacBook-only) |
+| ClinVar/Reactome | Already had API connectors | Wired via mode resolver |
+
+### Provisional Genetic Profile
+Layer 3 (erik_specific) no longer requires confirmed genetic testing. `provisional_genetics.py` infers a Bayesian subtype posterior from Erik's clinical features (67M, limb-onset, sALS → TDP-43 proteinopathy at 70% confidence). Layer 3 queries activate when evidence exceeds 500 items. Drug design (Layer 4) still requires confirmed genetics.
+
+### Intelligence Upgrades
+- **LLM-powered query generation** — 5th strategy in PubMed rotation uses Bedrock Nova Micro to generate novel search queries from active hypotheses and uncertainties, breaking the static query exhaustion cycle
+- **Enhanced stagnation recovery** — exploration burst forces 20 steps of least-used actions after each stagnation reset, preventing immediate re-entry into exhausted query patterns
+- **Convergence guard** — minimum 200 active research steps after any layer transition or forced reconvergence, preventing premature re-convergence when protocol stability thresholds were already met from a previous run
+
+### Auth Fix
+Invite codes pasted with trailing whitespace (common on mobile) failed exact-match comparison. Fixed at three layers: frontend `trim()`, Pydantic `field_validator`, and backend `strip()`.
+
+### Results
+- Evidence rate: **0/hour → ~189/hour** (measured over 60 minutes post-deploy)
+- Protocol: v447 → v469 (+22 versions in first hour)
+- Layer: `als_mechanisms` → `erik_specific` (first time reaching Layer 3)
+- 275 new tests, 0 regressions
+- Drug molecule design activated — generating candidates targeting TDP-43
+
+---
+
 ## Phase 11: Expanded Evidence Sources (April 3, 2026)
 
 Seven new data source connectors and a major ChEMBL ADME/Tox expansion, increasing Erik's evidence acquisition surface from 24 to 31 connectors and from 30 to 37 action types.
