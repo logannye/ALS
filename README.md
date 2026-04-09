@@ -284,6 +284,39 @@ Invite codes pasted with trailing whitespace (common on mobile) failed exact-mat
 
 ---
 
+## Causal Depth Acceleration (April 9, 2026)
+
+After 6 days of stagnation (zero new entities since April 3, ~241 wasted steps/hour), a comprehensive overhaul of the research loop's deep mode and knowledge graph quality pipeline.
+
+### Root Cause: Deep-Mode Deadlock
+Post-convergence "deep research mode" cycled through 26 hardcoded queries with only 5 action types. Every query was exhausted — all evidence deduplicated on upsert. Deep mode had none of the RL machinery (stagnation recovery, query expansion, yield tracking) that exists in active mode. Exit conditions required evidence growth that deep mode couldn't produce. Deadlock.
+
+### 6 Coordinated Fixes
+
+| Fix | Problem | Solution |
+|-----|---------|----------|
+| **Deep-Mode Stagnation Breaker** | 5 exhausted actions in deadlock | Detects zero-yield streaks (50+ steps), expands to 63 actions across 21 types (all DB connectors, LLM, preprints, Galen cross-refs) |
+| **Evidence Strength Inference** | 97% of KG edges at default 0.300 confidence | Infers strength from PubMed publication type: RCT/meta-analysis→strong, clinical trial→moderate, observational→emerging, case report→preclinical |
+| **Mechanism Chain Builder** | Zero multi-hop causal chains (only gene→mechanism) | Discovers mechanism→mechanism relationships via shared gene intermediaries, creates L2 (inferred causal) edges |
+| **Hypothesis Lifecycle in Deep Mode** | 2,659 hypotheses stuck in "generated" | Every 10th deep step validates oldest hypothesis (or generates new one if queue empty) |
+| **Layer-Balanced Acquisition** | 92% evidence in root_cause_suppression | Inverse-proportion weighting: starving layers (regeneration 1.3%, adaptive 1.1%) get priority queries |
+| **Confidence Uplift** | Flat confidence landscape, no quality signal | Periodic pass upgrades relationship confidence based on evidence count + strength distribution (log-boost formula) |
+
+### Key Design Decisions
+- **Stagnation detection is structural**: `last_deep_evidence_step` tracked on state — system can never silently stagnate again
+- **Full action set in expanded mode**: Uses `{at.value: at for at in ActionType}` to map all 37+ actions, not a hardcoded subset
+- **Chain edges are L2 (inferred causal)**: Respects Pearl Causal Hierarchy — mechanism→mechanism from shared genes is interventional evidence, not counterfactual
+- **Confidence only increases**: Uses `GREATEST()` semantics — evidence accumulation can only strengthen, never weaken
+- **All fixes are config-gated and hot-reloadable**: `deep_stagnation_window`, `chain_builder_enabled`, `confidence_updater_enabled`
+
+### Results
+- 6 commits, 535 tests passing (52 new), 0 regressions
+- Deep mode: 5 actions → 63 actions (21 types) when stagnated
+- Hypothesis pipeline: unblocked (validation every 10th step)
+- Confidence range: 0.300 flat → evidence-grounded 0.3–0.95
+
+---
+
 ## Phase 11: Expanded Evidence Sources (April 3, 2026)
 
 Seven new data source connectors and a major ChEMBL ADME/Tox expansion, increasing Erik's evidence acquisition surface from 24 to 31 connectors and from 30 to 37 action types.
