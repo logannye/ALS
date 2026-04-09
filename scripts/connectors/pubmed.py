@@ -47,6 +47,30 @@ PUB_TYPE_MODALITY: dict[str, str] = {
     "Comment": "comment",
 }
 
+# ---------------------------------------------------------------------------
+# Modality → evidence strength mapping
+# ---------------------------------------------------------------------------
+
+_MODALITY_TO_STRENGTH: dict[str, str] = {
+    "randomized_controlled_trial": "strong",
+    "meta_analysis": "strong",
+    "systematic_review": "strong",
+    "clinical_trial": "moderate",
+    "multicenter_study": "moderate",
+    "comparative_study": "moderate",
+    "observational_study": "emerging",
+    "review": "emerging",
+    "case_report": "preclinical",
+    "letter": "preclinical",
+    "editorial": "preclinical",
+    "comment": "preclinical",
+}
+
+
+def _infer_strength_from_modality(modality: str) -> str:
+    """Map publication modality to evidence strength tier."""
+    return _MODALITY_TO_STRENGTH.get(modality, "unknown")
+
 
 # ---------------------------------------------------------------------------
 # Free function: parse a single PubmedArticle XML element
@@ -95,11 +119,15 @@ def _parse_pubmed_article(article_el: ET.Element) -> EvidenceItem:
                 modality = PUB_TYPE_MODALITY[pt_text]
                 break
 
+    # Infer evidence strength from publication modality
+    inferred_strength = _infer_strength_from_modality(modality)
+    strength_enum = getattr(EvidenceStrength, inferred_strength, EvidenceStrength.unknown)
+
     return EvidenceItem(
         id=f"evi:pubmed:{pmid}",
         claim=title,
         direction=EvidenceDirection.insufficient,
-        strength=EvidenceStrength.unknown,
+        strength=strength_enum,
         source_refs=[f"pmid:{pmid}"],
         provenance=Provenance(
             source_system=SourceSystem.literature,
@@ -113,6 +141,7 @@ def _parse_pubmed_article(article_el: ET.Element) -> EvidenceItem:
             "erik_eligible": True,
             "pch_layer": 1,
             "modality": modality,
+            "evidence_strength": inferred_strength,
             "abstract": abstract,
             "journal": journal,
         },

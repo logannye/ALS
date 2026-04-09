@@ -2,7 +2,7 @@
 import pytest
 import xml.etree.ElementTree as ET
 
-from connectors.pubmed import PubMedConnector, _parse_pubmed_article
+from connectors.pubmed import PubMedConnector, _parse_pubmed_article, _infer_strength_from_modality
 
 
 # ---------------------------------------------------------------------------
@@ -88,9 +88,10 @@ def test_parse_pubmed_article_direction(sample_article_el):
 
 
 def test_parse_pubmed_article_strength(sample_article_el):
+    """RCT article should now get strong strength (not unknown)."""
     item = _parse_pubmed_article(sample_article_el)
     from ontology.enums import EvidenceStrength
-    assert item.strength == EvidenceStrength.unknown
+    assert item.strength == EvidenceStrength.strong
 
 
 def test_parse_pubmed_article_provenance(sample_article_el):
@@ -166,6 +167,65 @@ def test_layer_queries_keys():
         ProtocolLayer.adaptive_maintenance,
     }
     assert set(c.LAYER_QUERIES.keys()) == expected_keys
+
+
+# ---------------------------------------------------------------------------
+# Network tests (skip by default)
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Evidence strength inference tests
+# ---------------------------------------------------------------------------
+
+def test_rct_gets_strong_strength():
+    assert _infer_strength_from_modality("randomized_controlled_trial") == "strong"
+
+
+def test_meta_analysis_gets_strong():
+    assert _infer_strength_from_modality("meta_analysis") == "strong"
+
+
+def test_clinical_trial_gets_moderate():
+    assert _infer_strength_from_modality("clinical_trial") == "moderate"
+
+
+def test_observational_gets_emerging():
+    assert _infer_strength_from_modality("observational_study") == "emerging"
+
+
+def test_review_gets_emerging():
+    assert _infer_strength_from_modality("review") == "emerging"
+
+
+def test_case_report_gets_preclinical():
+    assert _infer_strength_from_modality("case_report") == "preclinical"
+
+
+def test_letter_gets_preclinical():
+    assert _infer_strength_from_modality("letter") == "preclinical"
+
+
+def test_other_gets_unknown():
+    assert _infer_strength_from_modality("other") == "unknown"
+
+
+def test_parse_rct_evidence_strength_body(sample_article_el):
+    """RCT article body should include evidence_strength key."""
+    item = _parse_pubmed_article(sample_article_el)
+    assert item.body["evidence_strength"] == "strong"
+
+
+def test_parse_review_evidence_strength_body(sample_article_no_abstract_el):
+    """Review article body should include evidence_strength = emerging."""
+    item = _parse_pubmed_article(sample_article_no_abstract_el)
+    assert item.body["evidence_strength"] == "emerging"
+
+
+def test_parse_review_strength_enum(sample_article_no_abstract_el):
+    """Review article should have EvidenceStrength.emerging."""
+    item = _parse_pubmed_article(sample_article_no_abstract_el)
+    from ontology.enums import EvidenceStrength
+    assert item.strength == EvidenceStrength.emerging
 
 
 # ---------------------------------------------------------------------------
