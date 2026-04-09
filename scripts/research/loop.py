@@ -356,6 +356,20 @@ def research_step(
         except Exception:
             pass  # Never crash the loop on chain building failure
 
+    # 5g. Periodic confidence uplift (every 50 steps)
+    if new_step % 50 == 0:
+        try:
+            from config.loader import ConfigLoader
+            _conf_cfg = ConfigLoader()
+            if _conf_cfg.get("confidence_updater_enabled", True):
+                from knowledge_quality.confidence_updater import update_relationship_confidences
+                _conf_stats = update_relationship_confidences()
+                if _conf_stats["relationships_updated"] > 0:
+                    print(f"[RESEARCH] Confidence: updated {_conf_stats['relationships_updated']} "
+                          f"of {_conf_stats['relationships_scanned']} relationships")
+        except Exception:
+            pass
+
     # 5e. Decrement exploration burst counter
     if getattr(new_state, "exploration_burst_remaining", 0) > 0:
         new_state = replace(new_state, exploration_burst_remaining=new_state.exploration_burst_remaining - 1)
