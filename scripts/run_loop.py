@@ -183,7 +183,7 @@ def _get_layer_weighted_query(
     return (f"{query} {year}", chosen_layer)
 
 
-def _deep_stagnation_detected(state: ResearchState, window: int = 50) -> bool:
+def _deep_stagnation_detected(state: ResearchState, window: int = 20) -> bool:
     """Return True if deep mode has produced zero evidence for *window* steps."""
     if state.step_count < window:
         return False

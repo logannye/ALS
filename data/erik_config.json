@@ -125,5 +125,5 @@
   "cmap_enabled": true,
   "cmap_api_key": null,
   "cmap_min_connectivity_score": -90.0,
-  "deep_stagnation_window": 50
+  "deep_stagnation_window": 20
 }
