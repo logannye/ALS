@@ -146,12 +146,17 @@ async def auth_middleware(request: Request, call_next):
 # Auth endpoints
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class RedeemRequest(BaseModel):
     code: str
     name: str = "family"
+
+    @field_validator("code", "name", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
 
 
 @app.post("/api/auth/redeem")
