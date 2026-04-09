@@ -228,6 +228,36 @@ def _get_expanded_deep_actions(step: int = 0) -> list[tuple[str, dict]]:
     return actions
 
 
+def _select_deep_action(
+    state: ResearchState,
+    is_stagnated: bool,
+) -> tuple[str, dict]:
+    """Choose an action for deep mode, prioritizing hypothesis lifecycle.
+
+    Returns (action_name, params).  An empty action_name signals the caller
+    to fall through to the existing gap-driven / rotation logic.
+
+    Rules:
+    - If stagnated: return an expanded action from the full action set.
+    - Every 10th step (step_count % 10 == 0) AND not stagnated:
+        - If active_hypotheses is non-empty: validate the first one.
+        - Otherwise: generate a new hypothesis.
+    - All other cases: return ("", {}) so the caller uses normal logic.
+    """
+    if is_stagnated:
+        expanded = _get_expanded_deep_actions(state.step_count)
+        idx = state.step_count % len(expanded)
+        return expanded[idx]
+
+    if state.step_count % 10 == 0:
+        if state.active_hypotheses:
+            return ("validate_hypothesis", {"hypothesis_id": state.active_hypotheses[0]})
+        else:
+            return ("generate_hypothesis", {"topic": "ALS mechanism", "uncertainty": ""})
+
+    return ("", {})
+
+
 def _deep_research_step(
     state: ResearchState,
     evidence_store: EvidenceStore,
@@ -258,17 +288,19 @@ def _deep_research_step(
     # Build action_name -> ActionType map from the full enum
     _action_type_map = {at.value: at for at in ActionType}
 
-    if stagnated:
-        # --- Expanded action rotation (breaks out of exhausted queries) ---
-        expanded = _get_expanded_deep_actions(step=state.step_count)
-        idx = state.step_count % len(expanded)
-        action_name, params = expanded[idx]
-        print(
-            f"[ERIK-DEEP] STAGNATION DETECTED ({state.step_count - state.last_deep_evidence_step} steps dry) "
-            f"— using expanded action #{idx}: {action_name}"
-        )
+    # --- Priority 1: hypothesis lifecycle / stagnation breaker ---
+    action_name, params = _select_deep_action(state, is_stagnated=stagnated)
+
+    if action_name:
+        if stagnated:
+            print(
+                f"[ERIK-DEEP] STAGNATION DETECTED ({state.step_count - state.last_deep_evidence_step} steps dry) "
+                f"— using expanded action: {action_name}"
+            )
+        else:
+            print(f"[ERIK-DEEP] Hypothesis step: {action_name}")
     else:
-        # --- Normal mode: gap-driven + hardcoded rotation ---
+        # --- Priority 2: gap-driven + hardcoded rotation ---
         use_gap_analysis = (state.step_count % 3 == 0)
 
         if use_gap_analysis:
