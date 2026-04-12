@@ -28,6 +28,5 @@ COPY data/ ./data/
 ENV PYTHONPATH=/app/scripts
 ENV PYTHONUNBUFFERED=1
 
-# Install anthropic at runtime (avoids invalidating cached rdkit layer)
-# Then start the server
-CMD pip install -q anthropic 2>/dev/null; uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Install extra deps at runtime (avoids invalidating cached rdkit layer)
+CMD pip install -q python-multipart anthropic 2>/dev/null; uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
