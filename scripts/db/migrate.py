@@ -16,6 +16,7 @@ _SCHEMA_FILES = [
     _SCRIPTS_DIR / "core_schema.sql",
     _SCRIPTS_DIR / "ops_schema.sql",
     _SCRIPTS_DIR / "trial_watchlist.sql",
+    _SCRIPTS_DIR / "tcg_schema.sql",
 ]
 
 _DB_NAME = "erik_kg"
