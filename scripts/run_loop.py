@@ -24,6 +24,7 @@ import json
 import os
 import sys
 import time
+import threading
 from dataclasses import replace
 
 # Force unbuffered stdout/stderr so LaunchAgent logs write immediately
@@ -41,6 +42,56 @@ from research.loop import research_step, _bootstrap_initial_protocol, _persist_s
 from research.state import ResearchState, initial_state
 from research.layer_orchestrator import determine_layer
 from research.policy import _BASE_LAYER_QUERIES
+from daemons.integration_daemon import IntegrationDaemon
+from daemons.reasoning_daemon import ReasoningDaemon
+from daemons.compound_daemon import CompoundDaemon
+
+
+# ---------------------------------------------------------------------------
+# Cognitive engine daemons
+# ---------------------------------------------------------------------------
+
+def _start_cognitive_daemons(claude_api_key: str = "") -> dict[str, tuple]:
+    """Start all cognitive engine daemons as background threads.
+
+    Returns a dict mapping daemon name to (daemon_instance, thread) tuples.
+    """
+    cfg = ConfigLoader()
+    daemons: dict[str, tuple] = {}
+
+    # Phase 2: Integration
+    if cfg.get("integration_enabled", True):
+        integration = IntegrationDaemon()
+        t_int = threading.Thread(target=integration.run, name="integration-daemon", daemon=True)
+        t_int.start()
+        daemons["integration"] = (integration, t_int)
+        print("[ERIK] Started IntegrationDaemon")
+
+    # Phase 3: Reasoning (requires Claude API key)
+    if cfg.get("reasoning_enabled", True) and claude_api_key:
+        reasoning = ReasoningDaemon(claude_api_key=claude_api_key)
+        t_rea = threading.Thread(target=reasoning.run, name="reasoning-daemon", daemon=True)
+        t_rea.start()
+        daemons["reasoning"] = (reasoning, t_rea)
+        print("[ERIK] Started ReasoningDaemon")
+
+    # Phase 4: Compound (requires Claude API key)
+    if cfg.get("compound_enabled", True) and claude_api_key:
+        compound = CompoundDaemon(claude_api_key=claude_api_key)
+        t_cmp = threading.Thread(target=compound.run, name="compound-daemon", daemon=True)
+        t_cmp.start()
+        daemons["compound"] = (compound, t_cmp)
+        print("[ERIK] Started CompoundDaemon")
+
+    return daemons
+
+
+def _stop_cognitive_daemons(daemons: dict[str, tuple]) -> None:
+    """Gracefully stop all running daemons."""
+    for name, (daemon, thread) in daemons.items():
+        daemon.stop()
+        thread.join(timeout=5)
+        print(f"[ERIK] Stopped {name} daemon")
 
 
 # ---------------------------------------------------------------------------
@@ -612,6 +663,26 @@ def main():
         except Exception as e:
             print(f"[ERIK] Causal gap init skipped: {e}")
 
+    # Seed TCG scaffold if not already done
+    try:
+        from tcg.graph import TCGraph
+        from tcg.seed_scaffold import seed_scaffold
+        _tcg = TCGraph()
+        _summary = _tcg.summary()
+        if _summary["node_count"] == 0:
+            print("[ERIK] Seeding TCG scaffold...")
+            stats = seed_scaffold(_tcg)
+            print(f"[ERIK] TCG scaffold: {stats['nodes_created']} nodes, {stats['edges_created']} edges")
+        else:
+            print(f"[ERIK] TCG: {_summary['node_count']} nodes, {_summary['edge_count']} edges, "
+                  f"mean confidence {_summary['mean_confidence']:.3f}")
+    except Exception as e:
+        print(f"[ERIK] TCG scaffold skipped: {e}")
+
+    # Start cognitive engine daemons
+    _claude_key = os.environ.get("ANTHROPIC_API_KEY", cfg.get("anthropic_api_key", ""))
+    cognitive_daemons = _start_cognitive_daemons(claude_api_key=_claude_key)
+
     # Config
     regen_threshold = cfg.get("research_protocol_regen_threshold", 15)
     active_pause = cfg.get("research_inter_step_pause_s", 1.0)
@@ -691,6 +762,7 @@ def main():
         except KeyboardInterrupt:
             print(f"\n[ERIK] Interrupted at step {state.step_count}. State saved.")
             _persist_state(state, evidence_store)
+            _stop_cognitive_daemons(cognitive_daemons)
             break
         except Exception as e:
             print(f"[ERIK] Error at step {state.step_count}: {e}")
