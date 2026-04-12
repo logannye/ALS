@@ -21,9 +21,6 @@ RUN pip install --no-cache-dir \
     rdkit \
     pdbfixer
 
-# Claude API client (optional — reasoning daemon degrades gracefully without it)
-RUN pip install --no-cache-dir anthropic || echo "WARNING: anthropic install failed, Claude reasoning disabled"
-
 # Copy application
 COPY scripts/ ./scripts/
 COPY data/ ./data/
@@ -31,5 +28,6 @@ COPY data/ ./data/
 ENV PYTHONPATH=/app/scripts
 ENV PYTHONUNBUFFERED=1
 
-# Railway provides $PORT
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Install anthropic at runtime (avoids invalidating cached rdkit layer)
+# Then start the server
+CMD pip install -q anthropic 2>/dev/null; uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
