@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps
+# Python deps — heavy science packages first (cached layer)
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir \
     psycopg[binary]>=3.2 \
@@ -19,8 +19,10 @@ RUN pip install --no-cache-dir \
     uvicorn[standard] \
     requests \
     rdkit \
-    pdbfixer \
-    anthropic
+    pdbfixer
+
+# Light deps — separate layer so adding packages doesn't rebuild rdkit
+RUN pip install --no-cache-dir anthropic
 
 # Copy application
 COPY scripts/ ./scripts/
