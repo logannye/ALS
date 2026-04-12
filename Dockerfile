@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir \
     uvicorn[standard] \
     requests \
     rdkit \
-    pdbfixer
+    pdbfixer \
+    anthropic
 
 # Copy application
 COPY scripts/ ./scripts/

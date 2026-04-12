@@ -61,6 +61,13 @@ async def lifespan(app: FastAPI):
     """Start the research loop on startup, clean up on shutdown."""
     global _loop_task
 
+    # Run database migrations (ensures TCG tables exist)
+    try:
+        from db.migrate import run_migrations
+        run_migrations()
+    except Exception:
+        logger.exception("Migration failed — tables may be missing")
+
     # Ensure sessions table exists
     try:
         _ensure_sessions_table()
