@@ -192,6 +192,9 @@ from api.routers.summary import router as summary_router
 from api.routers.genetics import router as genetics_router
 from api.routers.discoveries import router as discoveries_router
 from api.routers.document_upload import router as document_upload_router
+from api.routers.graph import router as graph_router
+from api.routers.hypotheses import router as hypotheses_router
+from api.routers.progress import router as progress_router
 
 app.include_router(health_router)
 app.include_router(state_router)
@@ -206,3 +209,6 @@ app.include_router(summary_router)
 app.include_router(genetics_router)
 app.include_router(discoveries_router)
 app.include_router(document_upload_router)
+app.include_router(graph_router)
+app.include_router(hypotheses_router)
+app.include_router(progress_router)

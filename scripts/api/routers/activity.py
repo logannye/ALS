@@ -1,7 +1,5 @@
-"""Activity feed endpoint — audit log of research events."""
+"""Activity feed endpoint — research loop events from activity_feed."""
 from __future__ import annotations
-
-import json
 
 from fastapi import APIRouter, Query
 
@@ -11,45 +9,23 @@ router = APIRouter(prefix="/api")
 
 
 @router.get("/activity")
-def list_activity(
+def get_activity(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    event_type: str | None = Query(None),
 ):
-    """Return paginated audit events, most recent first."""
-    conditions = ["1=1"]
-    params: list = []
-
-    if event_type:
-        conditions.append("event_type = %s")
-        params.append(event_type)
-
-    where = " AND ".join(conditions)
-    params.extend([limit, offset])
-
+    """Return paginated activity feed events, most recent first."""
     with get_connection() as conn:
-        rows = conn.execute(
-            f"""SELECT id, event_type, object_id, object_type, actor, details, created_at
-                FROM erik_ops.audit_events
-                WHERE {where}
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT phase, event_type, summary, details, created_at
+                FROM erik_ops.activity_feed
                 ORDER BY created_at DESC
-                LIMIT %s OFFSET %s""",
-            params,
-        ).fetchall()
-
-    events = []
-    for row in rows:
-        eid, etype, obj_id, obj_type, actor, details, created = row
-        if isinstance(details, str):
-            details = json.loads(details)
-        events.append({
-            "id": eid,
-            "event_type": etype,
-            "object_id": obj_id,
-            "object_type": obj_type,
-            "actor": actor,
-            "details": details,
-            "created_at": str(created),
-        })
-
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
+            rows = cur.fetchall()
+    events = [
+        {"phase": r[0], "event_type": r[1], "summary": r[2],
+         "details": r[3], "timestamp": r[4].isoformat() if r[4] else None}
+        for r in rows
+    ]
     return {"events": events, "limit": limit, "offset": offset}
