@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python deps — heavy science packages first (cached layer)
+# Python deps
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir \
     psycopg[binary]>=3.2 \
@@ -21,8 +21,8 @@ RUN pip install --no-cache-dir \
     rdkit \
     pdbfixer
 
-# Light deps — separate layer so adding packages doesn't rebuild rdkit
-RUN pip install --no-cache-dir anthropic
+# Claude API client (optional — reasoning daemon degrades gracefully without it)
+RUN pip install --no-cache-dir anthropic || echo "WARNING: anthropic install failed, Claude reasoning disabled"
 
 # Copy application
 COPY scripts/ ./scripts/
