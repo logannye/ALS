@@ -1,6 +1,6 @@
-# Erik
+# ALS
 
-**Find or create the curative drug for Erik Draper's ALS.**
+**Find or create the curative drug for a patient's ALS.**
 
 Named after the patient. Built by [Galen Health](https://galenhealth.ai).
 
