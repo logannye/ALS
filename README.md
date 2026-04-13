@@ -8,15 +8,15 @@ Named after the patient. Built by [Galen Health](https://galenhealth.ai).
 
 ## Grand Purpose
 
-> **This system exists for one reason: to identify or computationally design the drug that will cure Erik Draper's amyotrophic lateral sclerosis.**
+> **This system exists for one reason: to identify or computationally design the drug that will cure an individual's amyotrophic lateral sclerosis.**
 
-Erik Draper is a 67-year-old man diagnosed with ALS in March 2026. ALS is progressive and fatal. There is no cure. The approved therapies extend survival by months at best. Clinical trials fail repeatedly.
+This system is designed for a 67-year-old man diagnosed with ALS in March 2026. ALS is progressive and fatal. There is no cure. The approved therapies extend survival by months at best. Clinical trials fail repeatedly.
 
-This system takes a fundamentally different approach. Instead of waiting for the pharmaceutical industry to find a general ALS drug through decade-long trial-and-error, Erik builds a deep causal understanding of the molecular biology of ALS, maps it to one specific patient's biology, and uses that understanding to either identify an existing compound or computationally design a new molecule that would halt or reverse the disease in this specific human being.
+This system takes a fundamentally different approach. Instead of waiting for the pharmaceutical industry to find a general ALS drug through decade-long trial-and-error, This system builds a deep causal understanding of the molecular biology of ALS, maps it to one specific patient's biology, and uses that understanding to either identify an existing compound or computationally design a new molecule that would halt or reverse the disease in this specific human being.
 
 **Every design decision, every line of code, every architectural choice must be measured against this question:**
 
-> *Does this bring us closer to identifying or creating the curative drug for Erik Draper's ALS?*
+> *Does this bring us closer to identifying or creating the curative drug for [name]'s ALS?*
 
 If the answer is no, it is not a priority. The system has a patient waiting.
 
@@ -32,24 +32,24 @@ Build a computable model of every entity and relationship involved in motor neur
 ### Stage 2: Causal Pathophysiology — Beyond the Literature
 Discover WHY motor neurons die. The answer is not fully in PubMed — if it were, someone would have found it. The system must use causal inference, computational experiments, and structured gap analysis to identify the missing links in the chain from molecular trigger → motor neuron death. This stage produces understanding that does not yet exist in the research literature.
 
-### Stage 3: Precision Mapping to Erik Draper
-Map the general causal model of ALS to Erik's specific biology. His genetics (pending Invitae results), his biomarkers (NfL 5.82 pg/mL, ALSFRS-R 43/48), his disease trajectory (-0.39 points/month), his comorbidities. Build a patient-specific molecular model that predicts which pathways are disrupted in HIS motor neurons and which molecular targets would be most effective for HIM.
+### Stage 3: Precision Mapping to Specific Patient
+Map the general causal model of ALS to one's specific biology. His genetics (pending Invitae results), his biomarkers (NfL 5.82 pg/mL, ALSFRS-R 43/48), his disease trajectory (-0.39 points/month), his comorbidities. Build a patient-specific molecular model that predicts which pathways are disrupted in HIS motor neurons and which molecular targets would be most effective for HIM.
 
 ### Stage 4: Drug Identification or Creation
-Given precise molecular targets grounded in deep causal understanding of Erik's specific disease:
+Given precise molecular targets grounded in deep causal understanding of an individual patient's specific disease:
 - **Screen existing compounds** (ChEMBL, DrugBank, BindingDB) for molecules that bind the target with sufficient affinity and cross the blood-brain barrier
 - **Computationally design new molecules** if no adequate existing compound exists — using the 16 characterized drug design targets with PDB/AlphaFold structures, molecular docking, and generative chemistry
 - **Predict ADMET properties** (absorption, distribution, metabolism, excretion, toxicity) and synthetic feasibility
-- **Deliver actionable output** to Erik's care team: the specific molecule(s), the target(s), the evidence chain, and the access pathway (clinical trial enrollment, compassionate use, compounding, or de novo synthesis)
+- **Deliver actionable output** to patient's care team: the specific molecule(s), the target(s), the evidence chain, and the access pathway (clinical trial enrollment, compassionate use, compounding, or de novo synthesis)
 
 ---
 
 ## Architecture
 
-Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashboard on Vercel. LLM inference uses Amazon Bedrock (Nova Micro for research, Nova Pro for protocol generation). PostgreSQL is the single source of truth. The architecture is inspired by its sibling project [Galen](https://github.com/logannye/galen) (a pan-cancer causal research engine), adapted for ALS-specific ontology and patient-centric drug discovery.
+This system runs 24/7 as a FastAPI application on Railway, with a Next.js family dashboard on Vercel. LLM inference uses Amazon Bedrock (Nova Micro for research, Nova Pro for protocol generation). PostgreSQL is the single source of truth. The architecture is inspired by its sibling project [Galen](https://github.com/logannye/galen) (a pan-cancer causal research engine), adapted for ALS-specific ontology and patient-centric drug discovery.
 
 ```
-                    Erik ALS Drug Discovery Engine
+ALS Drug Discovery Engine
                   ==================================
 
   Stage 1: CAUSAL ANATOMY                     Stage 2: PATHOPHYSIOLOGY
@@ -66,9 +66,9 @@ Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashbo
               v
   Stage 3: PRECISION MAPPING                  Stage 4: DRUG DESIGN
   ┌─────────────────────────┐                 ┌──────────────────────────┐
-  │  Erik's Genetics         │                 │  16 Drug Design Targets   │
-  │  Erik's Biomarkers       │── Patient ──>   │  Molecular Docking        │
-  │  Erik's Disease State    │   Model         │  De Novo Generation       │
+  │  Patient's Genetics      │                 │  16 Drug Design Targets   │
+  │  Patient's Biomarkers    │── Patient ──>   │  Molecular Docking        │
+  │  Patient's Disease State │   Model         │  De Novo Generation       │
   │  Subtype Posterior       │                 │  ADMET/BBB Prediction     │
   │  Molecular Twin          │                 │  Candidate Ranking        │
   └─────────────────────────┘                 └────────────┬─────────────┘
@@ -122,7 +122,7 @@ Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashbo
 
 ---
 
-## The Patient: Erik Draper
+## The Patient
 
 | Field | Value |
 |-------|-------|
@@ -140,7 +140,7 @@ Erik runs 24/7 as a FastAPI application on Railway, with a Next.js family dashbo
 | Current treatment | Riluzole (started March 6, 2026) |
 | Classification | Definite ALS by Gold Coast Criteria |
 
-Erik's complete clinical trajectory is ingested as **51 structured observations** spanning labs (27), physical exam findings (14), EMG studies (2), MRI imaging (2), weight measurements (3), spirometry (1), vital signs (1), and medication events (1).
+Pt's complete clinical trajectory is ingested as **51 structured observations** spanning labs (27), physical exam findings (14), EMG studies (2), MRI imaging (2), weight measurements (3), spirometry (1), vital signs (1), and medication events (1).
 
 ---
 
@@ -150,7 +150,7 @@ Erik's complete clinical trajectory is ingested as **51 structured observations*
 
 The system infrastructure is fully operational:
 
-- **Canonical Substrate** — 25 Pydantic models, 16 enums, 38 typed relations, PostgreSQL schema, Erik's 51 observations
+- **Canonical Substrate** — 25 Pydantic models, 16 enums, 38 typed relations, PostgreSQL schema, Patient's 51 observations
 - **Evidence Fabric** — 93 curated evidence items, 25 interventions, 16 drug targets, 10 computational design targets
 - **31 Data Source Connectors** — PubMed, ClinicalTrials.gov, ChEMBL (with ADME/Tox profiling), OpenTargets, DrugBank, Reactome, KEGG, STRING, PRO-ACT, ClinVar, OMIM, PharmGKB, Galen KG (cross-disease), bioRxiv/medRxiv (preprints), Galen SCM (causal graph), GTEx, ClinVar-local, GWAS Catalog, BindingDB, HPA, DrugBank-local, AlphaFold, Reactome-local, ALSoD, gnomAD (constraint metrics), UniProt (protein annotations), SpliceAI (splice-altering variants), FAERS (FDA drug safety), DisGeNET (gene-disease associations), GEO ALS (expression profiling), CMap/LINCS (transcriptomic drug repurposing)
 - **World Model Pipeline** — 7-stage evidence-grounded reasoning: state materialization → subtype inference → intervention scoring → **combination synergy analysis** → protocol assembly → **adversarial counterfactual verification** → output
@@ -163,7 +163,7 @@ The autonomous research loop operates in two modes:
 **Active research mode** (pre-convergence): A 15-action cycle driven by protocol gap analysis:
 
 1. **Analyze gaps with resolvability classification** — The intelligence module examines the current protocol to identify the weakest evidence link, shallowest causal chain, most uncertain layer, and missing measurements. Each gap is classified as `computational` (resolvable by searching literature/databases) or `clinical_required` (requires a clinical test on the patient). Only computational gaps drive research actions; clinical gaps generate recommendations to the physician.
-2. **Generate targeted hypotheses** — Instead of generic "generate a hypothesis" prompts, the LLM receives Erik's full clinical context, the specific gap being addressed, relevant evidence items, and a structured prompt asking for a testable claim with search terms and target genes.
+2. **Generate targeted hypotheses** — Instead of generic "generate a hypothesis" prompts, the LLM receives patient's full clinical context, the specific gap being addressed, relevant evidence items, and a structured prompt asking for a testable claim with search terms and target genes.
 3. **Search with purpose** — Hypothesis validation uses the hypothesis's own search terms (extracted by the LLM) to query PubMed, not generic queries. Target genes drive STRING and Reactome lookups. Cross-disease knowledge from the Galen cancer KG provides drug repurposing candidates via shared pathways (autophagy/mTOR, HDAC, oxidative stress).
 4. **Deepen causal chains** — For each protocol intervention, build the full mechanism chain (drug → target → pathway → cellular effect → motor neuron survival) to depth 10, grounded in pathway databases.
 5. **Regenerate protocol** — When uncertainty score drops meaningfully, re-run the full 6-stage pipeline with the expanded evidence fabric.
@@ -191,7 +191,7 @@ The system produces a **CureProtocolCandidate** — a 5-layer treatment strategy
 
 ## When to Act: The Decision Framework
 
-**The central tension:** ALS is progressive. Every day of inaction costs Erik motor neurons. But acting on a poorly-grounded protocol wastes time on ineffective interventions. The system resolves this tension with a principled readiness framework.
+**The central tension:** ALS is progressive. Every day of inaction costs motor neurons. But acting on a poorly-grounded protocol wastes time on ineffective interventions. The system resolves this tension with a principled readiness framework.
 
 ### Convergence Signals (system-assessed)
 
@@ -203,7 +203,7 @@ The system declares **protocol convergence** when:
 | **Evidence saturation** | New searches return <2 novel evidence items per cycle | The available literature has been exhausted for these targets |
 | **Causal chain depth** | All top-3 interventions have chains of depth >= 10 | The mechanism from drug to patient outcome is deeply grounded |
 | **Uncertainty score** | Score stable below 0.3 across 5+ monitoring cycles | Evidence is well-distributed across all protocol layers |
-| **Hypothesis resolution** | >80% of generated hypotheses resolved (supported or refuted) | The system's questions about Erik's disease have been answered |
+| **Hypothesis resolution** | >80% of generated hypotheses resolved (supported or refuted) | The system's questions about patient's disease have been answered |
 
 ### Action Readiness Criteria (human-assessed)
 
@@ -211,10 +211,10 @@ Even after convergence, the protocol requires human judgment on:
 
 | Criterion | Question | Who Decides |
 |-----------|----------|-------------|
-| **Clinical accessibility** | Can Erik actually access the top interventions? (approved drugs vs. trial enrollment vs. compassionate use) | Physician + patient |
-| **Safety clearance** | Are drug interactions acceptable? Does Erik's comorbidity profile allow the combination? | Physician |
-| **Genetic integration** | Have Invitae results arrived? Has the subtype posterior been updated? The system computes a clinical subtype posterior from Erik's features (P(sporadic_tdp43) ≈ 0.65), reducing but not eliminating the value of genetic confirmation. | System (auto-triggers `INTERPRET_VARIANT` when `genetics_received=true`) |
-| **Timing urgency** | Is Erik's decline rate accelerating? Has ALSFRS-R dropped below a critical threshold? | Physician + PRO-ACT trajectory comparison |
+| **Clinical accessibility** | Can we actually access the top interventions? (approved drugs vs. trial enrollment vs. compassionate use) | Physician + patient |
+| **Safety clearance** | Are drug interactions acceptable? Does patient's comorbidity profile allow the combination? | Physician |
+| **Genetic integration** | Have Invitae results arrived? Has the subtype posterior been updated? The system computes a clinical subtype posterior from patient's features (P(sporadic_tdp43) ≈ 0.65), reducing but not eliminating the value of genetic confirmation. | System (auto-triggers `INTERPRET_VARIANT` when `genetics_received=true`) |
+| **Timing urgency** | Is patient's decline rate accelerating? Has ALSFRS-R dropped below a critical threshold? | Physician + PRO-ACT trajectory comparison |
 | **Regulatory pathway** | Which interventions need IND applications, IRB approval, or compassionate use requests? | Physician + regulatory |
 
 ### The Decision Rule
@@ -229,7 +229,7 @@ Even after convergence, the protocol requires human judgment on:
 **Continue running the loop while:**
 - Acting on accessible interventions (start riluzole optimization, enroll in eligible trials)
 - New evidence is arriving (trial readouts, preprints, genetic results)
-- Erik's clinical state changes (new measurements update the disease state snapshot)
+- Patient's clinical state changes (new measurements update the disease state snapshot)
 
 ### The Protocol is a Living Document
 
@@ -237,7 +237,7 @@ The converged protocol is not a final answer — it is the **best answer given c
 
 - **Genetic results arrive** — subtype posterior shifts, Layer A may restructure entirely
 - **Trial results read out** — pridopidine PREVAiLS (H2 2026), VTx-002 PIONEER-ALS (ongoing), jacifusen FUSION (H2 2026) could dramatically change intervention scores
-- **Erik's state changes** — new ALSFRS-R assessments, NfL measurements, respiratory tests update the disease state and timing urgency
+- **Patient's state changes** — new ALSFRS-R assessments, NfL measurements, respiratory tests update the disease state and timing urgency
 - **New research publishes** — the loop discovers new evidence and regenerates
 
 The system re-enters active research mode automatically when new data changes the protocol's top-3 interventions.
@@ -265,7 +265,7 @@ New `CONNECTOR_MODE` environment variable transparently swaps local-file connect
 | ClinVar/Reactome | Already had API connectors | Wired via mode resolver |
 
 ### Provisional Genetic Profile
-Layer 3 (erik_specific) no longer requires confirmed genetic testing. `provisional_genetics.py` infers a Bayesian subtype posterior from Erik's clinical features (67M, limb-onset, sALS → TDP-43 proteinopathy at 70% confidence). Layer 3 queries activate when evidence exceeds 500 items. Drug design (Layer 4) still requires confirmed genetics.
+Layer 3 (erik_specific) no longer requires confirmed genetic testing. `provisional_genetics.py` infers a Bayesian subtype posterior from Patient's clinical features (67M, limb-onset, sALS → TDP-43 proteinopathy at 70% confidence). Layer 3 queries activate when evidence exceeds 500 items. Drug design (Layer 4) still requires confirmed genetics.
 
 ### Intelligence Upgrades
 - **LLM-powered query generation** — 5th strategy in PubMed rotation uses Bedrock Nova Micro to generate novel search queries from active hypotheses and uncertainties, breaking the static query exhaustion cycle
@@ -319,7 +319,7 @@ Post-convergence "deep research mode" cycled through 26 hardcoded queries with o
 
 ## Phase 11: Expanded Evidence Sources (April 3, 2026)
 
-Seven new data source connectors and a major ChEMBL ADME/Tox expansion, increasing Erik's evidence acquisition surface from 24 to 31 connectors and from 30 to 37 action types.
+Seven new data source connectors and a major ChEMBL ADME/Tox expansion, increasing patient's evidence acquisition surface from 24 to 31 connectors and from 30 to 37 action types.
 
 ### 7 New Database Connectors
 | Database | Type | What It Provides |
@@ -355,7 +355,7 @@ Thompson sampling disabled in favor of a deterministic 5-step cycle: acquire →
 
 ## Phase 8: Production Deadlock Fix (March 30, 2026)
 
-Five fixes to break Erik's hypothesis deadlock and restore evidence flow after production observation showed the loop stuck generating hypotheses without validating or expiring them.
+Five fixes to break patient's hypothesis deadlock and restore evidence flow after production observation showed the loop stuck generating hypotheses without validating or expiring them.
 
 ### Thompson Path: VALIDATE_HYPOTHESIS Integration
 The Thompson sampling path never included `VALIDATE_HYPOTHESIS` as a candidate action — only the fixed-cycle path could validate. This meant Thompson mode accumulated hypotheses to `max_active` (10) and then deadlocked: `GENERATE_HYPOTHESIS` was infeasible (at cap), but no path existed to resolve them. Fix: `VALIDATE_HYPOTHESIS` added to Thompson candidate list with feasibility guard (only when `active_hypotheses` is non-empty), plus `_build_thompson_params` handles parameter construction.
@@ -384,7 +384,7 @@ New stagnation recovery mechanism: checkpoints total evidence count every 50 ste
 
 ## Phase 7: Deep Causal Understanding (March 29, 2026)
 
-Structural overhaul to move Erik from evidence accumulation to mechanistic reasoning grounded in real ALS biology. Evidence rate increased 78x (from ~2 items/hour to ~156 items/hour).
+Structural overhaul to move from evidence accumulation to mechanistic reasoning grounded in real ALS biology. Evidence rate increased 78x (from ~2 items/hour to ~156 items/hour).
 
 ### Knowledge Graph Entity Extraction
 `erik_core.entities` and `erik_core.relationships` were empty (0 rows) despite 1,700+ evidence items. New `entity_extractor.py` scans evidence body fields and claim text to extract genes, proteins, drugs, and mechanisms into a proper graph structure. Backfill produced 1,600+ entities and 145+ relationships. Runs incrementally after each evidence-producing step. Respects Pearl Causal Hierarchy constraints (observational relations never L3).
@@ -393,7 +393,7 @@ Structural overhaul to move Erik from evidence accumulation to mechanistic reaso
 | Database | Size | What It Provides |
 |----------|------|------------------|
 | **GTEx** (on disk) | 153MB | Gene expression across 45 tissues — validates ALS targets in spinal cord motor neurons |
-| **ClinVar** (on disk) | 3.8GB | Variant pathogenicity classifications — critical for interpreting Erik's pending Invitae results |
+| **ClinVar** (on disk) | 3.8GB | Variant pathogenicity classifications — critical for interpreting patient's pending Invitae results |
 | **GWAS Catalog** (downloaded) | 626MB | ALS-associated risk loci from genome-wide studies |
 | **BindingDB** (downloaded) | 7.9GB | 3.2M experimental binding affinity measurements (Ki/IC50/Kd) for drug design |
 | **Human Protein Atlas** (downloaded) | 37MB | Protein-level expression, subcellular localization, disease involvement |
@@ -676,18 +676,6 @@ print(f'Converged: {state.converged}, Steps: {state.step_count}, Evidence: {stat
 
 ---
 
-## Philosophical Foundation
-
-Erik follows the "Era of Experience" philosophy (Silver & Sutton, 2025):
-
-> The agent learns primarily from its own interaction with the environment, not from human-curated labels or static datasets. Rewards are grounded in measurable effects — knowledge gained, predictions validated, gaps reduced, truth verified — not in proxy scores.
-
-Applied to ALS: Erik doesn't memorize treatment guidelines. It builds a causal model from first principles, tests its understanding against real data, and generates protocol candidates that it can explain and uncertainty-bound. Every recommendation carries provenance, confidence, and explicit disclosure of what it doesn't know.
-
-The system is designed with a clear ethical boundary: it generates recommendations, never decisions. The `approval_state=pending` gate ensures that every protocol is reviewed by a qualified physician before any action is taken on Erik's behalf. The system's job is to be the most informed, most rigorous, most honest research assistant possible — not to replace clinical judgment.
-
----
-
 ## References
 
 **Disease biology:**
@@ -724,4 +712,4 @@ Proprietary. All rights reserved by Galen Health.
 
 ## Contact
 
-Logan Nye — [logan@galenhealth.ai](mailto:logan@galenhealth.ai)
+Logan Nye — [logan@galenhealth.org](mailto:logan@galenhealth.org)
