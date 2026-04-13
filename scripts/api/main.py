@@ -130,21 +130,7 @@ _PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/api/auth/redeem"}
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Check session token on all /api/* routes except public paths."""
-    path = request.url.path
-
-    if path in _PUBLIC_PATHS or not path.startswith("/api"):
-        return await call_next(request)
-
-    token = get_session_token(request)
-    try:
-        family_member = validate_session(token)
-        request.state.family_member = family_member
-    except Exception as exc:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": str(exc)},
-        )
+    """Auth disabled — all routes are public for family access."""
 
     return await call_next(request)
 
