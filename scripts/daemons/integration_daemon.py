@@ -47,6 +47,56 @@ def _classify_question_type(question: str) -> str:
     return "mechanistic"  # default
 
 
+def _build_node_name_index() -> dict[str, list[tuple[str, float]]]:
+    """Build a lookup: lowercase node name -> list of (edge_id, edge_confidence).
+
+    Each node maps to all edges where it appears as source or target.
+    Called once per integrate_batch for efficiency.
+    """
+    index: dict[str, list[tuple[str, float]]] = {}
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT e.id, e.confidence, sn.name, tn.name
+                FROM erik_core.tcg_edges e
+                JOIN erik_core.tcg_nodes sn ON e.source_id = sn.id
+                JOIN erik_core.tcg_nodes tn ON e.target_id = tn.id
+            """)
+            for edge_id, conf, src_name, tgt_name in cur.fetchall():
+                entry = (edge_id, conf)
+                for name in (src_name.lower(), tgt_name.lower()):
+                    if name not in index:
+                        index[name] = []
+                    index[name].append(entry)
+    return index
+
+
+def _match_evidence_to_edges(
+    evidence: dict,
+    node_index: dict[str, list[tuple[str, float]]],
+) -> list[tuple[str, float]]:
+    """Match evidence to TCG edges by finding node names in evidence text.
+
+    Returns deduplicated list of (edge_id, evidence_strength) tuples.
+    """
+    body = evidence.get("body", {})
+    claim = body.get("claim", "")
+    text = f"{claim} {body.get('notes', '')} {body.get('mechanism', '')}".lower()
+    confidence = evidence.get("confidence") or 0.5
+
+    seen_edges: set[str] = set()
+    matches: list[tuple[str, float]] = []
+
+    for node_name, edges in node_index.items():
+        if node_name in text:
+            for edge_id, _edge_conf in edges:
+                if edge_id not in seen_edges:
+                    seen_edges.add(edge_id)
+                    matches.append((edge_id, confidence))
+
+    return matches
+
+
 class IntegrationDaemon:
     """Phase 2: Evidence -> TCG integration."""
 
@@ -88,34 +138,12 @@ class IntegrationDaemon:
                 """, (item_ids,))
             conn.commit()
 
-    def _extract_edge_matches(self, evidence: dict) -> list[tuple[str, float]]:
-        """Match evidence to TCG edges by text overlap on node names.
+    def _extract_edge_matches(self, evidence: dict, node_index: dict[str, list[tuple[str, float]]]) -> list[tuple[str, float]]:
+        """Match evidence to TCG edges by entity name overlap.
 
         Returns list of (edge_id, evidence_strength) tuples.
         """
-        body = evidence.get("body", {})
-        claim = body.get("claim", "")
-        text = f"{claim} {body.get('notes', '')} {body.get('mechanism', '')}".lower()
-        confidence = evidence.get("confidence") or 0.5
-
-        matches = []
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                # Find edges where both source and target node names appear in evidence text
-                cur.execute("""
-                    SELECT e.id, e.confidence,
-                           sn.name, tn.name
-                    FROM erik_core.tcg_edges e
-                    JOIN erik_core.tcg_nodes sn ON e.source_id = sn.id
-                    JOIN erik_core.tcg_nodes tn ON e.target_id = tn.id
-                """)
-                for row in cur.fetchall():
-                    edge_id, edge_conf, src_name, tgt_name = row
-                    src_lower = src_name.lower()
-                    tgt_lower = tgt_name.lower()
-                    if src_lower in text and tgt_lower in text:
-                        matches.append((edge_id, confidence))
-        return matches
+        return _match_evidence_to_edges(evidence, node_index)
 
     def integrate_batch(self) -> dict[str, int]:
         """Process one batch of unintegrated evidence. Returns stats."""
@@ -127,8 +155,9 @@ class IntegrationDaemon:
         queue_items = 0
         processed_ids = []
 
+        node_index = _build_node_name_index()
         for ev in evidence_items:
-            matches = self._extract_edge_matches(ev)
+            matches = self._extract_edge_matches(ev, node_index)
             for edge_id, strength in matches:
                 self._graph.bayesian_update(edge_id, strength, ev["id"])
                 edges_updated += 1

@@ -2,7 +2,9 @@
 """Tests for the ReasoningDaemon — Claude-powered deep analysis."""
 import pytest
 from unittest.mock import MagicMock, patch
-from daemons.reasoning_daemon import ReasoningDaemon, _select_mode
+from daemons.reasoning_daemon import ReasoningDaemon, _select_mode, _filter_cooled_down
+from tcg.models import TCGEdge
+from datetime import datetime, timezone, timedelta
 
 
 class TestModeSelection:
@@ -18,6 +20,45 @@ class TestModeSelection:
             counts[mode] += 1
         assert counts["edge_deepening"] >= 35  # Expect ~50, allow variance
         assert counts["cross_pathway"] >= 10   # Expect ~20
+
+
+class TestEdgeCooldown:
+    def test_recently_reasoned_edges_excluded(self):
+        now = datetime.now(timezone.utc)
+        edges = [
+            TCGEdge(id="edge:a", source_id="x", target_id="y", edge_type="causes",
+                    confidence=0.1, last_reasoned_at=now - timedelta(seconds=60),
+                    intervention_potential={"therapeutic_relevance": 0.9}),
+            TCGEdge(id="edge:b", source_id="x", target_id="z", edge_type="causes",
+                    confidence=0.2,
+                    intervention_potential={"therapeutic_relevance": 0.5}),
+        ]
+        filtered = _filter_cooled_down(edges, cooldown_s=3600)
+        assert len(filtered) == 1
+        assert filtered[0].id == "edge:b"
+
+    def test_expired_cooldown_included(self):
+        now = datetime.now(timezone.utc)
+        edges = [
+            TCGEdge(id="edge:a", source_id="x", target_id="y", edge_type="causes",
+                    confidence=0.1, last_reasoned_at=now - timedelta(seconds=7200),
+                    intervention_potential={"therapeutic_relevance": 0.9}),
+        ]
+        filtered = _filter_cooled_down(edges, cooldown_s=3600)
+        assert len(filtered) == 1
+
+    def test_all_cooled_down_returns_all(self):
+        now = datetime.now(timezone.utc)
+        edges = [
+            TCGEdge(id="edge:a", source_id="x", target_id="y", edge_type="causes",
+                    confidence=0.1, last_reasoned_at=now - timedelta(seconds=60),
+                    intervention_potential={"therapeutic_relevance": 0.9}),
+            TCGEdge(id="edge:b", source_id="x", target_id="z", edge_type="causes",
+                    confidence=0.2, last_reasoned_at=now - timedelta(seconds=120),
+                    intervention_potential={"therapeutic_relevance": 0.5}),
+        ]
+        filtered = _filter_cooled_down(edges, cooldown_s=3600)
+        assert len(filtered) == 2
 
 
 class TestReasoningDaemon:

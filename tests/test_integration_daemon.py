@@ -1,7 +1,7 @@
 """Tests for the IntegrationDaemon — evidence -> TCG integration."""
 import pytest
 from unittest.mock import MagicMock, patch
-from daemons.integration_daemon import IntegrationDaemon, _classify_question_type
+from daemons.integration_daemon import IntegrationDaemon, _classify_question_type, _match_evidence_to_edges
 
 
 class TestQuestionTypeClassification:
@@ -34,6 +34,62 @@ class TestSourceMapping:
         from daemons.integration_daemon import QUESTION_TYPE_SOURCES
         assert "chembl" in QUESTION_TYPE_SOURCES["binding"]
         assert "bindingdb" in QUESTION_TYPE_SOURCES["binding"]
+
+
+class TestEntityMatching:
+    def test_single_node_match_finds_edges(self):
+        node_index = {
+            "tardbp": [("edge:tardbp->tdp43", 0.9), ("edge:tardbp->fus_interaction", 0.3)],
+            "tdp-43": [("edge:tardbp->tdp43", 0.9), ("edge:tdp43->aggregation", 0.5)],
+            "sod1": [("edge:sod1->misfolding", 0.7)],
+        }
+        evidence = {
+            "id": "test:1",
+            "body": {"claim": "TARDBP variant classified as Pathogenic in ClinVar"},
+            "confidence": 0.8,
+        }
+        matches = _match_evidence_to_edges(evidence, node_index)
+        edge_ids = [m[0] for m in matches]
+        assert "edge:tardbp->tdp43" in edge_ids
+        assert "edge:tardbp->fus_interaction" in edge_ids
+
+    def test_case_insensitive_matching(self):
+        node_index = {
+            "riluzole": [("edge:riluzole->eaat2", 0.8)],
+        }
+        evidence = {
+            "id": "test:2",
+            "body": {"claim": "Riluzole inhibits glutamate release"},
+            "confidence": 0.7,
+        }
+        matches = _match_evidence_to_edges(evidence, node_index)
+        assert len(matches) >= 1
+
+    def test_no_match_returns_empty(self):
+        node_index = {
+            "tardbp": [("edge:tardbp->tdp43", 0.9)],
+        }
+        evidence = {
+            "id": "test:3",
+            "body": {"claim": "Unrelated protein found in kidney tissue"},
+            "confidence": 0.5,
+        }
+        matches = _match_evidence_to_edges(evidence, node_index)
+        assert len(matches) == 0
+
+    def test_deduplicates_edges(self):
+        node_index = {
+            "tardbp": [("edge:tardbp->tdp43", 0.9)],
+            "tdp-43": [("edge:tardbp->tdp43", 0.9)],
+        }
+        evidence = {
+            "id": "test:4",
+            "body": {"claim": "TARDBP encodes TDP-43 protein"},
+            "confidence": 0.9,
+        }
+        matches = _match_evidence_to_edges(evidence, node_index)
+        edge_ids = [m[0] for m in matches]
+        assert edge_ids.count("edge:tardbp->tdp43") == 1
 
 
 class TestIntegrationDaemon:

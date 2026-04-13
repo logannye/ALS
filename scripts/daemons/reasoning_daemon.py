@@ -32,6 +32,23 @@ def _select_mode(step: int, weights: list[float]) -> str:
     return modes[-1]
 
 
+def _filter_cooled_down(
+    edges: list[TCGEdge],
+    cooldown_s: int = 3600,
+) -> list[TCGEdge]:
+    """Exclude edges that were reasoned about within the cooldown window.
+
+    If ALL edges are on cooldown, returns the full list to prevent starvation.
+    """
+    now = datetime.now(timezone.utc)
+    available = [
+        e for e in edges
+        if e.last_reasoned_at is None
+        or (now - e.last_reasoned_at).total_seconds() > cooldown_s
+    ]
+    return available if available else edges
+
+
 class ReasoningDaemon:
     """Phase 3: Claude-powered deep reasoning over the TCG."""
 
@@ -73,8 +90,13 @@ class ReasoningDaemon:
         if not edges:
             return {"mode": "edge_deepening", "action": "no_weak_edges"}
 
-        # Pick the edge with highest therapeutic priority
-        edge = max(edges, key=lambda e: e.therapeutic_priority())
+        # Filter out recently-reasoned edges (cooldown)
+        cfg = ConfigLoader()
+        cooldown_s = cfg.get("reasoning_edge_cooldown_s", 3600)
+        candidates = _filter_cooled_down(edges, cooldown_s=cooldown_s)
+
+        # Pick the edge with highest therapeutic priority from available candidates
+        edge = max(candidates, key=lambda e: e.therapeutic_priority())
         supporting = self._get_evidence_text(edge.evidence_ids)
         contradicting = self._get_evidence_text(edge.contradiction_ids)
 
