@@ -208,7 +208,8 @@ CREATE TABLE IF NOT EXISTS erik_ops.scm_write_log (
     operation   TEXT NOT NULL CHECK (operation IN (
                   'edge_created','edge_superseded','edge_invalidated',
                   'cf_computed','bootstrap_progress','reverification_run',
-                  'intervention_flagged','intervention_unflagged')),
+                  'intervention_flagged','intervention_unflagged',
+                  'effect_updated')),
     target_id   BIGINT,
     daemon      TEXT NOT NULL,
     payload     JSONB DEFAULT '{}'::jsonb,

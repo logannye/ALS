@@ -49,6 +49,7 @@ from daemons.compound_daemon import CompoundDaemon
 from daemons.scm_bootstrap_daemon import SCMBootstrapDaemon
 from daemons.drug_response_simulator_daemon import DrugResponseSimulatorDaemon
 from daemons.compound_refutation_daemon import CompoundRefutationDaemon
+from daemons.quantitative_effect_enricher import QuantitativeEffectEnricher
 from world_model.scm_writer import (
     SCMWriterLockContention,
     get_scm_writer,
@@ -128,6 +129,17 @@ def _start_cognitive_daemons(claude_api_key: str = "") -> dict[str, tuple]:
         t_bs.start()
         daemons["scm_bootstrap"] = (bootstrap, t_bs)
         print("[ERIK] Started SCMBootstrapDaemon")
+
+    # Effect enricher: fill effect_mean/std on NULL-effect scm_edges via
+    # ChEMBL pChEMBL lookup. Prerequisite for CPTS to produce nonzero
+    # slope-delta distributions. Flag-gated off by default; flip after
+    # scm_bootstrap has populated some edges.
+    if cfg.get("effect_enricher_enabled", False):
+        enricher = QuantitativeEffectEnricher()
+        t_ef = threading.Thread(target=enricher.run, name="effect-enricher-daemon", daemon=True)
+        t_ef.start()
+        daemons["effect_enricher"] = (enricher, t_ef)
+        print("[ERIK] Started QuantitativeEffectEnricher")
 
     # CPTS: forward-simulate Erik's trajectory under each compound candidate.
     # Flag-gated off by default; flip cpts_enabled=true after SCM is

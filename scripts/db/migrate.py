@@ -27,6 +27,9 @@ _SCHEMA_FILES = [
     # R4 compound-mechanism-refute propagation — depends on scm_write_log
     # (source_write_log_id FK) and scm_edges (refuted_scm_edge_id FK).
     _SCRIPTS_DIR / "propagation_schema.sql",
+    # QuantitativeEffectEnricher extension — widens scm_write_log.operation
+    # CHECK to include 'effect_updated'.
+    _SCRIPTS_DIR / "effect_enricher_schema.sql",
 ]
 
 _DB_NAME = "erik_kg"

@@ -189,5 +189,10 @@
   "_comment_r4": "R4 = compound-mechanism-refute propagation. Safe to flip earliest because it can only deprecate, never recommend. Requires scm_writer + scm_bootstrap active so that edge_superseded events can actually occur.",
   "r4_propagation_enabled": false,
   "r4_propagation_interval_s": 300,
-  "r4_max_events_per_cycle": 50
+  "r4_max_events_per_cycle": 50,
+
+  "_comment_effect_enricher": "Effect enricher fills effect_mean/std on NULL-effect scm_edges via ChEMBL. MUST be on before cpts_enabled or CPTS returns zero slope deltas. Flip after scm_bootstrap has produced >=10 active edges with compound/gene src/tgt pairs.",
+  "effect_enricher_enabled": false,
+  "effect_enricher_interval_s": 600,
+  "effect_enricher_batch_size": 50
 }

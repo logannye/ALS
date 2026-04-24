@@ -148,6 +148,29 @@ class IdentificationRequest:
 
 
 @dataclass
+class EffectUpdateRequest:
+    """Augment an existing scm_edge with quantitative effect data.
+
+    Distinct from IdentificationRequest because this is **not** a
+    re-identification: the edge's identification_algorithm and
+    identification_confidence stay unchanged. Only effect_mean /
+    effect_std / effect_ci_lower / effect_ci_upper / effect_scale are
+    overwritten. This is the pathway for the QuantitativeEffectEnricher
+    daemon to fill in numbers for edges that were promoted by bootstrap
+    without quantitative data.
+
+    Idempotent: submitting the same update twice produces the same row
+    state (last-writer-wins). Preserves audit via scm_write_log
+    'effect_updated' event.
+    """
+    scm_edge_id: int
+    effect: "EffectDistribution"
+    source: str = 'unknown'              # human-readable data source tag
+    daemon_source: str = 'unknown'
+    trace: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class CFTraceRequest:
     """A stored counterfactual trace anchored to a specific edge."""
     edge_id: int
@@ -288,6 +311,28 @@ class SCMWriter:
             raise QueueFullError("SCMWriter queue at capacity") from exc
         return tracking_id
 
+    def submit_effect_update(self, req: EffectUpdateRequest) -> str:
+        """Enqueue a quantitative effect update on an existing edge.
+
+        The edge must already exist and be status='active'; otherwise the
+        update is dropped with an error counter bump (no exception from
+        the submit path — this is a non-blocking queue API).
+        """
+        self._require_running()
+        if req.scm_edge_id <= 0:
+            raise SCMWriterError("scm_edge_id must be positive")
+        tracking_id = str(uuid.uuid4())
+        try:
+            self._queue.put_nowait(_EnqueuedWork(
+                kind='effect_update',
+                payload=req,
+                tracking_id=tracking_id,
+                enqueued_at=time.time(),
+            ))
+        except queue.Full as exc:
+            raise QueueFullError("SCMWriter queue at capacity") from exc
+        return tracking_id
+
     def stats(self) -> dict[str, Any]:
         with self._stats_lock:
             snap = dict(self._stats)
@@ -328,8 +373,64 @@ class SCMWriter:
             self._process_identification(work.payload, work.tracking_id)
         elif work.kind == 'cf_trace':
             self._process_cf_trace(work.payload, work.tracking_id)
+        elif work.kind == 'effect_update':
+            self._process_effect_update(work.payload, work.tracking_id)
         else:
             logger.warning("SCMWriter: unknown work kind %s", work.kind)
+
+    def _process_effect_update(self, req: EffectUpdateRequest, tracking_id: str) -> None:
+        """Apply an effect-only update to an existing active edge.
+
+        Silently skips edges that aren't active (stale update — the edge
+        may have been superseded between read + write). Stats:
+        effects_updated or effects_skipped_inactive.
+        """
+        eff = req.effect
+        with psycopg.connect(self._conninfo_factory()) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT status FROM erik_ops.scm_edges WHERE id = %s FOR UPDATE",
+                    (req.scm_edge_id,),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    with self._stats_lock:
+                        self._stats['errors'] += 1
+                    logger.warning("effect_update: edge %s not found", req.scm_edge_id)
+                    return
+                if row[0] != 'active':
+                    with self._stats_lock:
+                        self._stats.setdefault('effects_skipped_inactive', 0)
+                        self._stats['effects_skipped_inactive'] += 1
+                    return
+                cur.execute(
+                    """
+                    UPDATE erik_ops.scm_edges
+                       SET effect_mean     = %s,
+                           effect_std      = %s,
+                           effect_ci_lower = %s,
+                           effect_ci_upper = %s,
+                           effect_scale    = COALESCE(%s, effect_scale),
+                           updated_at      = NOW()
+                     WHERE id = %s
+                    """,
+                    (
+                        eff.mean, eff.std, eff.ci_lower, eff.ci_upper,
+                        eff.scale, req.scm_edge_id,
+                    ),
+                )
+                self._emit_write_log(cur, 'effect_updated', req.scm_edge_id, {
+                    'source': req.source,
+                    'effect_scale': eff.scale,
+                    'effect_mean': eff.mean,
+                    'effect_std': eff.std,
+                    'tracking_id': tracking_id,
+                    'trace': req.trace,
+                })
+                conn.commit()
+                with self._stats_lock:
+                    self._stats.setdefault('effects_updated', 0)
+                    self._stats['effects_updated'] += 1
 
     def _process_identification(self, req: IdentificationRequest, tracking_id: str) -> None:
         last_exc: Optional[Exception] = None
