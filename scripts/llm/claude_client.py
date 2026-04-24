@@ -105,10 +105,26 @@ class ClaudeClient:
         self, model: str, system: str, user_prompt: str, phase: str,
         max_tokens: int = 4096,
     ) -> Optional[dict]:
-        # Budget check
-        if self._spend_tracker.monthly_spend_usd() >= self._monthly_budget_usd:
-            print(f"[CLAUDE] Monthly budget ${self._monthly_budget_usd} exceeded — skipping call")
-            return {"budget_exceeded": True}
+        # Shared spend gate — single source of truth across all LLM providers.
+        # Prefer the shared gate's check over this client's legacy budget
+        # because the shared gate also reads ERIK_LLM_MONTHLY_BUDGET_USD
+        # from the environment, so ops can tighten the ceiling without a
+        # code change.
+        try:
+            from llm.spend_gate import check_budget
+            status = check_budget()
+            if status.over_budget:
+                print(
+                    f"[CLAUDE] budget gate — skipping call "
+                    f"(mtd=${status.month_to_date_usd:.2f}, "
+                    f"budget=${status.budget_usd:.2f})"
+                )
+                return {"budget_exceeded": True}
+        except Exception:
+            # Legacy fallback if the gate import fails (should not happen).
+            if self._spend_tracker.monthly_spend_usd() >= self._monthly_budget_usd:
+                print(f"[CLAUDE] legacy budget ${self._monthly_budget_usd} exceeded")
+                return {"budget_exceeded": True}
 
         # Rate limit check
         if not self._check_rate_limit(model):

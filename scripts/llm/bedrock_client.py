@@ -65,8 +65,20 @@ class BedrockLLM:
     def generate(self, prompt: str, max_tokens: Optional[int] = None) -> str:
         """Generate a text response for *prompt* via the Converse API.
 
-        Returns the generated string (may be empty on failure after retries).
+        Returns the generated string (may be empty on failure after retries,
+        empty on budget exceeded, or empty on unrecoverable API errors).
         """
+        # Shared spend gate — prevents a runaway research loop from
+        # burning an unbounded amount on Bedrock Nova.
+        from llm.spend_gate import check_budget, record_call
+        status = check_budget()
+        if status.over_budget:
+            logger.warning(
+                "bedrock budget gate — skipping call (mtd=$%.2f, budget=$%.2f)",
+                status.month_to_date_usd, status.budget_usd,
+            )
+            return ""
+
         tokens = max_tokens if max_tokens is not None else self.max_tokens
 
         messages = [{"role": "user", "content": [{"text": prompt}]}]
@@ -90,6 +102,16 @@ class BedrockLLM:
                     for block in content_blocks
                     if "text" in block
                 ]
+                # Record spend — Bedrock's usage shape is on the top-level
+                # "usage" key for the Converse API.
+                usage = response.get("usage", {}) or {}
+                record_call(
+                    model=self.model_id,
+                    phase='bedrock_generate',
+                    input_tokens=int(usage.get("inputTokens", 0) or 0),
+                    output_tokens=int(usage.get("outputTokens", 0) or 0),
+                    prompt_cached=False,
+                )
                 return "".join(parts)
 
             except ClientError as e:
