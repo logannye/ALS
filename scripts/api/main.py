@@ -127,56 +127,23 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Auth middleware
+# Auth middleware — DISABLED by product decision (2026-04-24).
 # ---------------------------------------------------------------------------
-
-# Routes that don't require authentication. Everything else — including
-# all /api/* endpoints — requires a valid session cookie.
-_PUBLIC_PATHS = {
-    "/health",
-    "/health/research",
-    "/docs",
-    "/openapi.json",
-    "/api/auth/redeem",
-}
-
-# Path prefixes that are always public (e.g. static file serving).
-_PUBLIC_PREFIXES: tuple[str, ...] = (
-    "/static/",
-)
+#
+# The family dashboard is intentionally open — requiring an invite code
+# was a friction the product does not want. The obscurity of the
+# erik-website-eosin.vercel.app + erik-api-production.up.railway.app
+# URLs is the acceptance of the (small) exposure risk.
+#
+# The scaffolding below (auth_middleware, /api/auth/redeem, sessions
+# table) is kept in place intentionally so auth can be re-enabled with
+# a one-line change if the product decision changes. Do not delete it
+# without checking in with the product owner.
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Invite-code-backed session guard.
-
-    Reactivated 2026-04-24 after a two-week window where the middleware
-    was disabled to debug family access. The /api/auth/redeem flow is
-    unchanged — family members still redeem their invite codes there.
-
-    Special cases:
-      * CORS preflight (OPTIONS) must never be blocked — browsers need
-        the CORS response before sending the real request.
-      * /health and /health/research are both public so Railway's
-        built-in healthcheck and our freshness check can both hit them
-        without tokens.
-    """
-    if request.method == "OPTIONS":
-        return await call_next(request)
-
-    path = request.url.path
-    if path in _PUBLIC_PATHS or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
-        return await call_next(request)
-
-    # Everything else requires a valid session.
-    token = request.cookies.get("erik_session") or request.headers.get("X-Session-Token")
-    try:
-        validate_session(token)
-    except HTTPException as exc:
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail},
-        )
+    """Pass-through — auth is OFF. See block comment above for rationale."""
     return await call_next(request)
 
 
