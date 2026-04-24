@@ -30,6 +30,8 @@ _SCHEMA_FILES = [
     # QuantitativeEffectEnricher extension — widens scm_write_log.operation
     # CHECK to include 'effect_updated'.
     _SCRIPTS_DIR / "effect_enricher_schema.sql",
+    # Family symptom diary — "how is Erik feeling today?" reports.
+    _SCRIPTS_DIR / "symptom_diary_schema.sql",
 ]
 
 _DB_NAME = "erik_kg"
