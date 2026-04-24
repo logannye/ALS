@@ -198,6 +198,7 @@ from api.routers.genetics import router as genetics_router
 from api.routers.discoveries import router as discoveries_router
 from api.routers.document_upload import router as document_upload_router
 from api.routers.family import router as family_router
+from api.routers.symptom_diary import router as symptom_diary_router
 try:
     from api.routers.graph import router as graph_router
     from api.routers.hypotheses import router as hypotheses_router
@@ -221,6 +222,7 @@ app.include_router(genetics_router)
 app.include_router(discoveries_router)
 app.include_router(document_upload_router)
 app.include_router(family_router)
+app.include_router(symptom_diary_router)
 if _tcg_routers_available:
     app.include_router(graph_router)
     app.include_router(hypotheses_router)
