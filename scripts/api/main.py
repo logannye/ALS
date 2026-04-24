@@ -16,7 +16,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -61,12 +61,18 @@ async def lifespan(app: FastAPI):
     """Start the research loop on startup, clean up on shutdown."""
     global _loop_task
 
-    # Run database migrations (ensures TCG tables exist)
-    try:
-        from db.migrate import run_migrations
-        run_migrations()
-    except Exception:
-        logger.exception("Migration failed — tables may be missing")
+    # Run database migrations (ensures TCG tables exist). ERIK_SKIP_MIGRATIONS
+    # short-circuits for test and local-dev scenarios where migrations have
+    # already been applied — running them repeatedly under TestClient
+    # contention has been seen to deadlock.
+    if os.environ.get("ERIK_SKIP_MIGRATIONS", "").lower() not in ("true", "1", "yes"):
+        try:
+            from db.migrate import run_migrations
+            run_migrations()
+        except Exception:
+            logger.exception("Migration failed — tables may be missing")
+    else:
+        logger.info("ERIK_SKIP_MIGRATIONS=true — skipping migrations on startup")
 
     # Ensure sessions table exists
     try:
@@ -124,14 +130,53 @@ app.add_middleware(
 # Auth middleware
 # ---------------------------------------------------------------------------
 
-# Routes that don't require authentication
-_PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/api/auth/redeem"}
+# Routes that don't require authentication. Everything else — including
+# all /api/* endpoints — requires a valid session cookie.
+_PUBLIC_PATHS = {
+    "/health",
+    "/health/research",
+    "/docs",
+    "/openapi.json",
+    "/api/auth/redeem",
+}
+
+# Path prefixes that are always public (e.g. static file serving).
+_PUBLIC_PREFIXES: tuple[str, ...] = (
+    "/static/",
+)
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Auth disabled — all routes are public for family access."""
+    """Invite-code-backed session guard.
 
+    Reactivated 2026-04-24 after a two-week window where the middleware
+    was disabled to debug family access. The /api/auth/redeem flow is
+    unchanged — family members still redeem their invite codes there.
+
+    Special cases:
+      * CORS preflight (OPTIONS) must never be blocked — browsers need
+        the CORS response before sending the real request.
+      * /health and /health/research are both public so Railway's
+        built-in healthcheck and our freshness check can both hit them
+        without tokens.
+    """
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    path = request.url.path
+    if path in _PUBLIC_PATHS or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
+        return await call_next(request)
+
+    # Everything else requires a valid session.
+    token = request.cookies.get("erik_session") or request.headers.get("X-Session-Token")
+    try:
+        validate_session(token)
+    except HTTPException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
     return await call_next(request)
 
 
