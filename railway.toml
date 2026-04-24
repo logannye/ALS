@@ -1,3 +1,23 @@
+# Railway project config.
+#
+# This file applies to any Railway service in the project that uses it.
+# Per-service overrides (for the post-2026-04-24 two-service split) live
+# in the Railway UI at Settings → Deploy → Healthcheck Path:
+#
+#   * erik-api            → /health           (liveness only; family-facing)
+#   * erik-research-worker → /health/research (liveness + research-loop
+#                                              freshness; auto-restarts the
+#                                              worker when the loop hangs)
+#
+# The /health/research endpoint returns 503 when
+# erik_ops.research_state.updated_at is older than
+# ERIK_RESEARCH_STALENESS_S seconds (default 1800).
+#
+# Both services share this same Dockerfile + codebase; they differ only
+# via env:
+#   erik-api             ERIK_RESEARCH_LOOP=false
+#   erik-research-worker ERIK_RESEARCH_LOOP=true  ERIK_SKIP_MIGRATIONS=true
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
