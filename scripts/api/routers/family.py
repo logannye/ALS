@@ -195,9 +195,13 @@ def top_candidate():
     """Return the single highest-scored drug in the current protocol."""
     try:
         with get_connection() as conn:
+            # The canonical type in erik_core.objects is CureProtocolCandidate
+            # (matches scripts/api/routers/protocol.py); 'Protocol' is kept as
+            # a fallback for older rows in case some envrionment still carries it.
             row = conn.execute(
                 """SELECT body FROM erik_core.objects
-                    WHERE type = 'Protocol' AND status = 'active'
+                    WHERE type IN ('CureProtocolCandidate', 'Protocol')
+                      AND status = 'active'
                     ORDER BY updated_at DESC LIMIT 1"""
             ).fetchone()
     except Exception:
