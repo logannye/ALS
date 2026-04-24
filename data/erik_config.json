@@ -3,7 +3,7 @@
   "database_name": "erik_kg",
   "llm_server_enabled": true,
   "temperature": 1.0,
-  "exploration_epsilon": 0.30,
+  "exploration_epsilon": 0.3,
   "action_timeout_s": 120,
   "hot_reload_interval_steps": 10,
   "audit_enabled": true,
@@ -11,7 +11,11 @@
   "chembl_db_path": "/Volumes/Databank/databases/chembl_36.db",
   "drugbank_xml_path": null,
   "connector_max_retries": 3,
-  "connector_backoff_seconds": [1, 2, 4],
+  "connector_backoff_seconds": [
+    1,
+    2,
+    4
+  ],
   "llm_model_path": "/Volumes/Databank/models/mlx/Qwen3.5-35B-A3B-mlx-lm-mxfp4",
   "llm_fallback_model_path": "/Volumes/Databank/models/mlx/Qwen3.5-9B-mlx-lm-4bit",
   "llm_temperature": 0.1,
@@ -41,7 +45,7 @@
   "pharmgkb_base_url": "https://api.pharmgkb.org/v1",
   "proact_data_dir": null,
   "genetics_received": false,
-  "force_active_research": true,
+  "force_active_research": false,
   "min_active_steps_after_transition": 200,
   "provisional_genetics_enabled": true,
   "provisional_genetics_min_evidence": 500,
@@ -75,7 +79,7 @@
   "galen_scm_database": "galen_kg",
   "yield_skip_min_count": 5,
   "yield_skip_threshold": 0.1,
-  "hypothesis_dedup_threshold": 0.50,
+  "hypothesis_dedup_threshold": 0.5,
   "gap_same_type_max": 3,
   "gap_recency_window": 10,
   "dynamic_query_enabled": true,
@@ -97,18 +101,15 @@
   "query_expansion_llm_enabled": true,
   "query_expansion_history_max": 500,
   "query_expansion_use_galen": true,
-
   "connector_mode": "auto",
   "llm_backend": "mlx",
   "bedrock_region": "us-east-1",
   "bedrock_research_model_id": "amazon.nova-micro-v1:0",
   "bedrock_protocol_model_id": "amazon.nova-pro-v1:0",
   "bedrock_max_retries": 3,
-
   "causal_gap_tracking_enabled": true,
   "molecular_computation_enabled": true,
   "molecular_docking_enabled": false,
-
   "gnomad_enabled": true,
   "gnomad_constraint_path": "/Volumes/Databank/databases/gnomad/gnomad_v4.1_constraint_metrics.tsv",
   "uniprot_enabled": true,
@@ -121,12 +122,20 @@
   "disgenet_data_path": "/Volumes/Databank/databases/disgenet/curated_gene_disease_associations.tsv",
   "geo_als_enabled": true,
   "geo_als_data_path": "/Volumes/Databank/databases/geo_als",
-  "geo_als_datasets": ["GSE124439", "GSE153960", "GSE56808", "GSE68605", "GSE76220", "GSE139384", "GSE118336", "GSE40438"],
+  "geo_als_datasets": [
+    "GSE124439",
+    "GSE153960",
+    "GSE56808",
+    "GSE68605",
+    "GSE76220",
+    "GSE139384",
+    "GSE118336",
+    "GSE40438"
+  ],
   "cmap_enabled": true,
   "cmap_api_key": null,
   "cmap_min_connectivity_score": -90.0,
   "deep_stagnation_window": 20,
-
   "integration_enabled": true,
   "integration_interval_s": 180,
   "integration_batch_size": 50,
@@ -135,7 +144,11 @@
   "reasoning_interval_s": 900,
   "reasoning_model_deep": "claude-opus-4-6",
   "reasoning_model_light": "claude-sonnet-4-6",
-  "reasoning_mode_weights": [0.5, 0.3, 0.2],
+  "reasoning_mode_weights": [
+    0.5,
+    0.3,
+    0.2
+  ],
   "reasoning_max_evidence_per_prompt": 30,
   "compound_enabled": true,
   "compound_interval_s": 3600,
@@ -150,5 +163,31 @@
   "claude_max_sonnet_calls_per_hour": 60,
   "claude_monthly_budget_usd": 100,
   "claude_prompt_cache_enabled": true,
-  "claude_fallback_chain": ["claude-sonnet-4-6", "bedrock-nova-pro", "local-qwen"]
+  "claude_fallback_chain": [
+    "claude-sonnet-4-6",
+    "bedrock-nova-pro",
+    "local-qwen"
+  ],
+  "scm_split_enabled": true,
+  "scm_writer_enabled": true,
+  "scm_bootstrap_enabled": true,
+  "scm_bootstrap_min_confidence": 0.85,
+  "scm_bootstrap_batch_size": 100,
+  "scm_bootstrap_interval_s": 30,
+  "scm_bootstrap_druggable_floor": 0.5,
+  "scm_writer_queue_max": 10000,
+
+  "_comment_cpts": "CPTS = DrugResponseSimulator. Flag-gated OFF pending 1-2 week observation after SCM bootstrap is live. Flip after SCM has >=100 active edges and bootstrap reports status='complete' for at least one evidence type.",
+  "cpts_enabled": false,
+  "cpts_interval_s": 1800,
+  "cpts_ensemble_size": 32,
+  "cpts_horizon_months": 12,
+  "cpts_max_interventions_per_cycle": 10,
+  "cpts_max_edges_per_intervention": 50,
+  "cpts_master_seed": 20260424,
+
+  "_comment_r4": "R4 = compound-mechanism-refute propagation. Safe to flip earliest because it can only deprecate, never recommend. Requires scm_writer + scm_bootstrap active so that edge_superseded events can actually occur.",
+  "r4_propagation_enabled": false,
+  "r4_propagation_interval_s": 300,
+  "r4_max_events_per_cycle": 50
 }

@@ -45,16 +45,52 @@ from research.policy import _BASE_LAYER_QUERIES
 from daemons.integration_daemon import IntegrationDaemon
 from daemons.reasoning_daemon import ReasoningDaemon
 from daemons.compound_daemon import CompoundDaemon
+# SCM / simulator / propagation daemons (2026-04-24 — Galen-lessons port).
+from daemons.scm_bootstrap_daemon import SCMBootstrapDaemon
+from daemons.drug_response_simulator_daemon import DrugResponseSimulatorDaemon
+from daemons.compound_refutation_daemon import CompoundRefutationDaemon
+from world_model.scm_writer import (
+    SCMWriterLockContention,
+    get_scm_writer,
+    shutdown_scm_writer,
+)
 
 
 # ---------------------------------------------------------------------------
 # Cognitive engine daemons
 # ---------------------------------------------------------------------------
 
+def _start_scm_writer() -> bool:
+    """Start the singleton SCMWriter.
+
+    Returns True on success, False if the advisory lock is held elsewhere
+    or psycopg isn't available. The loop keeps running either way — the
+    cognitive daemons degrade gracefully when the writer is absent.
+    """
+    cfg = ConfigLoader()
+    if not cfg.get("scm_writer_enabled", False):
+        print("[ERIK] scm_writer_enabled=false — SCMWriter not started.")
+        return False
+    writer = get_scm_writer()
+    try:
+        writer.start()
+    except SCMWriterLockContention as e:
+        print(f"[ERIK] SCMWriter lock held elsewhere: {e}")
+        return False
+    except Exception as e:
+        print(f"[ERIK] SCMWriter failed to start: {e}")
+        return False
+    print("[ERIK] Started SCMWriter (queue coordinator)")
+    return True
+
+
 def _start_cognitive_daemons(claude_api_key: str = "") -> dict[str, tuple]:
     """Start all cognitive engine daemons as background threads.
 
     Returns a dict mapping daemon name to (daemon_instance, thread) tuples.
+    The SCM-family daemons (bootstrap, drug-response simulator, R4
+    refutation propagator) sit behind their own flags and can be toggled
+    without restarting the loop.
     """
     cfg = ConfigLoader()
     daemons: dict[str, tuple] = {}
@@ -83,6 +119,38 @@ def _start_cognitive_daemons(claude_api_key: str = "") -> dict[str, tuple]:
         daemons["compound"] = (compound, t_cmp)
         print("[ERIK] Started CompoundDaemon")
 
+    # SCM bootstrap: promotes high-confidence erik_core.relationships into
+    # erik_ops.scm_edges via the SCMWriter. Flag-gated off by default;
+    # flip scm_bootstrap_enabled=true when ready to populate the SCM.
+    if cfg.get("scm_bootstrap_enabled", False):
+        bootstrap = SCMBootstrapDaemon()
+        t_bs = threading.Thread(target=bootstrap.run, name="scm-bootstrap-daemon", daemon=True)
+        t_bs.start()
+        daemons["scm_bootstrap"] = (bootstrap, t_bs)
+        print("[ERIK] Started SCMBootstrapDaemon")
+
+    # CPTS: forward-simulate Erik's trajectory under each compound candidate.
+    # Flag-gated off by default; flip cpts_enabled=true after SCM is
+    # populated (2-week observation window per the activation discipline).
+    if cfg.get("cpts_enabled", False):
+        cpts = DrugResponseSimulatorDaemon()
+        t_cp = threading.Thread(target=cpts.run, name="cpts-daemon", daemon=True)
+        t_cp.start()
+        daemons["cpts"] = (cpts, t_cp)
+        print("[ERIK] Started DrugResponseSimulatorDaemon (CPTS)")
+
+    # R4: propagate scm_edge refutations to downstream TCG hypotheses +
+    # compound candidates. Flag-gated off by default; this is the most
+    # conservative of the three new daemons and should be the first to
+    # flip on once SCM is live, since it cannot produce false cures
+    # (it only deprecates).
+    if cfg.get("r4_propagation_enabled", False):
+        refuter = CompoundRefutationDaemon()
+        t_r4 = threading.Thread(target=refuter.run, name="r4-daemon", daemon=True)
+        t_r4.start()
+        daemons["r4_refutation"] = (refuter, t_r4)
+        print("[ERIK] Started CompoundRefutationDaemon (R4)")
+
     return daemons
 
 
@@ -92,6 +160,13 @@ def _stop_cognitive_daemons(daemons: dict[str, tuple]) -> None:
         daemon.stop()
         thread.join(timeout=5)
         print(f"[ERIK] Stopped {name} daemon")
+    # Also flush the SCMWriter queue and release the advisory lock. Safe
+    # to call even when the writer was never started.
+    try:
+        shutdown_scm_writer(timeout=10.0)
+        print("[ERIK] Stopped SCMWriter")
+    except Exception as e:
+        print(f"[ERIK] SCMWriter shutdown error: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -678,6 +753,11 @@ def main():
                   f"mean confidence {_summary['mean_confidence']:.3f}")
     except Exception as e:
         print(f"[ERIK] TCG scaffold skipped: {e}")
+
+    # Start SCMWriter *before* cognitive daemons — they submit to its
+    # queue once the SCM write path is active. Degrades gracefully if
+    # the advisory lock is contended (another process has it).
+    _start_scm_writer()
 
     # Start cognitive engine daemons
     _claude_key = os.environ.get("ANTHROPIC_API_KEY", cfg.get("anthropic_api_key", ""))
