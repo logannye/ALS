@@ -17,6 +17,19 @@ _SCHEMA_FILES = [
     _SCRIPTS_DIR / "ops_schema.sql",
     _SCRIPTS_DIR / "trial_watchlist.sql",
     _SCRIPTS_DIR / "tcg_schema.sql",
+    # Phase 1 SCM Foundation — must run after core_schema (adds scm_edge_id
+    # column to erik_core.relationships) and after ops_schema (creates erik_ops).
+    _SCRIPTS_DIR / "scm_schema.sql",
+    # DrugResponseSimulator (Week 1, 2026-04-24) — depends on scm_schema for
+    # the erik_ops schema existing; does not FK to scm_edges (edge_snapshot is
+    # captured in JSONB so rollouts stay reproducible across supersession).
+    _SCRIPTS_DIR / "simulator_schema.sql",
+    # R4 compound-mechanism-refute propagation — depends on scm_write_log
+    # (source_write_log_id FK) and scm_edges (refuted_scm_edge_id FK).
+    _SCRIPTS_DIR / "propagation_schema.sql",
+    # QuantitativeEffectEnricher extension — widens scm_write_log.operation
+    # CHECK to include 'effect_updated'.
+    _SCRIPTS_DIR / "effect_enricher_schema.sql",
 ]
 
 _DB_NAME = "erik_kg"
@@ -28,6 +41,91 @@ def _make_conninfo() -> str:
     if url:
         return url
     return f"dbname={_DB_NAME} user={_DB_USER}"
+
+
+def _split_sql_statements(sql: str) -> list[str]:
+    """Split SQL into top-level statements, preserving $$-delimited bodies.
+
+    Handles:
+      * ``--`` line comments (ignored for splitting, preserved in output)
+      * ``$$ ... $$`` dollar-quoted plpgsql bodies (internal semicolons kept)
+      * Arbitrary dollar-quote tags (``$body$``, ``$func$``, etc.)
+      * Single-quoted string literals (internal semicolons ignored)
+
+    A naive ``sql.split(';')`` breaks both plpgsql function bodies and any
+    comment or string literal that happens to contain a semicolon.
+    """
+    import re
+
+    out: list[str] = []
+    buf: list[str] = []
+    i = 0
+    n = len(sql)
+    active_tag: str | None = None
+    tag_re = re.compile(r"\$[A-Za-z_][A-Za-z0-9_]*\$|\$\$")
+
+    while i < n:
+        ch = sql[i]
+
+        # Inside a dollar-quoted block — scan for closing tag.
+        if active_tag is not None:
+            m = tag_re.match(sql, i)
+            if m and m.group(0) == active_tag:
+                buf.append(m.group(0))
+                i = m.end()
+                active_tag = None
+                continue
+            buf.append(ch)
+            i += 1
+            continue
+
+        # Line comment: consume through end-of-line, keep in buffer.
+        if ch == '-' and i + 1 < n and sql[i + 1] == '-':
+            eol = sql.find('\n', i)
+            if eol == -1:
+                eol = n
+            buf.append(sql[i:eol])
+            i = eol
+            continue
+
+        # Single-quoted string literal: consume through closing quote.
+        if ch == "'":
+            buf.append(ch)
+            i += 1
+            while i < n:
+                buf.append(sql[i])
+                if sql[i] == "'" and (i + 1 >= n or sql[i + 1] != "'"):
+                    i += 1
+                    break
+                if sql[i] == "'" and i + 1 < n and sql[i + 1] == "'":
+                    buf.append(sql[i + 1])
+                    i += 2
+                    continue
+                i += 1
+            continue
+
+        # Dollar-quote opens a plpgsql body.
+        m = tag_re.match(sql, i)
+        if m:
+            active_tag = m.group(0)
+            buf.append(m.group(0))
+            i = m.end()
+            continue
+
+        if ch == ';':
+            stmt = ''.join(buf).strip()
+            if stmt:
+                out.append(stmt)
+            buf = []
+            i += 1
+            continue
+        buf.append(ch)
+        i += 1
+
+    tail = ''.join(buf).strip()
+    if tail:
+        out.append(tail)
+    return out
 
 
 def run_migrations(conninfo: str | None = None) -> None:
@@ -47,9 +145,7 @@ def run_migrations(conninfo: str | None = None) -> None:
     try:
         for sql_path in _SCHEMA_FILES:
             sql = sql_path.read_text(encoding="utf-8")
-            # Split on semicolons to handle extensions that must run
-            # before tables that depend on them (e.g. citext before CITEXT columns).
-            statements = [s.strip() for s in sql.split(";") if s.strip()]
+            statements = _split_sql_statements(sql)
             for stmt in statements:
                 try:
                     conn.execute(stmt)
